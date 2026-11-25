@@ -278,6 +278,23 @@ button.row:hover{background:var(--surface2)}
 .tip{border-left:3px solid var(--brand);background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.55;color:var(--fg2)}
 .tip b{display:block;color:var(--fg);margin-bottom:2px}
 
+/* ── SÜRÜKLE-BIRAK ── */
+.drop{display:flex;align-items:center;gap:14px;border:2px dashed var(--line2);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;cursor:pointer;background:var(--surface);transition:border-color .15s,background .15s}
+.drop:hover,.drop.on{border-color:var(--brand);background:var(--brand-soft)}
+.drop .ic{width:44px;height:44px;border-radius:12px;background:var(--green-soft);color:var(--green);display:grid;place-items:center;flex-shrink:0}
+.drop .ic svg{width:22px;height:22px}
+.drop b{display:block;font-size:14px}
+.drop span{font-size:12.5px;color:var(--fg2)}
+#drop-ov{position:fixed;inset:12px;z-index:90;border:3px dashed var(--brand);border-radius:22px;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(6px);display:grid;place-items:center;text-align:center;pointer-events:none}
+#drop-ov b{font-family:'Space Grotesk',sans-serif;font-size:24px;display:block;margin-top:10px}
+#drop-ov span{color:var(--fg2)}
+.ice-row{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:9px;display:flex;gap:11px;align-items:flex-start}
+.ice-row.hata{border-color:var(--red);background:var(--red-soft)}
+.ice-row input[type=checkbox]{width:19px;height:19px;margin-top:10px;accent-color:var(--brand);flex-shrink:0}
+.ice-row .mid{flex:1;min-width:0}
+.ice-row .inp{height:38px;font-size:14px;margin-bottom:5px}
+.ice-row .s{font-size:12px;color:var(--fg2);line-height:1.5}
+
 /* ── BANNERS ── */
 .banner{border-radius:12px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner.demo{background:var(--amber-soft);color:var(--amber)}
@@ -523,6 +540,9 @@ button.row:hover{background:var(--surface2)}
       <!-- TEKLİF GEÇMİŞİ -->
       <section class="page" id="p-teklifler">
         <div class="ph"><div><h1>Teklif geçmişi</h1><p>Ekibin hazırladığı tüm teklifler</p></div><button class="btn btn-p btn-sm" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
+        <label class="drop" id="tk-drop"><input type="file" id="tk-dosya" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+          <div class="ic"><svg class="i"><use href="#i-down"/></svg></div>
+          <div><b>Excel tekliflerini buraya sürükle</b><span>ya da dokunup dosya seç · Ceylan şablonundaki .xlsx teklifler geçmişe kaydedilir</span></div></label>
         <div style="display:flex;gap:8px;margin-bottom:12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="tk-ara" placeholder="Müşteri, konu, no ara"></div></div>
         <div class="chips" id="tk-chips"></div>
         <div class="card"><div class="rows" id="tk-list"></div></div>
@@ -684,12 +704,13 @@ button.row:hover{background:var(--surface2)}
   </nav>
 </div>
 
+<div id="drop-ov" hidden><div><svg class="i" style="width:48px;height:48px;color:var(--brand)"><use href="#i-down"/></svg><b>Bırak, teklif olarak kaydedilsin</b><span>Ceylan teklif Excel'leri (.xlsx) · birden fazla dosya olabilir</span></div></div>
 <div id="sheet-root"></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.4.2"></script>
-<script src="teklif-cikti.js?v=1.4.2"></script>
-<script src="app.js?v=1.4.2"></script>
+<script src="config.js?v=1.5.0"></script>
+<script src="teklif-cikti.js?v=1.5.0"></script>
+<script src="app.js?v=1.5.0"></script>
 </body>
 </html>

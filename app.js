@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.5.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -463,6 +463,61 @@ function teklifDetay(id) {
   sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => cikti(b.dataset.td, tamTeklif(t), false));
   const sil = sh.el.querySelector('#td-sil');
   if (sil) sil.onclick = () => { sh.kapat(); confirmSheet('Teklif silinsin mi?', (t.no || '') + ' ' + (t.musteri || '') + ' kalıcı olarak silinecek.', () => BE.sil('teklifler', id)); };
+}
+
+
+// ═══ EXCEL TEKLİFLERİNİ İÇE AKTAR (sürükle-bırak / dosya seç) ═══
+async function teklifIceAl(dosyalar) {
+  const liste = [...dosyalar].filter(f => /\.xlsx?$/i.test(f.name));
+  if (!liste.length) { toast('Excel (.xlsx) dosyası bırak ya da seç'); return; }
+  toast(liste.length + ' dosya okunuyor…');
+  const sonuc = [];
+  for (const f of liste) {
+    try { sonuc.push({f, t: await TC.sablonOku(f)}); } catch (e) { sonuc.push({f, hata: e.message || 'Okunamadı'}); }
+  }
+  const ayni = t => S.teklifler.find(x => x.kaynakDosya && x.kaynakDosya === t.kaynakDosya) || (t.no && S.teklifler.find(x => x.no === t.no && (x.musteri || '').toLocaleLowerCase('tr-TR') === (t.musteri || '').toLocaleLowerCase('tr-TR')));
+  const okSay = sonuc.filter(x => x.t).length;
+  const sh = sheet('Excel\'den teklif aktar', `
+    <div class="f" style="margin-bottom:12px"><label for="ice-durum">Durum (hepsi için)</label><select class="sel" id="ice-durum">${Object.entries(DURUM).map(([k, [l]]) => `<option value="${k}"${k === 'gonderildi' ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${sonuc.map((x, i) => {
+      if (x.hata) return `<div class="ice-row hata"><div class="mid"><div class="t" style="font-weight:600;font-size:13px;word-break:break-all">${esc(x.f.name)}</div><div class="s" style="color:var(--red)">${esc(x.hata)}</div></div></div>`;
+      const t = x.t, var_ = ayni(t);
+      return `<div class="ice-row"><input type="checkbox" data-i="${i}" ${var_ ? '' : 'checked'}>
+        <div class="mid"><input class="inp" data-musteri="${i}" value="${esc(t.musteri)}" list="firma-list" placeholder="Müşteri adı">
+        <div class="s">${t.no ? 'No ' + esc(t.no) + ' · ' : ''}${t.kalemSayisi} kalem · ${esc(toplamYazi(t.kalemler))}<br>${esc(t.konu || '')}${t.konu ? ' · ' : ''}${trT(t.tarih)}${t.hazirlayan ? ' · ' + esc(t.hazirlayan) : ''}</div>
+        ${t.musteriTahmin ? '<div class="s" style="color:var(--amber)">Müşteri adı dosyada yok, dosya adından tahmin edildi — kontrol et</div>' : ''}
+        ${var_ ? `<div class="s" style="color:var(--amber)">Bu teklif zaten kayıtlı (${esc(var_.no || '')}). İşaretlersen güncellenir.</div>` : ''}
+        <div class="s" style="color:var(--fg3);word-break:break-all">${esc(x.f.name)}</div></div></div>`;
+    }).join('')}`,
+    okSay ? [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
+      const durum = v(ov, 'ice-durum');
+      const secili = [...ov.querySelectorAll('[data-i]')].filter(c => c.checked).map(c => +c.dataset.i);
+      if (!secili.length) { toast('Kaydedilecek dosya seçilmedi'); return false; }
+      let n = 0;
+      for (const i of secili) {
+        const t = {...sonuc[i].t}; t.musteri = ov.querySelector(`[data-musteri="${i}"]`).value.trim() || t.musteri; delete t.musteriTahmin;
+        const var_ = ayni(t);
+        const obj = {...(var_ || {}), ...t, id: var_ ? var_.id : newId(), no: t.no || (var_ && var_.no) || otoNo(), durum, tutar: toplamYazi(t.kalemler), iceAktarim: bugun()};
+        if (await kaydet('teklifler', obj)) n++;
+      }
+      toast(`✅ ${n} teklif kaydedildi`, 3500);
+      git('teklifler');
+    }}] : [{label: 'Kapat', onClick: () => {}}]);
+  return sh;
+}
+$('#tk-dosya').onchange = e => { const f = e.target.files; if (f && f.length) teklifIceAl(f); e.target.value = ''; };
+{
+  let sayac = 0;
+  const dosyaVar = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const acik = () => !$('#app').hidden;
+  document.addEventListener('dragenter', e => { if (!dosyaVar(e) || !acik()) return; e.preventDefault(); sayac++; $('#drop-ov').hidden = false; $('#tk-drop').classList.add('on'); });
+  document.addEventListener('dragover', e => { if (dosyaVar(e) && acik()) e.preventDefault(); });
+  document.addEventListener('dragleave', e => { if (!dosyaVar(e)) return; sayac = Math.max(0, sayac - 1); if (!sayac) { $('#drop-ov').hidden = true; $('#tk-drop').classList.remove('on'); } });
+  document.addEventListener('drop', e => {
+    if (!dosyaVar(e) || !acik()) return;
+    e.preventDefault(); sayac = 0; $('#drop-ov').hidden = true; $('#tk-drop').classList.remove('on');
+    if (e.dataTransfer.files.length) teklifIceAl(e.dataTransfer.files);
+  });
 }
 
 // ═══════════════════════════════════════════

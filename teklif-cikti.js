@@ -5,6 +5,7 @@
     exceljs: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
     pdfmake: 'https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js',
     vfs: 'https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js',
+    sheetjs: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   };
   const SABLON = 'sablon/teklif-sablonu.xlsx';
   const LOGO = 'icons/ceylan-logo.svg'; // vektörel, şeffaf
@@ -179,6 +180,56 @@
     return new Promise((ok, no) => { try { pdfMake.createPdf(doc).getBlob(ok); } catch (e) { no(e); } });
   }
 
+  // ═══ EXCEL'DEN TEKLİF OKUMA (Ceylan şablonu) ═══
+  function hucre(c) {
+    if (!c || c.v == null) return '';
+    const v = c.v;
+    if (v instanceof Date) return v;
+    return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : v;
+  }
+  const PARA = {'₺': '₺', 'TL': '₺', 'TRY': '₺', '€': '€', 'EUR': '€', 'EURO': '€', '$': '$', 'USD': '$'};
+  const tarihStr = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const sart = s => String(s || '').replace(/^\s*:\s*/, '').trim();
+  async function sablonOku(file) {
+    if (!/\.xlsx$/i.test(file.name)) throw new Error('Sadece .xlsx dosyaları okunabilir (eski .xls ise Excel\'de "Farklı kaydet → .xlsx" yap)');
+    await script(LIB.sheetjs);
+    const wb = XLSX.read(await file.arrayBuffer(), {type: 'array', cellDates: true, cellFormula: false, cellStyles: false});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const g = a => hucre(ws[a]);
+    const baslik = String(g('E19') || '') + String(g('D19') || '');
+    if (!/a[çc][ıi]klama|ürün kodu/i.test(baslik)) throw new Error('Ceylan teklif şablonu değil (19. satırda "Ürün Kodu / Açıklama" başlığı bulunamadı)');
+    const kalemler = [];
+    for (let r = SATIR_ILK; r <= SATIR_SON; r++) {
+      const ref = g('D' + r), ac = g('E' + r);
+      if (!ref && !ac) continue;
+      const pb = String(g('K' + r) || '').toUpperCase().trim();
+      const fiyat = g('J' + r);
+      kalemler.push({
+        ref: String(ref), aciklama: String(ac), marka: String(g('G' + r) || ''),
+        miktar: num(g('H' + r)) || 1, birim: String(g('I' + r) || 'Adet'),
+        fiyat: fiyat === '' ? '' : num(fiyat), para: PARA[pb] || '€', iskonto: num(g('L' + r)),
+        teslim: String(g('P' + r) || ''),
+      });
+    }
+    if (!kalemler.length) throw new Error('Dosyada kalem bulunamadı');
+    const tarihH = g('L17');
+    const kurU = num(g('O191')) || num(g('N191')), kurE = num(g('O192')) || num(g('N192'));
+    const t = {
+      musteri: String(g('F8') || ''), ilgili: String(g('F9') || ''), telefon: String(g('F10') || ''),
+      konu: String(g('F11') || ''), no: String(g('F12') || ''),
+      hazirlayan: String(g('D16') || sart(g('E187')) || ''),
+      tarih: tarihH instanceof Date ? tarihStr(tarihH) : tarihStr(new Date(file.lastModified || Date.now())),
+      odeme: sart(g('E184')), gecerli: sart(g('E185')), teslimYeri: sart(g('E186')),
+      kurUsd: kurU ? String(kurU) : '', kurEur: kurE ? String(kurE) : '',
+      kalemler, kalemSayisi: kalemler.length, kaynakDosya: file.name,
+    };
+    // hazırlayan büyük harfle yazılıysa düzgün yaz (HASRET CAN CERAN → Hasret Can Ceran)
+    if (t.hazirlayan && t.hazirlayan === t.hazirlayan.toLocaleUpperCase('tr-TR')) t.hazirlayan = t.hazirlayan.toLocaleLowerCase('tr-TR').replace(/(^|\s)\S/g, s => s.toLocaleUpperCase('tr-TR'));
+    // müşteri adı boşsa dosya adından tahmin et (Teklif_CP_Makina_... → CP Makina)
+    if (!t.musteri) { const m = file.name.replace(/\.xlsx$/i, '').replace(/^teklif[_\s-]*/i, '').split(/[_\s-]+/).filter(x => x && !/^\d+$/.test(x) && !/kalem$/i.test(x)).slice(0, 3).join(' '); t.musteri = m || 'Müşteri'; t.musteriTahmin = true; }
+    return t;
+  }
+
   // ═══ GENEL LİSTE RAPORU (cari bakiye vb.): Excel + PDF ═══
   async function listeExcel(baslik, kolonlar, satirlar, opt = {}) {
     await excelHazirla();
@@ -243,5 +294,5 @@
     return 'mailto';
   }
 
-  window.TeklifCikti = {excelUret, pdfUret, listeExcel, listePdf, indir, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
+  window.TeklifCikti = {excelUret, pdfUret, sablonOku, listeExcel, listePdf, indir, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
 })();
