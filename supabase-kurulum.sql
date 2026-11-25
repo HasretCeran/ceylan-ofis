@@ -66,6 +66,14 @@ begin
   end loop;
 end $$;
 
+-- 2b) Tablo izinleri: sadece giriş yapmış kullanıcılar (yeni projelerde varsayılan olarak kapalı)
+revoke all on public.stok, public.musteri, public.hareket, public.gorevler, public.teklifler, public.profiles from anon;
+grant select, insert, update, delete on public.stok, public.musteri, public.hareket, public.gorevler, public.teklifler to authenticated;
+grant select, update on public.profiles to authenticated;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.is_sahip() from public, anon;
+grant execute on function public.is_sahip() to authenticated;
+
 -- 3) Canlı güncelleme (biri kayıt girince herkesin ekranına anında düşer)
 do $$
 declare t text;
