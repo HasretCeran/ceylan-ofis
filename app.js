@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -377,7 +377,7 @@ $('#tf-kaydet').onclick = () => tfKaydet();
 // ═══ ÇIKTILAR: Excel (Ceylan şablonu), PDF, Mail/WhatsApp ═══
 const TC = window.TeklifCikti;
 const tfVeri = () => ({...tfMeta(), kalemler: kalemler.map(k => ({...k})), hazirlayan: (tfId && (S.teklifler.find(t => t.id === tfId) || {}).hazirlayan) || benimAdim(), tarih: (tfId && (S.teklifler.find(t => t.id === tfId) || {}).tarih) || bugun()});
-const tamTeklif = t => ({...t, hazirlayan: t.hazirlayan || (t.by ? adi(t.by) : benimAdim()), tarih: t.tarih || bugun()});
+const tamTeklif = t => ({...t, hazirlayan: t.hazirlayan || (t.by && P[t.by] && P[t.by].ad) || benimAdim(), tarih: t.tarih || bugun()});
 let pdfOnbellek = {anahtar: '', blob: null, is: null};
 function pdfOnHazirla() {
   if (!kalemler.length || !TC) return;
