@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -245,6 +245,25 @@ const gecTutar = m => { if (m.durum === 'tahsil' || !Number(m.alacak)) return 0;
 const vadeGecti = m => gecTutar(m) >= 1;
 // Yaklaşan vade: DİA'da vadesi gelmeyen kısmın ortalama vade tarihi (vgelT), yoksa elle girilen vade
 const yakVade = m => m.durum === 'tahsil' || Math.abs(Number(m.alacak)) < 1 || (m.vgel != null && Number(m.vgel) < 1 && !(m.vgec == null)) || (m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0)) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
+// Ortalama vade: vadesi geçen ve gelmeyen kısımların tutar ağırlıklı ortalama tarihi
+const tGun = t => new Date(t + 'T12:00:00').getTime() / 864e5;
+const gunT = g => dstr(new Date(Math.round(g) * 864e5));
+function ortVade(m) {
+  if (m.durum === 'tahsil' || Math.abs(Number(m.alacak)) < 1) return null;
+  if (m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0)) return null;
+  const p = [];
+  if (Number(m.vgec) > 0 && m.vgecT) p.push([tGun(m.vgecT), Number(m.vgec)]);
+  if (Number(m.vgel) > 0 && m.vgelT) p.push([tGun(m.vgelT), Number(m.vgel)]);
+  if (!p.length && m.vgec == null && m.vade) p.push([tGun(m.vade), Math.abs(Number(m.alacak))]);
+  const w = p.reduce((s, x) => s + x[1], 0); if (!w) return null;
+  return {tarih: gunT(p.reduce((s, x) => s + x[0] * x[1], 0) / w), tutar: w};
+}
+function ortVadeToplam(yon) {
+  let w = 0, g = 0;
+  cariler().forEach(m => { if (yon === 'alacak' ? Number(m.alacak) <= 0 : Number(m.alacak) >= 0) return; const o = ortVade(m); if (o) { w += o.tutar; g += tGun(o.tarih) * o.tutar; } });
+  return w ? {tarih: gunT(g / w), tutar: w} : null;
+}
+const gunYazi = t => { const g = gunFark(t); return g === 0 ? 'bugün' : g < 0 ? Math.abs(g) + ' gün geçti' : g + ' gün kaldı'; };
 const gunFark = t => Math.round((new Date(t + 'T12:00:00') - new Date(bugun() + 'T12:00:00')) / 864e5);
 function alacakOzet() {
   const acik = cariler().filter(m => m.durum !== 'tahsil');
@@ -607,7 +626,8 @@ function firmaSatir(m) {
   else if (al > 0) [l, c] = [yakVade(m) ? 'Vade ' + trKisa(yakVade(m)) : 'Alacak', 'p-blue'];
   else [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
   const renk = gec ? ['var(--red-soft)', 'var(--red)'] : borc ? ['var(--orange-soft)', 'var(--orange)'] : ['var(--green-soft)', 'var(--green)'];
-  const alt = [m.kod, m.sehir, IS_FIN && gec ? 'Gecikmiş ' + kisa(gecTutar(m)) : '', IS_FIN && yakVade(m) ? 'Vade ' + trT(yakVade(m)) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
+  const ov = IS_FIN && (mFiltre === 'ortAlacak' || mFiltre === 'ortVerecek') ? ortVade(m) : null;
+  const alt = ov ? ['Ort. vade ' + trT(ov.tarih), gunYazi(ov.tarih), m.kod].filter(Boolean).join(' · ') : [m.kod, m.sehir, IS_FIN && gec ? 'Gecikmiş ' + kisa(gecTutar(m)) : '', IS_FIN && yakVade(m) ? 'Vade ' + trT(yakVade(m)) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
   return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${renk[0]};color:${renk[1]}">${esc(bas(m.firma))}</div>
     <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(alt)}</div></div>
     <div class="end">${IS_FIN ? `<b class="num" style="color:${borc ? 'var(--orange)' : al > 0 ? 'var(--fg)' : 'var(--fg3)'}">${tl(Math.abs(al))}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${esc(l)}</span></div></button>`;
@@ -619,18 +639,21 @@ function musteriListe() {
     const al = Number(m.alacak || 0);
     if (mFiltre === 'bakiyeli') return IS_FIN ? al !== 0 && m.durum !== 'tahsil' : true;
     if (mFiltre === 'gecmis') return vadeGecti(m);
+    if (mFiltre === 'ortAlacak') return al > 0 && !!ortVade(m);
+    if (mFiltre === 'ortVerecek') return al < 0 && !!ortVade(m);
     if (mFiltre === 'alacak') return al > 0 && m.durum !== 'tahsil';
     if (mFiltre === 'borc') return al < 0;
     if (mFiltre === 'musteri' || mFiltre === 'tedarikci' || mFiltre === 'diger') return m.tur === mFiltre;
     return true;
-  }).sort((a, b) => (mFiltre === 'gecmis' ? gecTutar(b) - gecTutar(a) : 0) || (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
+  }).sort((a, b) => (mFiltre === 'ortAlacak' || mFiltre === 'ortVerecek' ? ortVade(a).tarih.localeCompare(ortVade(b).tarih) : 0) || (mFiltre === 'gecmis' ? gecTutar(b) - gecTutar(a) : 0) || (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
 }
 function musteriCiz() {
   cariKirli = true;
   const o = alacakOzet();
   $('#m-alacak').textContent = kisa(o.toplam); $('#m-gecmis').textContent = kisa(o.gecmis); $('#m-tahsil').textContent = kisa(o.buAy); $('#m-borc').textContent = kisa(o.borc);
   $('#m-firma').textContent = S.musteri.length.toLocaleString('tr-TR');
-  const chips = IS_FIN ? [['bakiyeli', 'Bakiyeli'], ['gecmis', 'Vadesi geçen'], ['alacak', 'Alacaklarımız'], ['borc', 'Borçlarımız'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler'], ['hepsi', 'Tümü']] : [['hepsi', 'Tümü'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler']];
+  [['alacak', 'm-ortal'], ['borc', 'm-ortbo']].forEach(([y, id]) => { const o = IS_FIN ? ortVadeToplam(y) : null; $('#' + id).textContent = o ? trT(o.tarih) : '—'; $('#' + id + '-h').textContent = o ? gunYazi(o.tarih) + ' · ' + kisa(o.tutar) : 'vade bilgisi yok'; });
+  const chips = IS_FIN ? [['bakiyeli', 'Bakiyeli'], ['gecmis', 'Vadesi geçen'], ['ortAlacak', 'Ort. vade alacak'], ['ortVerecek', 'Ort. vade verecek'], ['alacak', 'Alacaklarımız'], ['borc', 'Borçlarımız'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler'], ['hepsi', 'Tümü']] : [['hepsi', 'Tümü'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler']];
   if (!chips.some(c => c[0] === mFiltre)) mFiltre = chips[0][0];
   $('#m-chips').innerHTML = chips.map(([k, l]) => `<button class="chip${mFiltre === k ? ' on' : ''}" data-mf="${k}">${l}</button>`).join('');
   const l = musteriListe();
@@ -645,6 +668,7 @@ function musteriCiz() {
 }
 $('#m-ara').oninput = () => { mLimit = 100; musteriCiz(); };
 $('#m-chips').onclick = e => { const c = e.target.closest('[data-mf]'); if (c) { mFiltre = c.dataset.mf; mLimit = 100; musteriCiz(); } };
+$$('[data-mf-tile]').forEach(t => t.onclick = () => { mFiltre = t.dataset.mfTile; mLimit = 100; musteriCiz(); $('#m-chips').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 function firmaListesi() { $('#firma-list').innerHTML = [...new Set([...S.musteri.map(m => m.firma), ...S.teklifler.map(t => t.musteri)].filter(x => x && x !== '—'))].slice(0, 3000).map(f => `<option value="${esc(f)}">`).join(''); }
 const KART_ALAN = ['firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
 async function bakiyeYaz(id, patch) {
@@ -713,8 +737,8 @@ function hareketForm(firma) {
 async function cariDisa(tur) {
   if (!IS_FIN) return;
   const l = musteriListe(), baslik = 'Cari Bakiye Listesi — ' + ($('#m-chips .on') || {}).textContent;
-  const kol = ['Cari Kodu', 'Firma', 'Tür', 'Şehir', 'Telefon', 'Bakiye (₺)', 'B/A', 'Vade', 'Durum'];
-  const sat = l.map(m => { const al = Number(m.alacak || 0); return [m.kod || '', m.firma || '', TUR[m.tur] || '', m.sehir || '', m.tel || '', Math.abs(al), al < 0 ? 'A' : al > 0 ? 'B' : '', m.vade ? trT(m.vade) : '', vadeGecti(m) ? 'Vadesi geçti' : m.durum === 'tahsil' ? 'Kapandı' : al ? 'Açık' : '']; });
+  const kol = ['Cari Kodu', 'Firma', 'Tür', 'Şehir', 'Telefon', 'Bakiye (₺)', 'B/A', 'Ort. vade', 'Gün', 'Durum'];
+  const sat = l.map(m => { const al = Number(m.alacak || 0); return [m.kod || '', m.firma || '', TUR[m.tur] || '', m.sehir || '', m.tel || '', Math.abs(al), al < 0 ? 'A' : al > 0 ? 'B' : '', ...(o => o ? [trT(o.tarih), gunFark(o.tarih)] : [m.vade ? trT(m.vade) : '', ''])(ortVade(m)), vadeGecti(m) ? 'Vadesi geçti' : m.durum === 'tahsil' ? 'Kapandı' : al ? 'Açık' : '']; });
   try {
     toast((tur === 'pdf' ? 'PDF' : 'Excel') + ' hazırlanıyor…');
     const ad = 'Cari_Bakiye_' + bugun() + (tur === 'pdf' ? '.pdf' : '.xlsx');
