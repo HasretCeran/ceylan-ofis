@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.7.3';
+const APP_VERSION = '1.7.4';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -322,20 +322,23 @@ function vadeUyari() {
     alacakGec: c.filter(m => Number(m.alacak) > 0 && vadeGecti(m)).sort((a, b) => gecTutar(b) - gecTutar(a)),
     borcGec: c.filter(m => Number(m.alacak) < 0 && vadeGecti(m)).sort((a, b) => gecTutar(b) - gecTutar(a)),
     alacakYak: yak.filter(m => Number(m.alacak) > 0), borcYak: yak.filter(m => Number(m.alacak) < 0),
+    ...(() => { const ov = c.map(m => [m, ortVade(m)]).filter(([m, o]) => o && gunFark(o.tarih) >= 0 && gunFark(o.tarih) <= s).sort((a, b) => a[1].tarih.localeCompare(b[1].tarih)).map(x => x[0]);
+      return {ortAlacak: ov.filter(m => Number(m.alacak) > 0), ortVerecek: ov.filter(m => Number(m.alacak) < 0)}; })(),
   };
 }
 function vadeSatir(m, tip) {
-  const al = Number(m.alacak) > 0, t = tip === 'gec' ? m.vgecT || m.vade : yakVade(m), g = t ? gunFark(t) : 0;
-  const tutar = tip === 'gec' ? gecTutar(m) : (m.vgel != null ? Number(m.vgel) : Math.abs(Number(m.alacak)));
-  const ne = tip === 'gec' ? (al ? 'Tahsil edilmeli' : 'Ödenmeli') + (t ? ' · ort. vade ' + trT(t) + ' (' + Math.abs(g) + ' gün geçti)' : '') : (al ? 'Tahsilat' : 'Ödeme') + ' · ' + trT(t) + (g === 0 ? ' · bugün' : g > 0 ? ' · ' + g + ' gün kaldı' : '');
-  return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${tip === 'gec' ? 'var(--red-soft)' : 'var(--amber-soft, var(--orange-soft))'};color:${tip === 'gec' ? 'var(--red)' : 'var(--orange)'}">${esc(bas(m.firma))}</div>
+  const al = Number(m.alacak) > 0, ov = tip === 'ort' ? ortVade(m) : null, t = ov ? ov.tarih : tip === 'gec' ? m.vgecT || m.vade : yakVade(m), g = t ? gunFark(t) : 0;
+  const tutar = ov ? ov.tutar : tip === 'gec' ? gecTutar(m) : (m.vgel != null ? Number(m.vgel) : Math.abs(Number(m.alacak)));
+  const ne = ov ? 'Ort. vade ' + trT(t) + ' · ' + gunYazi(t) : tip === 'gec' ? (al ? 'Tahsil edilmeli' : 'Ödenmeli') + (t ? ' · ort. vade ' + trT(t) + ' (' + Math.abs(g) + ' gün geçti)' : '') : (al ? 'Tahsilat' : 'Ödeme') + ' · ' + trT(t) + (g === 0 ? ' · bugün' : g > 0 ? ' · ' + g + ' gün kaldı' : '');
+  return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${tip === 'gec' ? 'var(--red-soft)' : tip === 'ort' ? 'var(--brand-soft)' : 'var(--amber-soft, var(--orange-soft))'};color:${tip === 'gec' ? 'var(--red)' : tip === 'ort' ? 'var(--brand)' : 'var(--orange)'}">${esc(bas(m.firma))}</div>
     <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(ne)}</div></div>
-    <div class="end"><b class="num" style="color:${al ? 'var(--fg)' : 'var(--orange)'}">${tl(tutar)}</b><span class="pill ${tip === 'gec' ? 'p-red' : 'p-amber'}" style="margin-top:4px">${al ? 'Alacak' : 'Borcumuz'}</span></div></button>`;
+    <div class="end"><b class="num" style="color:${al ? 'var(--fg)' : 'var(--orange)'}">${tl(tutar)}</b><span class="pill ${tip === 'gec' ? 'p-red' : tip === 'ort' ? 'p-blue' : 'p-amber'}" style="margin-top:4px">${al ? 'Alacak' : 'Borcumuz'}</span></div></button>`;
 }
 function vadeUyariCiz(el, adet) {
   const u = vadeUyari(), top = a => a.reduce((s, m) => s + gecTutar(m), 0);
   const blok = (bas, list, tip, ozet) => list.length ? `<div class="vu-h">${bas} <span>${list.length} firma${ozet ? ' · ' + ozet : ''}</span></div>` + list.slice(0, adet).map(m => vadeSatir(m, tip)).join('') + (list.length > adet ? `<div class="vu-more">+${list.length - adet} firma daha</div>` : '') : '';
-  const h = blok('⚠ Vadesi geçen alacaklar', u.alacakGec, 'gec', kisa(top(u.alacakGec))) + blok('⏰ 14 gün içinde tahsilat', u.alacakYak, 'yak') + blok('⚠ Vadesi geçen borçlarımız', u.borcGec, 'gec', kisa(top(u.borcGec))) + blok('⏰ 14 gün içinde ödeme', u.borcYak, 'yak');
+  const topO = a => a.reduce((s, m) => s + ortVade(m).tutar, 0);
+  const h = blok('📅 Ort. vadesi yaklaşan alacaklar (14 gün)', u.ortAlacak, 'ort', kisa(topO(u.ortAlacak))) + blok('📅 Ort. vadesi yaklaşan verecekler (14 gün)', u.ortVerecek, 'ort', kisa(topO(u.ortVerecek))) + blok('⚠ Vadesi geçen alacaklar', u.alacakGec, 'gec', kisa(top(u.alacakGec))) + blok('⏰ 14 gün içinde tahsilat', u.alacakYak, 'yak') + blok('⚠ Vadesi geçen borçlarımız', u.borcGec, 'gec', kisa(top(u.borcGec))) + blok('⏰ 14 gün içinde ödeme', u.borcYak, 'yak');
   el.innerHTML = h || '<div class="empty">Vade uyarısı yok ✓</div>';
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-teklif]'); if (t) teklifDetay(t.dataset.teklif); const f = e.target.closest('[data-firma]'); if (f) firmaForm(f.dataset.firma); const u = e.target.closest('[data-urun]'); if (u) urunForm(u.dataset.urun); });
