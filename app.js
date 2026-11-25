@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -134,7 +134,7 @@ function ciz(cols) {
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
   if (cols.includes('stok')) stokCiz();
-  if (cols.includes('gorevler')) takvimCiz();
+  if (cols.includes('gorevler') || cols.includes('bakiye')) takvimCiz();
   dashboardCiz();
   if (aktifSayfa === 'finans') finansCiz();
 }
@@ -214,14 +214,20 @@ function menuAc() {
 const DURUM = {bekliyor: ['Bekliyor', 'p-amber'], gonderildi: ['Gönderildi', 'p-blue'], fiyat: ['Fiyat bekleniyor', 'p-orange'], onaylandi: ['Onaylandı', 'p-green'], reddedildi: ['Reddedildi', 'p-red'], tamamlandi: ['Tamamlandı', 'p-green']};
 const ACIK = ['bekliyor', 'gonderildi', 'fiyat'];
 const tekSirali = () => [...S.teklifler].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || ''));
-const vadeGecti = m => !!(m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0 && m.vade < bugun());
+// Vadesi geçen tutar: DİA vade raporundan (vgec) ya da elle girilen vade tarihinden
+const gecTutar = m => { if (m.durum === 'tahsil' || !Number(m.alacak)) return 0; if (m.vgec != null) return Math.min(Number(m.vgec) || 0, Math.abs(Number(m.alacak))); return m.vade && m.vade < bugun() ? Math.abs(Number(m.alacak)) : 0; };
+const vadeGecti = m => gecTutar(m) > 0;
+// Yaklaşan vade: DİA'da vadesi gelmeyen kısmın ortalama vade tarihi (vgelT), yoksa elle girilen vade
+const yakVade = m => m.durum === 'tahsil' || !Number(m.alacak) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
+const gunFark = t => Math.round((new Date(t + 'T12:00:00') - new Date(bugun() + 'T12:00:00')) / 864e5);
 function alacakOzet() {
   const acik = cariler().filter(m => m.durum !== 'tahsil');
   const ay = bugun().slice(0, 7);
   return {
     toplam: acik.reduce((s, m) => s + Math.max(0, Number(m.alacak || 0)), 0),
     borc: acik.reduce((s, m) => s + Math.max(0, -Number(m.alacak || 0)), 0),
-    gecmis: cariler().filter(vadeGecti).reduce((s, m) => s + Number(m.alacak || 0), 0),
+    gecmis: cariler().filter(m => Number(m.alacak) > 0).reduce((s, m) => s + gecTutar(m), 0),
+    borcGecmis: cariler().filter(m => Number(m.alacak) < 0).reduce((s, m) => s + gecTutar(m), 0),
     buAy: S.hareket.filter(h => h.tur === 'tahsilat' && (h.tarih || '').slice(0, 7) === ay).reduce((s, h) => s + Number(h.tutar || 0), 0),
   };
 }
@@ -259,8 +265,31 @@ function dashboardCiz() {
   const tl4 = tekSirali().slice(0, 4);
   $('#d-teklifler').innerHTML = tl4.length ? tl4.map(t => teklifSatir(t, true)).join('') : '<div class="empty">Henüz teklif yok</div>';
   // vadeler
-  const vl = IS_FIN ? cariler().filter(m => m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0).sort((a, b) => a.vade.localeCompare(b.vade)).slice(0, 5) : [];
-  $('#d-vadeler').innerHTML = vl.length ? vl.map(firmaSatir).join('') : '<div class="empty">Vadeli alacak yok</div>';
+  if (IS_FIN) vadeUyariCiz($('#d-vadeler'), 4);
+}
+// Vade uyarıları: vadesi geçen alacak/borç + 14 gün içinde vadesi gelenler
+function vadeUyari() {
+  const c = cariler(), s = 14;
+  const yak = c.filter(m => { const t = yakVade(m); return t && gunFark(t) <= s; }).sort((a, b) => yakVade(a).localeCompare(yakVade(b)));
+  return {
+    alacakGec: c.filter(m => Number(m.alacak) > 0 && vadeGecti(m)).sort((a, b) => gecTutar(b) - gecTutar(a)),
+    borcGec: c.filter(m => Number(m.alacak) < 0 && vadeGecti(m)).sort((a, b) => gecTutar(b) - gecTutar(a)),
+    alacakYak: yak.filter(m => Number(m.alacak) > 0), borcYak: yak.filter(m => Number(m.alacak) < 0),
+  };
+}
+function vadeSatir(m, tip) {
+  const al = Number(m.alacak) > 0, t = tip === 'gec' ? m.vgecT || m.vade : yakVade(m), g = t ? gunFark(t) : 0;
+  const tutar = tip === 'gec' ? gecTutar(m) : (m.vgel != null ? Number(m.vgel) : Math.abs(Number(m.alacak)));
+  const ne = tip === 'gec' ? (al ? 'Tahsil edilmeli' : 'Ödenmeli') + (t ? ' · ort. vade ' + trT(t) + ' (' + Math.abs(g) + ' gün geçti)' : '') : (al ? 'Tahsilat' : 'Ödeme') + ' · ' + trT(t) + (g === 0 ? ' · bugün' : g > 0 ? ' · ' + g + ' gün kaldı' : '');
+  return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${tip === 'gec' ? 'var(--red-soft)' : 'var(--amber-soft, var(--orange-soft))'};color:${tip === 'gec' ? 'var(--red)' : 'var(--orange)'}">${esc(bas(m.firma))}</div>
+    <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(ne)}</div></div>
+    <div class="end"><b class="num" style="color:${al ? 'var(--fg)' : 'var(--orange)'}">${tl(tutar)}</b><span class="pill ${tip === 'gec' ? 'p-red' : 'p-amber'}" style="margin-top:4px">${al ? 'Alacak' : 'Borcumuz'}</span></div></button>`;
+}
+function vadeUyariCiz(el, adet) {
+  const u = vadeUyari(), top = a => a.reduce((s, m) => s + gecTutar(m), 0);
+  const blok = (bas, list, tip, ozet) => list.length ? `<div class="vu-h">${bas} <span>${list.length} firma${ozet ? ' · ' + ozet : ''}</span></div>` + list.slice(0, adet).map(m => vadeSatir(m, tip)).join('') + (list.length > adet ? `<div class="vu-more">+${list.length - adet} firma daha</div>` : '') : '';
+  const h = blok('⚠ Vadesi geçen alacaklar', u.alacakGec, 'gec', kisa(top(u.alacakGec))) + blok('⏰ 14 gün içinde tahsilat', u.alacakYak, 'yak') + blok('⚠ Vadesi geçen borçlarımız', u.borcGec, 'gec', kisa(top(u.borcGec))) + blok('⏰ 14 gün içinde ödeme', u.borcYak, 'yak');
+  el.innerHTML = h || '<div class="empty">Vade uyarısı yok ✓</div>';
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-teklif]'); if (t) teklifDetay(t.dataset.teklif); const f = e.target.closest('[data-firma]'); if (f) firmaForm(f.dataset.firma); const u = e.target.closest('[data-urun]'); if (u) urunForm(u.dataset.urun); });
 
@@ -528,7 +557,7 @@ let CARI = [], cariKirli = true;
 function cariler() {
   if (cariKirli) {
     const bm = new Map(S.bakiye.map(b => [b.id, b]));
-    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak} : m; });
+    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak, vgec: b.vgec, vgecT: b.vgecT, vgel: b.vgel, vgelT: b.vgelT, vkaynak: b.vkaynak} : m; });
     cariKirli = false;
   }
   return CARI;
@@ -540,12 +569,12 @@ function firmaSatir(m) {
   let l, c;
   if (!IS_FIN) [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
   else if (m.durum === 'tahsil') [l, c] = ['Kapandı', 'p-green'];
-  else if (gec) [l, c] = ['Vadesi geçti', 'p-red'];
+  else if (gec) [l, c] = [borc ? 'Ödemesi geçti' : 'Vadesi geçti', 'p-red'];
   else if (borc) [l, c] = ['Borcumuz', 'p-orange'];
-  else if (al > 0) [l, c] = [m.vade ? 'Vade ' + trKisa(m.vade) : 'Alacak', 'p-blue'];
+  else if (al > 0) [l, c] = [yakVade(m) ? 'Vade ' + trKisa(yakVade(m)) : 'Alacak', 'p-blue'];
   else [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
   const renk = gec ? ['var(--red-soft)', 'var(--red)'] : borc ? ['var(--orange-soft)', 'var(--orange)'] : ['var(--green-soft)', 'var(--green)'];
-  const alt = [m.kod, m.sehir, m.vade && IS_FIN ? 'Vade ' + trT(m.vade) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
+  const alt = [m.kod, m.sehir, IS_FIN && gec ? 'Gecikmiş ' + kisa(gecTutar(m)) : '', IS_FIN && yakVade(m) ? 'Vade ' + trT(yakVade(m)) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
   return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${renk[0]};color:${renk[1]}">${esc(bas(m.firma))}</div>
     <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(alt)}</div></div>
     <div class="end">${IS_FIN ? `<b class="num" style="color:${borc ? 'var(--orange)' : al > 0 ? 'var(--fg)' : 'var(--fg3)'}">${tl(Math.abs(al))}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${esc(l)}</span></div></button>`;
@@ -561,7 +590,7 @@ function musteriListe() {
     if (mFiltre === 'borc') return al < 0;
     if (mFiltre === 'musteri' || mFiltre === 'tedarikci' || mFiltre === 'diger') return m.tur === mFiltre;
     return true;
-  }).sort((a, b) => (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
+  }).sort((a, b) => (mFiltre === 'gecmis' ? gecTutar(b) - gecTutar(a) : 0) || (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
 }
 function musteriCiz() {
   cariKirli = true;
@@ -605,6 +634,7 @@ function firmaForm(id) {
     <div class="f"><label for="ff-vade">Vade</label><input class="inp" id="ff-vade" type="date" value="${esc(m.vade)}"></div></div>
     <div class="fg2"><div class="f"><label for="ff-yon">Yön</label><select class="sel" id="ff-yon"><option value="B"${al >= 0 ? ' selected' : ''}>Bize borçlu (alacak)</option><option value="A"${al < 0 ? ' selected' : ''}>Biz borçluyuz</option></select></div>
     <div class="f"><label for="ff-durum">Durum</label><select class="sel" id="ff-durum">${[['aktif', 'Aktif'], ['bekliyor', 'Ödeme bekliyor'], ['tahsil', 'Tahsil edildi / kapandı']].map(([k, l]) => `<option value="${k}"${(m.durum || 'aktif') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+    ${m.vkaynak ? `<div class="note"><b style="color:var(--fg)">Vade durumu</b><br>${Number(m.vgec) > 0 ? `Vadesi geçen: <b style="color:var(--red)">${tl(m.vgec)}</b>${m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : ''}<br>` : ''}${Number(m.vgel) > 0 ? `Vadesi gelmeyen: <b style="color:var(--fg)">${tl(m.vgel)}</b>${m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}<br>` : ''}${!(Number(m.vgec) > 0) && !(Number(m.vgel) > 0) ? 'Açık vade yok<br>' : ''}<span style="font-size:11.5px;color:var(--fg3)">${esc(m.vkaynak)}</span></div>` : ''}
     ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
     ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
@@ -717,18 +747,21 @@ function takvimCiz() {
   $('#cal-ay').textContent = AYLAR[calM] + ' ' + calY;
   const off = (new Date(calY, calM, 1).getDay() + 6) % 7, n = new Date(calY, calM + 1, 0).getDate(), onc = new Date(calY, calM, 0).getDate();
   const dolu = new Set(S.gorevler.filter(g => !g.tamam).map(g => g.tarih));
+  const vg = new Map(); if (IS_FIN) cariler().forEach(m => { const t = yakVade(m); if (t) { if (!vg.has(t)) vg.set(t, []); vg.get(t).push(m); } });
   let h = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(d => `<div class="dn">${d}</div>`).join('');
   for (let i = 0; i < off; i++) h += `<button class="d o" disabled>${onc - off + 1 + i}</button>`;
   for (let d = 1; d <= n; d++) {
     const dt = new Date(calY, calM, d), ds = dstr(dt), we = dt.getDay() % 6 === 0;
-    h += `<button class="d${ds === bugun() ? ' today' : ''}${ds === calSec ? ' sel' : ''}${we ? ' we' : ''}" data-gun="${ds}">${d}${dolu.has(ds) ? '<span class="dot"></span>' : ''}</button>`;
+    h += `<button class="d${ds === bugun() ? ' today' : ''}${ds === calSec ? ' sel' : ''}${we ? ' we' : ''}" data-gun="${ds}">${d}${dolu.has(ds) ? '<span class="dot"></span>' : ''}${vg.has(ds) ? '<span class="dot vdot"></span>' : ''}</button>`;
   }
   const kal = (7 - (off + n) % 7) % 7; for (let i = 1; i <= kal; i++) h += `<button class="d o" disabled>${i}</button>`;
   $('#cal').innerHTML = h;
   const sd = new Date(calSec + 'T12:00:00');
   $('#cal-gun').textContent = calSec === bugun() ? 'Bugün' : sd.toLocaleDateString('tr-TR', {weekday: 'long', day: 'numeric', month: 'long'});
   const gl = S.gorevler.filter(g => g.tarih === calSec).sort((a, b) => (a.saat || '').localeCompare(b.saat || ''));
-  const box = $('#cal-gun-list'); box.innerHTML = gl.length ? '' : '<div class="empty">Bu gün için görev yok</div>'; gl.forEach(g => box.appendChild(gorevEl(g, false)));
+  const gv = vg.get(calSec) || [];
+  const box = $('#cal-gun-list'); box.innerHTML = gl.length || gv.length ? '' : '<div class="empty">Bu gün için görev yok</div>'; gl.forEach(g => box.appendChild(gorevEl(g, false)));
+  if (gv.length) box.insertAdjacentHTML('beforeend', `<div class="vu-h">Vadesi gelen <span>${gv.length} firma</span></div>` + gv.sort((a, b) => Math.abs(b.vgel || b.alacak) - Math.abs(a.vgel || a.alacak)).map(m => vadeSatir(m, 'yak')).join(''));
   const yak = S.gorevler.filter(g => g.tarih >= bugun() && !g.tamam).sort((a, b) => ((a.tarih || '') + (a.saat || '')).localeCompare((b.tarih || '') + (b.saat || ''))).slice(0, 15);
   const gecikmis = S.gorevler.filter(g => g.tarih < bugun() && !g.tamam);
   const b2 = $('#gorev-list'); b2.innerHTML = '';
@@ -770,7 +803,8 @@ function finansCiz() {
   if (!IS_OWNER) return;
   const o = alacakOzet();
   $('#f-alacak').textContent = '₺' + fmt(o.toplam);
-  $('#f-alacak-sub').textContent = cariler().filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).length.toLocaleString('tr-TR') + ' açık alacak · ' + cariler().filter(vadeGecti).length + ' vadesi geçmiş · borcumuz ' + kisa(o.borc);
+  $('#f-alacak-sub').textContent = cariler().filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).length.toLocaleString('tr-TR') + ' açık alacak · ' + cariler().filter(m => Number(m.alacak) > 0 && vadeGecti(m)).length + ' vadesi geçmiş · borcumuz ' + kisa(o.borc) + (o.borcGecmis ? ' (' + kisa(o.borcGecmis) + ' vadesi geçmiş)' : '');
+  vadeUyariCiz($('#f-vade'), 10);
   $('#f-tahsil').textContent = kisa(o.buAy); $('#f-gecmis').textContent = kisa(o.gecmis);
   const onay = S.teklifler.filter(t => ['onaylandi', 'tamamlandi'].includes(t.durum)).length, red = S.teklifler.filter(t => t.durum === 'reddedildi').length;
   $('#f-donusum').textContent = onay + red ? '%' + Math.round(onay / (onay + red) * 100) : '—';
