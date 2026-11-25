@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.3.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -23,11 +23,12 @@ const bas = ad => (ad || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), ms); }
 
 // ═══ DURUM ═══
-const COLS = ['stok', 'musteri', 'hareket', 'gorevler', 'teklifler'];
+const COLS = ['stok', 'musteri', 'bakiye', 'hareket', 'gorevler', 'teklifler'];
 const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: []};
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
+let IS_FIN = false; // bakiye görme yetkisi: yönetici + finans yetkisi verilenler
 let sb = null;
 // Ayarlar (yönetici düzenler): teklif varsayılanları, mail şablonu, DİA bilgileri
 const A = {
@@ -41,7 +42,7 @@ const rowToObj = r => ({...(r.veri || {}), id: r.id, by: r.by || null, at: r.at 
 const bodyOf = o => { const b = {}; Object.keys(o).forEach(k => { if (!['id','by','at'].includes(k) && o[k] !== undefined) b[k] = o[k]; }); return b; };
 
 const BE = DEMO ? {
-  async yukle() { COLS.forEach(c => { const a = lsGet('co_' + c, []); S[c] = Array.isArray(a) ? a : []; }); P = {demo: {ad: 'Hasret Can Ceran', rol: 'sahip'}}; const a = lsGet('co_ayarlar', {}); Object.keys(A).forEach(k => { if (a[k]) A[k] = {...A[k], ...a[k]}; }); },
+  async yukle() { COLS.forEach(c => { const a = lsGet('co_' + c, []); S[c] = Array.isArray(a) ? a : []; }); P = {demo: {ad: 'Hasret Can Ceran', rol: 'sahip', finans: true}}; const a = lsGet('co_ayarlar', {}); Object.keys(A).forEach(k => { if (a[k]) A[k] = {...A[k], ...a[k]}; }); },
   async ayarYaz(id, veri) { A[id] = veri; lsSet('co_ayarlar', A); ayarlarCiz(); return true; },
   async yaz(col, obj) {
     const i = S[col].findIndex(x => x.id === obj.id);
@@ -99,8 +100,8 @@ async function ayarYukle() {
   if (!error && data) data.forEach(r => { if (A[r.id]) A[r.id] = {...A[r.id], ...(r.veri || {})}; });
 }
 async function profilYukle() {
-  const {data, error} = await sb.from('profiles').select('id,ad,rol');
-  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol}; }); }
+  const {data, error} = await sb.from('profiles').select('id,ad,rol,finans');
+  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol, finans: !!p.finans}; }); }
 }
 function hata(e) {
   const m = (e && (e.message || e.code)) || '';
@@ -119,7 +120,8 @@ const kirli = new Set();
 function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTimeout(() => { const k = [...kirli]; kirli.clear(); ciz(k); }, 30); }
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
-  if (cols.includes('musteri') || cols.includes('hareket')) { musteriCiz(); firmaListesi(); }
+  if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
+  if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
   if (cols.includes('stok')) stokCiz();
   if (cols.includes('gorevler')) takvimCiz();
   dashboardCiz();
@@ -128,7 +130,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', musteri: 'Müşteri & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
@@ -201,13 +203,14 @@ function menuAc() {
 const DURUM = {bekliyor: ['Bekliyor', 'p-amber'], gonderildi: ['Gönderildi', 'p-blue'], fiyat: ['Fiyat bekleniyor', 'p-orange'], onaylandi: ['Onaylandı', 'p-green'], reddedildi: ['Reddedildi', 'p-red'], tamamlandi: ['Tamamlandı', 'p-green']};
 const ACIK = ['bekliyor', 'gonderildi', 'fiyat'];
 const tekSirali = () => [...S.teklifler].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || ''));
-const vadeGecti = m => m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0 && m.vade < bugun();
+const vadeGecti = m => !!(m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0 && m.vade < bugun());
 function alacakOzet() {
-  const acik = S.musteri.filter(m => m.durum !== 'tahsil');
+  const acik = cariler().filter(m => m.durum !== 'tahsil');
   const ay = bugun().slice(0, 7);
   return {
-    toplam: acik.reduce((s, m) => s + Number(m.alacak || 0), 0),
-    gecmis: S.musteri.filter(vadeGecti).reduce((s, m) => s + Number(m.alacak || 0), 0),
+    toplam: acik.reduce((s, m) => s + Math.max(0, Number(m.alacak || 0)), 0),
+    borc: acik.reduce((s, m) => s + Math.max(0, -Number(m.alacak || 0)), 0),
+    gecmis: cariler().filter(vadeGecti).reduce((s, m) => s + Number(m.alacak || 0), 0),
     buAy: S.hareket.filter(h => h.tur === 'tahsilat' && (h.tarih || '').slice(0, 7) === ay).reduce((s, h) => s + Number(h.tutar || 0), 0),
   };
 }
@@ -245,7 +248,7 @@ function dashboardCiz() {
   const tl4 = tekSirali().slice(0, 4);
   $('#d-teklifler').innerHTML = tl4.length ? tl4.map(t => teklifSatir(t, true)).join('') : '<div class="empty">Henüz teklif yok</div>';
   // vadeler
-  const vl = S.musteri.filter(m => m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0).sort((a, b) => a.vade.localeCompare(b.vade)).slice(0, 5);
+  const vl = IS_FIN ? cariler().filter(m => m.vade && m.durum !== 'tahsil' && Number(m.alacak) > 0).sort((a, b) => a.vade.localeCompare(b.vade)).slice(0, 5) : [];
   $('#d-vadeler').innerHTML = vl.length ? vl.map(firmaSatir).join('') : '<div class="empty">Vadeli alacak yok</div>';
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-teklif]'); if (t) teklifDetay(t.dataset.teklif); const f = e.target.closest('[data-firma]'); if (f) firmaForm(f.dataset.firma); const u = e.target.closest('[data-urun]'); if (u) urunForm(u.dataset.urun); });
@@ -454,70 +457,144 @@ function teklifDetay(id) {
 // ═══════════════════════════════════════════
 // MÜŞTERİ / BORÇ
 // ═══════════════════════════════════════════
+// Cari kart + bakiye birleşimi (bakiye sadece yetkiliye gelir)
+let CARI = [], cariKirli = true;
+function cariler() {
+  if (cariKirli) {
+    const bm = new Map(S.bakiye.map(b => [b.id, b]));
+    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak} : m; });
+    cariKirli = false;
+  }
+  return CARI;
+}
+const TUR = {musteri: 'Müşteri', tedarikci: 'Tedarikçi', diger: 'Diğer'};
+let mFiltre = 'bakiyeli', mLimit = 100;
 function firmaSatir(m) {
-  const gec = vadeGecti(m);
-  const [l, c] = m.durum === 'tahsil' ? ['Tahsil edildi', 'p-green'] : gec ? ['Vadesi geçti', 'p-red'] : m.durum === 'bekliyor' ? ['Ödeme bekliyor', 'p-amber'] : ['Aktif', 'p-blue'];
-  return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${gec ? 'var(--red-soft)' : 'var(--green-soft)'};color:${gec ? 'var(--red)' : 'var(--green)'}">${esc(bas(m.firma))}</div>
-    <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${m.vade ? 'Vade ' + trT(m.vade) : esc(m.ilgili) || 'Vade yok'}</div></div>
-    <div class="end"><b style="color:${Number(m.alacak) > 0 ? 'var(--fg)' : 'var(--fg3)'}">${tl(m.alacak)}</b><span class="pill ${c}" style="margin-top:4px">${l}</span></div></button>`;
+  const al = Number(m.alacak || 0), gec = vadeGecti(m), borc = al < 0;
+  let l, c;
+  if (!IS_FIN) [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
+  else if (m.durum === 'tahsil') [l, c] = ['Kapandı', 'p-green'];
+  else if (gec) [l, c] = ['Vadesi geçti', 'p-red'];
+  else if (borc) [l, c] = ['Borcumuz', 'p-orange'];
+  else if (al > 0) [l, c] = [m.vade ? 'Vade ' + trKisa(m.vade) : 'Alacak', 'p-blue'];
+  else [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
+  const renk = gec ? ['var(--red-soft)', 'var(--red)'] : borc ? ['var(--orange-soft)', 'var(--orange)'] : ['var(--green-soft)', 'var(--green)'];
+  const alt = [m.kod, m.sehir, m.vade && IS_FIN ? 'Vade ' + trT(m.vade) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
+  return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${renk[0]};color:${renk[1]}">${esc(bas(m.firma))}</div>
+    <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(alt)}</div></div>
+    <div class="end">${IS_FIN ? `<b class="num" style="color:${borc ? 'var(--orange)' : al > 0 ? 'var(--fg)' : 'var(--fg3)'}">${tl(Math.abs(al))}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${esc(l)}</span></div></button>`;
+}
+function musteriListe() {
+  const q = $('#m-ara').value.toLocaleLowerCase('tr-TR').trim();
+  return cariler().filter(m => {
+    if (q && !((m.firma || '').toLocaleLowerCase('tr-TR').includes(q) || (m.kod || '').includes(q) || (m.vergiNo || '').includes(q))) return false;
+    const al = Number(m.alacak || 0);
+    if (mFiltre === 'bakiyeli') return IS_FIN ? al !== 0 && m.durum !== 'tahsil' : true;
+    if (mFiltre === 'gecmis') return vadeGecti(m);
+    if (mFiltre === 'alacak') return al > 0 && m.durum !== 'tahsil';
+    if (mFiltre === 'borc') return al < 0;
+    if (mFiltre === 'musteri' || mFiltre === 'tedarikci' || mFiltre === 'diger') return m.tur === mFiltre;
+    return true;
+  }).sort((a, b) => (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
 }
 function musteriCiz() {
+  cariKirli = true;
   const o = alacakOzet();
-  $('#m-alacak').textContent = kisa(o.toplam); $('#m-gecmis').textContent = kisa(o.gecmis); $('#m-tahsil').textContent = kisa(o.buAy); $('#m-firma').textContent = S.musteri.length;
-  const q = $('#m-ara').value.toLowerCase();
-  const l = S.musteri.filter(m => !q || (m.firma || '').toLowerCase().includes(q)).sort((a, b) => (vadeGecti(b) - vadeGecti(a)) || Number(b.alacak || 0) - Number(a.alacak || 0) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
-  $('#m-list').innerHTML = l.length ? l.map(firmaSatir).join('') : `<div class="empty">${S.musteri.length ? 'Sonuç yok' : 'Henüz firma yok · "+ Firma" ile ekle'}</div>`;
+  $('#m-alacak').textContent = kisa(o.toplam); $('#m-gecmis').textContent = kisa(o.gecmis); $('#m-tahsil').textContent = kisa(o.buAy); $('#m-borc').textContent = kisa(o.borc);
+  $('#m-firma').textContent = S.musteri.length.toLocaleString('tr-TR');
+  const chips = IS_FIN ? [['bakiyeli', 'Bakiyeli'], ['gecmis', 'Vadesi geçen'], ['alacak', 'Alacaklarımız'], ['borc', 'Borçlarımız'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler'], ['hepsi', 'Tümü']] : [['hepsi', 'Tümü'], ['musteri', 'Müşteriler'], ['tedarikci', 'Tedarikçiler']];
+  if (!chips.some(c => c[0] === mFiltre)) mFiltre = chips[0][0];
+  $('#m-chips').innerHTML = chips.map(([k, l]) => `<button class="chip${mFiltre === k ? ' on' : ''}" data-mf="${k}">${l}</button>`).join('');
+  const l = musteriListe();
+  $('#m-say').textContent = l.length.toLocaleString('tr-TR') + ' firma';
+  $('#m-list').innerHTML = l.length ? l.slice(0, mLimit).map(firmaSatir).join('') + (l.length > mLimit ? `<button class="row" id="m-daha" style="justify-content:center;color:var(--brand);font-weight:600">${(l.length - mLimit).toLocaleString('tr-TR')} firma daha · göster</button>` : '') : `<div class="empty">${S.musteri.length ? 'Sonuç yok' : 'Henüz firma yok · "+ Firma" ile ekle'}</div>`;
+  const d = $('#m-daha'); if (d) d.onclick = () => { mLimit += 200; musteriCiz(); };
   const h = [...S.hareket].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || '')).slice(0, 25);
   $('#h-list').innerHTML = h.length ? h.map(x => {
     const [lb, c, renk] = x.tur === 'tahsilat' ? ['Tahsilat', 'p-green', 'var(--green)'] : x.tur === 'borc' ? ['Borç / Fatura', 'p-red', 'var(--red)'] : ['Not', 'p-gray', 'var(--fg2)'];
     return `<div class="row"><div class="mid"><div class="t">${esc(x.firma)}</div><div class="s">${trT(x.tarih)} · ${esc(x.aciklama) || lb} · ${esc(adi(x.by))}</div></div><div class="end"><b style="color:${renk}">${x.tutar ? (x.tur === 'tahsilat' ? '+' : '') + tl(x.tutar) : '—'}</b><span class="pill ${c}" style="margin-top:4px">${lb}</span></div></div>`;
   }).join('') : '<div class="empty">Hareket kaydı yok</div>';
 }
-$('#m-ara').oninput = musteriCiz;
-function firmaListesi() { $('#firma-list').innerHTML = [...new Set([...S.musteri.map(m => m.firma), ...S.teklifler.map(t => t.musteri)].filter(x => x && x !== '—'))].map(f => `<option value="${esc(f)}">`).join(''); }
+$('#m-ara').oninput = () => { mLimit = 100; musteriCiz(); };
+$('#m-chips').onclick = e => { const c = e.target.closest('[data-mf]'); if (c) { mFiltre = c.dataset.mf; mLimit = 100; musteriCiz(); } };
+function firmaListesi() { $('#firma-list').innerHTML = [...new Set([...S.musteri.map(m => m.firma), ...S.teklifler.map(t => t.musteri)].filter(x => x && x !== '—'))].slice(0, 3000).map(f => `<option value="${esc(f)}">`).join(''); }
+const KART_ALAN = ['firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
+async function bakiyeYaz(id, patch) {
+  const eski = S.bakiye.find(b => b.id === id) || {};
+  const ok = await BE.yaz('bakiye', {...eski, ...patch, id});
+  cariKirli = true; return ok;
+}
 function firmaForm(id) {
-  const m = id ? S.musteri.find(x => x.id === id) : {};
+  const m = id ? cariler().find(x => x.id === id) : {tur: 'musteri'};
   if (id && !m) return;
+  const al = Number(m.alacak || 0);
   const sh = sheet(id ? m.firma : 'Yeni firma', `<div class="fg">
+    ${m.kod ? `<div class="note">DİA cari kodu <b style="color:var(--fg)">${esc(m.kod)}</b>${m.vergiNo ? ' · VKN ' + esc(m.vergiNo) : ''}${m.sehir ? ' · ' + esc(m.sehir) : ''}${m.efatura ? ' · e-Fatura: ' + esc(m.efatura) : ''}</div>` : ''}
     <div class="f"><label for="ff-firma">Firma adı *</label><input class="inp" id="ff-firma" value="${esc(m.firma)}"></div>
     <div class="fg2"><div class="f"><label for="ff-ilgili">İlgili kişi</label><input class="inp" id="ff-ilgili" value="${esc(m.ilgili)}"></div>
     <div class="f"><label for="ff-tel">Telefon</label><input class="inp" id="ff-tel" type="tel" value="${esc(m.tel)}"></div></div>
-    <div class="fg2"><div class="f"><label for="ff-alacak">Alacak (₺)</label><input class="inp num" id="ff-alacak" type="number" inputmode="decimal" step="0.01" value="${esc(m.alacak)}"></div>
+    <div class="fg2"><div class="f"><label for="ff-eposta">E-posta</label><input class="inp" id="ff-eposta" type="email" autocapitalize="none" value="${esc(m.eposta)}" placeholder="satinalma@firma.com"></div>
+    <div class="f"><label for="ff-tur">Tür</label><select class="sel" id="ff-tur">${Object.entries(TUR).map(([k, l]) => `<option value="${k}"${(m.tur || 'musteri') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+    ${IS_FIN ? `<div class="fg2"><div class="f"><label for="ff-alacak">${al < 0 ? 'Borcumuz (₺)' : 'Alacak (₺)'}</label><input class="inp num" id="ff-alacak" type="number" inputmode="decimal" step="0.01" value="${m.alacak != null ? esc(Math.abs(al)) : ''}"></div>
     <div class="f"><label for="ff-vade">Vade</label><input class="inp" id="ff-vade" type="date" value="${esc(m.vade)}"></div></div>
-    <div class="f"><label for="ff-durum">Durum</label><select class="sel" id="ff-durum">${[['aktif', 'Aktif'], ['bekliyor', 'Ödeme bekliyor'], ['tahsil', 'Tahsil edildi']].map(([k, l]) => `<option value="${k}"${(m.durum || 'aktif') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
-    <div class="f"><label for="ff-eposta">E-posta</label><input class="inp" id="ff-eposta" type="email" autocapitalize="none" value="${esc(m.eposta)}" placeholder="satinalma@firma.com"></div>
-    <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Fatura no, açıklama"></div>
-    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
+    <div class="fg2"><div class="f"><label for="ff-yon">Yön</label><select class="sel" id="ff-yon"><option value="B"${al >= 0 ? ' selected' : ''}>Bize borçlu (alacak)</option><option value="A"${al < 0 ? ' selected' : ''}>Biz borçluyuz</option></select></div>
+    <div class="f"><label for="ff-durum">Durum</label><select class="sel" id="ff-durum">${[['aktif', 'Aktif'], ['bekliyor', 'Ödeme bekliyor'], ['tahsil', 'Tahsil edildi / kapandı']].map(([k, l]) => `<option value="${k}"${(m.durum || 'aktif') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+    ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
+    <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
+    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
-    const ok = await kaydet('musteri', {...m, firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), alacak: v(ov, 'ff-alacak'), vade: v(ov, 'ff-vade'), durum: v(ov, 'ff-durum'), not: v(ov, 'ff-not')});
+    const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
+    Object.assign(kart, {firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), tur: v(ov, 'ff-tur'), not: v(ov, 'ff-not')});
+    const kid = id || newId();
+    let ok = await kaydet('musteri', {...kart, id: kid, by: m.by, at: m.at});
+    if (ok && IS_FIN) {
+      const tutar = Math.abs(Number(v(ov, 'ff-alacak') || 0)), yon = v(ov, 'ff-yon');
+      if (tutar || v(ov, 'ff-vade') || S.bakiye.some(b => b.id === kid)) ok = await bakiyeYaz(kid, {alacak: yon === 'A' ? -tutar : tutar, bakiye: tutar, ba: yon, vade: v(ov, 'ff-vade'), durum: v(ov, 'ff-durum')});
+    }
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
-  const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', () => BE.sil('musteri', id)); };
+  const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
 }
 function hareketForm(firma) {
+  if (!IS_FIN) { toast('⛔ Bu işlem için finans yetkisi gerekli'); return; }
   if (!S.musteri.length) { toast('Önce bir firma ekle'); firmaForm(); return; }
-  const fl = [...S.musteri].sort((a, b) => (a.firma || '').localeCompare(b.firma || '', 'tr'));
   sheet('Hareket gir', `<div class="fg">
-    <div class="f"><label for="hf-firma">Firma *</label><select class="sel" id="hf-firma"><option value="">Seç…</option>${fl.map(m => `<option${m.firma === firma ? ' selected' : ''}>${esc(m.firma)}</option>`).join('')}</select></div>
+    <div class="f"><label for="hf-firma">Firma *</label><input class="inp" id="hf-firma" list="firma-list" value="${esc(firma || '')}" placeholder="Firma adı yaz, listeden seç"></div>
     <div class="f"><label>Tür</label><div class="fg3" id="hf-tur">${[['tahsilat', 'Tahsilat'], ['borc', 'Borç / Fatura'], ['not', 'Not']].map(([k, l], i) => `<button type="button" class="chip${i === 0 ? ' on' : ''}" data-tur="${k}" style="height:42px">${l}</button>`).join('')}</div></div>
     <div class="fg2"><div class="f"><label for="hf-tutar">Tutar (₺)</label><input class="inp num" id="hf-tutar" type="number" inputmode="decimal" step="0.01"></div>
     <div class="f"><label for="hf-tarih">Tarih</label><input class="inp" id="hf-tarih" type="date" value="${bugun()}"></div></div>
     <div class="f"><label for="hf-ac">Açıklama</label><input class="inp" id="hf-ac" placeholder="Fatura no, çek, havale…"></div>
-    <label style="display:flex;gap:9px;align-items:center;font-size:13px;color:var(--fg2)"><input type="checkbox" id="hf-dus" checked style="width:18px;height:18px"> Firmanın alacak tutarını otomatik güncelle</label>
+    <label style="display:flex;gap:9px;align-items:center;font-size:13px;color:var(--fg2)"><input type="checkbox" id="hf-dus" checked style="width:18px;height:18px"> Firmanın bakiyesini otomatik güncelle</label>
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
-    const f = v(ov, 'hf-firma'); if (!f) { toast('Firma seç'); return false; }
+    const f = v(ov, 'hf-firma'); const m = cariler().find(x => x.firma === f);
+    if (!m) { toast('Listeden kayıtlı bir firma seç'); return false; }
     const tur = ov.querySelector('#hf-tur .on').dataset.tur, tutar = v(ov, 'hf-tutar');
-    const ok = await kaydet('hareket', {firma: f, tur, tutar, tarih: v(ov, 'hf-tarih'), aciklama: v(ov, 'hf-ac')});
+    const ok = await kaydet('hareket', {firma: f, firmaId: m.id, tur, tutar, tarih: v(ov, 'hf-tarih'), aciklama: v(ov, 'hf-ac')});
     if (ok && ov.querySelector('#hf-dus').checked && Number(tutar) && tur !== 'not') {
-      const m = S.musteri.find(x => x.firma === f);
-      if (m) { const yeni = Math.max(0, Number(m.alacak || 0) + (tur === 'tahsilat' ? -1 : 1) * Number(tutar)); await kaydet('musteri', {...m, alacak: String(Math.round(yeni * 100) / 100), durum: yeni === 0 ? 'tahsil' : (m.durum === 'tahsil' ? 'aktif' : m.durum)}); }
+      const yeni = Math.round((Number(m.alacak || 0) + (tur === 'tahsilat' ? -1 : 1) * Number(tutar)) * 100) / 100;
+      await bakiyeYaz(m.id, {alacak: yeni, bakiye: Math.abs(yeni), ba: yeni < 0 ? 'A' : 'B', durum: yeni === 0 ? 'tahsil' : (m.durum === 'tahsil' ? 'aktif' : (m.durum || 'aktif'))});
     }
     if (ok) toast('✅ Hareket kaydedildi'); return ok;
   }}]);
   document.querySelector('#hf-tur').onclick = e => { const c = e.target.closest('[data-tur]'); if (c) { $$('#hf-tur .chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); } };
 }
+// Cari listesi dışa aktarma (PDF / Excel) — görünen filtre ile
+async function cariDisa(tur) {
+  if (!IS_FIN) return;
+  const l = musteriListe(), baslik = 'Cari Bakiye Listesi — ' + ($('#m-chips .on') || {}).textContent;
+  const kol = ['Cari Kodu', 'Firma', 'Tür', 'Şehir', 'Telefon', 'Bakiye (₺)', 'B/A', 'Vade', 'Durum'];
+  const sat = l.map(m => { const al = Number(m.alacak || 0); return [m.kod || '', m.firma || '', TUR[m.tur] || '', m.sehir || '', m.tel || '', Math.abs(al), al < 0 ? 'A' : al > 0 ? 'B' : '', m.vade ? trT(m.vade) : '', vadeGecti(m) ? 'Vadesi geçti' : m.durum === 'tahsil' ? 'Kapandı' : al ? 'Açık' : '']; });
+  try {
+    toast((tur === 'pdf' ? 'PDF' : 'Excel') + ' hazırlanıyor…');
+    const ad = 'Cari_Bakiye_' + bugun() + (tur === 'pdf' ? '.pdf' : '.xlsx');
+    const blob = tur === 'pdf' ? await TC.listePdf(baslik, kol, sat, {sayiKolon: [5]}) : await TC.listeExcel(baslik, kol, sat, {sayiKolon: [5]});
+    TC.indir(blob, ad); toast('⬇ ' + ad, 3200);
+  } catch (e) { toast('⚠️ ' + (e.message || 'Dosya oluşturulamadı'), 4000); }
+}
+$('#m-pdf').onclick = () => cariDisa('pdf');
+$('#m-xlsx').onclick = () => cariDisa('excel');
 
 // ═══════════════════════════════════════════
 // STOK
@@ -627,14 +704,14 @@ function finansCiz() {
   if (!IS_OWNER) return;
   const o = alacakOzet();
   $('#f-alacak').textContent = '₺' + fmt(o.toplam);
-  $('#f-alacak-sub').textContent = S.musteri.filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).length + ' açık hesap · ' + S.musteri.filter(vadeGecti).length + ' vadesi geçmiş';
+  $('#f-alacak-sub').textContent = cariler().filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).length.toLocaleString('tr-TR') + ' açık alacak · ' + cariler().filter(vadeGecti).length + ' vadesi geçmiş · borcumuz ' + kisa(o.borc);
   $('#f-tahsil').textContent = kisa(o.buAy); $('#f-gecmis').textContent = kisa(o.gecmis);
   const onay = S.teklifler.filter(t => ['onaylandi', 'tamamlandi'].includes(t.durum)).length, red = S.teklifler.filter(t => t.durum === 'reddedildi').length;
   $('#f-donusum').textContent = onay + red ? '%' + Math.round(onay / (onay + red) * 100) : '—';
   $('#f-donusum-sub').textContent = onay + ' onay · ' + red + ' red';
   const sd = S.stok.filter(u => (u.para || '€') === '€' && Number(u.fiyat) && Number(u.stok) > 0).reduce((s, u) => s + Number(u.fiyat) * Number(u.stok), 0);
   $('#f-stok').textContent = sd ? '€' + Math.round(sd).toLocaleString('tr-TR') : '—';
-  barlar($('#f-dagilim'), S.musteri.filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).sort((a, b) => b.alacak - a.alacak).slice(0, 10).map(m => [m.firma, Number(m.alacak), kisa(m.alacak), vadeGecti(m) ? 'var(--red)' : '']));
+  barlar($('#f-dagilim'), cariler().filter(m => m.durum !== 'tahsil' && Number(m.alacak) > 0).sort((a, b) => b.alacak - a.alacak).slice(0, 10).map(m => [m.firma, Number(m.alacak), kisa(m.alacak), vadeGecti(m) ? 'var(--red)' : '']));
   const say = {}; S.teklifler.forEach(t => { const k = t.by || '-'; say[k] = (say[k] || 0) + 1; });
   barlar($('#f-calisan'), Object.entries(say).sort((a, b) => b[1] - a[1]).map(([k, n]) => [k === '-' ? 'Uygulama öncesi' : adi(k), n, n + ' teklif']));
 }
@@ -645,6 +722,9 @@ function finansCiz() {
 function rolUygula() {
   const p = P[ME] || {};
   IS_OWNER = DEMO || p.rol === 'sahip';
+  IS_FIN = IS_OWNER || !!p.finans;
+  $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
+  cariKirli = true;
   $$('.owner-only').forEach(e => e.hidden = !IS_OWNER);
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
@@ -692,14 +772,15 @@ function ekipCiz() {
   const box = $('#ekip-list');
   if (DEMO) { box.innerHTML = '<div class="empty">Demo modunda ekip yok</div>'; return; }
   box.innerHTML = Object.entries(P).sort((a, b) => (a[1].ad || '').localeCompare(b[1].ad || '', 'tr')).map(([id, p]) =>
-    `<button class="row" data-uye="${esc(id)}"><div class="avatar">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${p.rol === 'sahip' ? 'Yönetici' : 'Çalışan'}</div></div>${ikon('right')}</button>`).join('');
+    `<button class="row" data-uye="${esc(id)}"><div class="avatar">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${p.rol === 'sahip' ? 'Yönetici' : p.finans ? 'Çalışan · bakiye yetkili' : 'Çalışan'}</div></div>${ikon('right')}</button>`).join('');
 }
 $('#ekip-list').onclick = e => {
   const r = e.target.closest('[data-uye]'); if (!r) return; const id = r.dataset.uye, p = P[id];
   sheet('Ekip üyesi', `<div class="fg"><div class="f"><label for="ue-ad">Görünen ad</label><input class="inp" id="ue-ad" value="${esc(p.ad)}"></div>
-    <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${id === ME ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div></div>`,
+    <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${id === ME ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div>
+    <label class="chk"><input type="checkbox" id="ue-fin"${p.finans || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Cari bakiyeleri ve tahsilatları görebilir</label></div>`,
     [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
-      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: id === ME ? p.rol : v(ov, 'ue-rol')}).eq('id', id);
+      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: id === ME ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked}).eq('id', id);
       if (error) { hata(error); return false; } await profilYukle(); rolUygula(); hepsiniCiz(); toast('✅ Güncellendi');
     }}]);
 };

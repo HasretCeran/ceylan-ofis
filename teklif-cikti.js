@@ -179,6 +179,46 @@
     return new Promise((ok, no) => { try { pdfMake.createPdf(doc).getBlob(ok); } catch (e) { no(e); } });
   }
 
+  // ═══ GENEL LİSTE RAPORU (cari bakiye vb.): Excel + PDF ═══
+  async function listeExcel(baslik, kolonlar, satirlar, opt = {}) {
+    await excelHazirla();
+    const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Rapor', {views: [{state: 'frozen', ySplit: 4}]});
+    ws.addRow(['Ceylan Endüstriyel ve Otomasyon Tic. Ltd. Şti.']).font = {bold: true, size: 13};
+    ws.addRow([baslik + ' · ' + new Date().toLocaleDateString('tr-TR')]).font = {size: 11, color: {argb: 'FF5B6475'}};
+    ws.addRow([]);
+    const h = ws.addRow(kolonlar);
+    h.eachCell(c => { c.font = {bold: true, color: {argb: 'FFFFFFFF'}}; c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF34B6A7'}}; c.alignment = {vertical: 'middle'}; });
+    satirlar.forEach(r => ws.addRow(r));
+    const sayi = opt.sayiKolon || [];
+    ws.columns.forEach((col, i) => {
+      let w = String(kolonlar[i] || '').length; col.eachCell({includeEmpty: false}, (c, rn) => { if (rn > 3) w = Math.max(w, String(c.value ?? '').length); });
+      col.width = Math.min(60, Math.max(8, w + 2));
+      if (sayi.includes(i)) col.numFmt = '#,##0.00';
+    });
+    const son = ws.rowCount;
+    if (sayi.length) { const tr = ws.addRow(kolonlar.map((_, i) => i === 0 ? 'TOPLAM' : sayi.includes(i) ? {formula: `SUM(${ws.getColumn(i + 1).letter}5:${ws.getColumn(i + 1).letter}${son})`, result: satirlar.reduce((s, r) => s + (Number(r[i]) || 0), 0)} : '')); tr.font = {bold: true}; }
+    ws.autoFilter = {from: {row: 4, column: 1}, to: {row: 4, column: kolonlar.length}};
+    return new Blob([await wb.xlsx.writeBuffer()], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+  async function listePdf(baslik, kolonlar, satirlar, opt = {}) {
+    await pdfHazirla();
+    const logo = await logoAl().catch(() => null);
+    const sayi = opt.sayiKolon || [];
+    const body = [kolonlar.map(k => ({text: k, style: 'th'})), ...satirlar.map(r => r.map((v, i) => sayi.includes(i) ? {text: v === '' || v == null ? '' : para(v), alignment: 'right'} : String(v ?? '')))];
+    if (sayi.length) body.push(kolonlar.map((_, i) => i === 0 ? {text: 'TOPLAM', bold: true} : sayi.includes(i) ? {text: para(satirlar.reduce((s, r) => s + (Number(r[i]) || 0), 0)), alignment: 'right', bold: true} : ''));
+    const doc = {
+      pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [24, 24, 24, 34],
+      defaultStyle: {font: 'Roboto', fontSize: 7.5},
+      styles: {th: {bold: true, color: '#ffffff', fillColor: TURKUAZ, fontSize: 7.5}},
+      footer: (c, n) => ({text: c + ' / ' + n, alignment: 'right', fontSize: 7, color: '#98a1b2', margin: [24, 10, 24, 0]}),
+      content: [
+        {columns: [logo ? {svg: logo, width: 110} : {text: 'CEYLAN', bold: true}, {stack: [{text: baslik, bold: true, fontSize: 13}, {text: new Date().toLocaleDateString('tr-TR', {day: '2-digit', month: 'long', year: 'numeric'}) + ' · ' + satirlar.length + ' kayıt', color: '#5b6475'}], alignment: 'right', margin: [0, 10, 0, 0]}]},
+        {table: {headerRows: 1, widths: kolonlar.map((_, i) => i === 1 ? '*' : 'auto'), body}, layout: {fillColor: r => r > 0 && r % 2 === 0 ? '#f2f8f7' : null, hLineColor: () => '#d6dedd', vLineColor: () => '#d6dedd', hLineWidth: () => .4, vLineWidth: () => .4}, margin: [0, 12, 0, 0]},
+      ],
+    };
+    return new Promise((ok, no) => { try { pdfMake.createPdf(doc).getBlob(ok); } catch (e) { no(e); } });
+  }
+
   function indir(blob, ad) {
     const u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = ad; document.body.appendChild(a); a.click(); a.remove();
@@ -203,5 +243,5 @@
     return 'mailto';
   }
 
-  window.TeklifCikti = {excelUret, pdfUret, indir, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
+  window.TeklifCikti = {excelUret, pdfUret, listeExcel, listePdf, indir, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
 })();

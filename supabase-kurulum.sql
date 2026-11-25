@@ -103,3 +103,26 @@ on conflict (id) do nothing;
 -- update public.profiles set rol = 'sahip', ad = 'Hasret'
 --   where id = (select id from auth.users where email = 'hasret@ceylan.app');
 -- ═══════════════════════════════════════════════════════════════
+
+-- ═══ v1.3: cari bakiyeleri ve finans yetkisi ═══
+alter table public.profiles add column if not exists finans boolean not null default false;
+create or replace function public.is_finans() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and (rol = 'sahip' or finans)); $$;
+revoke execute on function public.is_finans() from public, anon;
+grant execute on function public.is_finans() to authenticated;
+create table if not exists public.bakiye (id text primary key, veri jsonb not null default '{}'::jsonb,
+  "by" uuid default auth.uid() references auth.users on delete set null, at timestamptz not null default now());
+alter table public.bakiye enable row level security;
+create policy "oku" on public.bakiye for select to authenticated using (public.is_finans());
+create policy "ekle" on public.bakiye for insert to authenticated with check (public.is_finans());
+create policy "duzenle" on public.bakiye for update to authenticated using (public.is_finans()) with check (public.is_finans());
+create policy "sil" on public.bakiye for delete to authenticated using (public.is_sahip());
+revoke all on public.bakiye from anon;
+grant select, insert, update, delete on public.bakiye to authenticated;
+drop policy if exists "oku" on public.hareket;
+create policy "oku" on public.hareket for select to authenticated using (public.is_finans());
+drop policy if exists "ekle" on public.hareket;
+create policy "ekle" on public.hareket for insert to authenticated with check (public.is_finans());
+drop policy if exists "duzenle" on public.hareket;
+create policy "duzenle" on public.hareket for update to authenticated using (public.is_finans()) with check (public.is_finans());
+alter publication supabase_realtime add table public.bakiye;
