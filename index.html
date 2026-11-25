@@ -131,7 +131,10 @@ details.more .fg{padding-bottom:13px}
 .ph p{color:var(--fg2);font-size:13px;margin-top:2px}
 
 /* ── ICONS ── */
-svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;width:18px;height:18px;flex-shrink:0}
+.row .ico svg{width:19px;height:19px}
+.row > svg.i{width:18px;height:18px;color:var(--fg3)}
+.menu-list .row .t,.menu-list .row .s{white-space:normal}
 
 /* ── HERO ── */
 .hero{border-radius:20px;padding:22px 22px 20px;color:#fff;background:linear-gradient(135deg,#1f5fe8 0%,#123fa6 60%,#0d2f80 100%);position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 10px 30px rgba(26,86,219,.28)}
@@ -685,8 +688,8 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.4.1"></script>
-<script src="teklif-cikti.js?v=1.4.1"></script>
-<script src="app.js?v=1.4.1"></script>
+<script src="config.js?v=1.4.2"></script>
+<script src="teklif-cikti.js?v=1.4.2"></script>
+<script src="app.js?v=1.4.2"></script>
 </body>
 </html>
