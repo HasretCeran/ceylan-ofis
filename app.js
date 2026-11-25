@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -111,8 +111,8 @@ async function ayarYukle() {
   if (!error && data) data.forEach(r => { if (A[r.id]) A[r.id] = {...A[r.id], ...(r.veri || {})}; });
 }
 async function profilYukle() {
-  const {data, error} = await sb.from('profiles').select('id,ad,rol,finans');
-  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol, finans: !!p.finans}; }); }
+  const {data, error} = await sb.from('profiles').select('id,ad,rol,finans,aktif,kullanici');
+  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol, finans: !!p.finans, aktif: p.aktif !== false, kullanici: p.kullanici || ''}; }); }
 }
 function hata(e) {
   const m = (e && (e.message || e.code)) || '';
@@ -782,18 +782,74 @@ function ayarlarCiz() {
 function ekipCiz() {
   const box = $('#ekip-list');
   if (DEMO) { box.innerHTML = '<div class="empty">Demo modunda ekip yok</div>'; return; }
-  box.innerHTML = Object.entries(P).sort((a, b) => (a[1].ad || '').localeCompare(b[1].ad || '', 'tr')).map(([id, p]) =>
-    `<button class="row" data-uye="${esc(id)}"><div class="avatar">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${p.rol === 'sahip' ? 'Yönetici' : p.finans ? 'Çalışan · bakiye yetkili' : 'Çalışan'}</div></div>${ikon('right')}</button>`).join('');
+  box.innerHTML = Object.entries(P).sort((a, b) => (a[1].ad || '').localeCompare(b[1].ad || '', 'tr')).map(([id, p]) => {
+    const alt = [p.kullanici ? '@' + p.kullanici : '', p.rol === 'sahip' ? 'Yönetici' : p.finans ? 'Çalışan · bakiye yetkili' : 'Çalışan'].filter(Boolean).join(' · ');
+    return `<button class="row" data-uye="${esc(id)}"><div class="avatar" style="${p.aktif === false ? 'background:var(--fg3)' : ''}">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${esc(alt)}</div></div>${p.aktif === false ? '<span class="pill p-red">Erişim durduruldu</span>' : ikon('right')}</button>`;
+  }).join('');
 }
+// Yönetici: sunucu fonksiyonu üzerinden hesap işlemleri (şifreler sadece yöneticide kalır)
+async function kullaniciIslem(govde) {
+  const {data, error} = await sb.functions.invoke('kullanici-yonet', {body: govde});
+  if (error) {
+    let mesaj = error.message;
+    try { const j = await error.context.json(); if (j && j.hata) mesaj = j.hata; } catch (e) {}
+    toast('⚠️ ' + mesaj, 4500); return null;
+  }
+  return data;
+}
+function sifreUret() {
+  const harf = 'abcdefghjkmnpqrstuvwxyz', rakam = '23456789', a = new Uint32Array(10); crypto.getRandomValues(a);
+  return 'Cy' + [...a].slice(0, 6).map(x => harf[x % harf.length]).join('') + [...a].slice(6, 10).map(x => rakam[x % rakam.length]).join('');
+}
+const kulAdi = s => s.toLocaleLowerCase('tr-TR').replace(/[çğıöşü]/g, c => ({'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u'}[c])).replace(/[^a-z0-9._-]+/g, '').slice(0, 30);
+function bilgiGoster(baslik, kul, sifre) {
+  const metin = `Ceylan Ofis girişin:\nhttps://hasretceran.github.io/ceylan-ofis/\nKullanıcı adı: ${kul}\nŞifre: ${sifre}\nGirince Ayarlar → Şifre değiştir'den kendi şifreni belirleyebilirsin.`;
+  const sh = sheet(baslik, `<div class="note" style="font-size:14px;line-height:1.8">Kullanıcı adı: <b style="color:var(--fg)">${esc(kul)}</b><br>Şifre: <b style="color:var(--fg);font-family:monospace;font-size:16px">${esc(sifre)}</b></div>
+    <p style="font-size:12.5px;color:var(--fg2);margin-top:10px">Bu şifre bir daha gösterilmez. Kopyalayıp çalışana <b>ayrı bir mesajla</b> ilet; girdikten sonra kendi şifresini belirleyebilir.</p>`,
+    [{label: 'Kopyala', cls: 'btn-p', onClick: async () => { try { await navigator.clipboard.writeText(metin); toast('📋 Kopyalandı'); } catch (e) { toast('Kopyalanamadı — ekrandan yaz'); } return false; }}, {label: 'Tamam', onClick: () => {}}]);
+  return sh;
+}
+$('#uye-ekle').onclick = () => {
+  const sif = sifreUret();
+  const sh = sheet('Çalışan ekle', `<div class="fg">
+    <div class="f"><label for="ye-ad">Ad soyad *</label><input class="inp" id="ye-ad" placeholder="ör. Ahmet Yılmaz" autocomplete="off"></div>
+    <div class="f"><label for="ye-kul">Kullanıcı adı *</label><input class="inp" id="ye-kul" autocapitalize="none" spellcheck="false" placeholder="ör. ahmet" autocomplete="off"></div>
+    <div class="f"><label for="ye-sif">Geçici şifre *</label><div style="display:flex;gap:8px"><input class="inp" id="ye-sif" value="${sif}" autocomplete="new-password" style="font-family:monospace"><button class="btn btn-s" type="button" id="ye-yeni">Yeni</button></div></div>
+    <label class="chk"><input type="checkbox" id="ye-fin"> Cari bakiyeleri ve tahsilatları görebilir</label>
+  </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Ekle', cls: 'btn-p', onClick: async ov => {
+    const ad = v(ov, 'ye-ad'), kul = kulAdi(v(ov, 'ye-kul')), sifre = v(ov, 'ye-sif');
+    if (!ad || !kul) { toast('Ad soyad ve kullanıcı adı gerekli'); return false; }
+    if (sifre.length < 8) { toast('Şifre en az 8 karakter olmalı'); return false; }
+    const r = await kullaniciIslem({islem: 'ekle', ad, kullanici: kul, sifre, finans: ov.querySelector('#ye-fin').checked});
+    if (!r) return false;
+    await profilYukle(); rolUygula(); toast('✅ ' + ad + ' eklendi');
+    setTimeout(() => bilgiGoster('Giriş bilgileri', r.kullanici, sifre), 250);
+  }}]);
+  const ad = sh.el.querySelector('#ye-ad'), kul = sh.el.querySelector('#ye-kul');
+  ad.oninput = () => { if (!kul.dataset.elle) kul.value = kulAdi(ad.value.split(' ')[0] || ''); };
+  kul.oninput = () => { kul.dataset.elle = '1'; };
+  sh.el.querySelector('#ye-yeni').onclick = () => { sh.el.querySelector('#ye-sif').value = sifreUret(); };
+};
 $('#ekip-list').onclick = e => {
   const r = e.target.closest('[data-uye]'); if (!r) return; const id = r.dataset.uye, p = P[id];
-  sheet('Ekip üyesi', `<div class="fg"><div class="f"><label for="ue-ad">Görünen ad</label><input class="inp" id="ue-ad" value="${esc(p.ad)}"></div>
-    <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${id === ME ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div>
-    <label class="chk"><input type="checkbox" id="ue-fin"${p.finans || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Cari bakiyeleri ve tahsilatları görebilir</label></div>`,
+  const ben = id === ME;
+  const sh = sheet('Ekip üyesi', `<div class="fg">${p.kullanici ? `<div class="note">Kullanıcı adı: <b style="color:var(--fg)">${esc(p.kullanici)}</b></div>` : ''}
+    <div class="f"><label for="ue-ad">Görünen ad</label><input class="inp" id="ue-ad" value="${esc(p.ad)}"></div>
+    <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${ben ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div>
+    <label class="chk"><input type="checkbox" id="ue-fin"${p.finans || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Cari bakiyeleri ve tahsilatları görebilir</label>
+    ${ben ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
+      <button class="btn btn-s btn-sm" id="ue-sifre">Şifre sıfırla</button>
+      ${p.aktif === false ? '<button class="btn btn-s btn-sm" id="ue-ac">Erişimi tekrar aç</button>' : '<button class="btn btn-d btn-sm" id="ue-durdur">Erişimi durdur</button>'}</div>`}</div>`,
     [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
-      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: id === ME ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked}).eq('id', id);
+      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: ben ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked}).eq('id', id);
       if (error) { hata(error); return false; } await profilYukle(); rolUygula(); hepsiniCiz(); toast('✅ Güncellendi');
     }}]);
+  const sf = sh.el.querySelector('#ue-sifre');
+  if (sf) sf.onclick = async () => { const yeni = sifreUret(); sf.disabled = true; const ok = await kullaniciIslem({islem: 'sifre', id, sifre: yeni}); sf.disabled = false; if (ok) { sh.kapat(); bilgiGoster('Yeni şifre', p.kullanici || p.ad, yeni); } };
+  const du = sh.el.querySelector('#ue-durdur');
+  if (du) du.onclick = () => { sh.kapat(); confirmSheet('Erişim durdurulsun mu?', (p.ad || 'Bu kişi') + ' uygulamaya giremeyecek. Verileri ve geçmişi silinmez; istediğinde tekrar açabilirsin.', async () => { if (await kullaniciIslem({islem: 'durdur', id})) { await profilYukle(); rolUygula(); toast('⛔ Erişim durduruldu'); } }); };
+  const ac = sh.el.querySelector('#ue-ac');
+  if (ac) ac.onclick = async () => { if (await kullaniciIslem({islem: 'ac', id})) { sh.kapat(); await profilYukle(); rolUygula(); toast('✅ Erişim açıldı'); } };
 };
 $('#cikis').onclick = async () => { if (sb) await sb.auth.signOut(); lsSet('co_page', 'dashboard'); location.reload(); };
 $('#sifre-btn').onclick = async () => {

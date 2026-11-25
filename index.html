@@ -658,8 +658,8 @@ button.row:hover{background:var(--surface2)}
           <div class="f"><label for="at-sartlar">Satış ve teslimat şartları (her satır bir madde, en fazla 4 Excel'e girer)</label><textarea class="inp" id="at-sartlar" data-a="sartlar" data-liste rows="5"></textarea></div>
           <button class="btn btn-p" data-kaydet>Kaydet</button>
         </div></div>
-        <div class="card owner-only" hidden><div class="card-h"><h3>Ekip</h3></div><div class="rows" id="ekip-list"></div>
-          <div class="card-b" style="font-size:12.5px;color:var(--fg2);line-height:1.6;border-top:1px solid var(--line)">Yeni çalışan eklemek için Supabase panelinde <b>Authentication → Users → Add user</b>: e-posta olarak <b>kullaniciadi@ceylan.app</b> yaz, şifre belirle, "Auto Confirm User" işaretli olsun. Çalışan uygulamaya sadece kullanıcı adı ve şifreyle girer.</div>
+        <div class="card owner-only" hidden><div class="card-h"><h3>Ekip</h3><button class="btn btn-p btn-sm" id="uye-ekle"><svg class="i"><use href="#i-plus"/></svg>Çalışan ekle</button></div><div class="rows" id="ekip-list"></div>
+          <div class="card-b" style="font-size:12.5px;color:var(--fg2);line-height:1.6;border-top:1px solid var(--line)">Çalışan uygulamaya sadece kullanıcı adı ve şifreyle girer. Ayrılan birinin erişimini kişiye dokunup "Erişimi durdur" ile kapatabilirsin; geçmiş kayıtları silinmez.</div>
         </div>
         <div class="card"><div class="card-h"><h3>Telefona kur</h3></div><div class="card-b" style="font-size:13px;color:var(--fg2);line-height:1.6">
           <p><b style="color:var(--fg)">iPhone (Safari):</b> Paylaş ⬆ → Ana Ekrana Ekle</p>
@@ -684,8 +684,8 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.3.1"></script>
-<script src="teklif-cikti.js?v=1.3.1"></script>
-<script src="app.js?v=1.3.1"></script>
+<script src="config.js?v=1.4.0"></script>
+<script src="teklif-cikti.js?v=1.4.0"></script>
+<script src="app.js?v=1.4.0"></script>
 </body>
 </html>
