@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -215,10 +215,10 @@ const DURUM = {bekliyor: ['Bekliyor', 'p-amber'], gonderildi: ['Gönderildi', 'p
 const ACIK = ['bekliyor', 'gonderildi', 'fiyat'];
 const tekSirali = () => [...S.teklifler].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || ''));
 // Vadesi geçen tutar: DİA vade raporundan (vgec) ya da elle girilen vade tarihinden
-const gecTutar = m => { if (m.durum === 'tahsil' || !Number(m.alacak)) return 0; if (m.vgec != null) return Math.min(Number(m.vgec) || 0, Math.abs(Number(m.alacak))); return m.vade && m.vade < bugun() ? Math.abs(Number(m.alacak)) : 0; };
+const gecTutar = m => { if (m.durum === 'tahsil' || !Number(m.alacak)) return 0; if (m.vgec != null) return m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0) ? 0 : Math.min(Number(m.vgec) || 0, Math.abs(Number(m.alacak))); return m.vade && m.vade < bugun() ? Math.abs(Number(m.alacak)) : 0; };
 const vadeGecti = m => gecTutar(m) > 0;
 // Yaklaşan vade: DİA'da vadesi gelmeyen kısmın ortalama vade tarihi (vgelT), yoksa elle girilen vade
-const yakVade = m => m.durum === 'tahsil' || !Number(m.alacak) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
+const yakVade = m => m.durum === 'tahsil' || !Number(m.alacak) || (m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0)) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
 const gunFark = t => Math.round((new Date(t + 'T12:00:00') - new Date(bugun() + 'T12:00:00')) / 864e5);
 function alacakOzet() {
   const acik = cariler().filter(m => m.durum !== 'tahsil');
