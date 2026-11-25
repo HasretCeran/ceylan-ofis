@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -863,8 +863,10 @@ $('#surum').textContent = APP_VERSION;
 // PWA: kurulum + otomatik güncelleme
 // ═══════════════════════════════════════════
 let kurPrompt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); kurPrompt = e; $('#kur-btn').hidden = false; });
-$('#kur-btn').onclick = async () => { if (!kurPrompt) return; kurPrompt.prompt(); await kurPrompt.userChoice; kurPrompt = null; $('#kur-btn').hidden = true; };
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); kurPrompt = e; $('#kur-btn').hidden = false; if (!lsGet('co_kur_kapat', false)) $('#kur-banner').hidden = false; });
+window.addEventListener('appinstalled', () => { kurPrompt = null; $('#kur-btn').hidden = true; $('#kur-banner').hidden = true; toast('✅ Uygulama kuruldu — ana ekrandan açabilirsin', 4000); });
+$('#kur-banner-btn').onclick = () => $('#kur-btn').click();
+$('#kur-btn').onclick = async () => { if (!kurPrompt) return; kurPrompt.prompt(); const c = await kurPrompt.userChoice; kurPrompt = null; $('#kur-btn').hidden = true; $('#kur-banner').hidden = true; if (c && c.outcome === 'dismissed') lsSet('co_kur_kapat', true); };
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
