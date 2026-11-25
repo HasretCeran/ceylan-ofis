@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -76,6 +76,7 @@ const BE = DEMO ? {
       }
       return out;
     };
+    this._hepsi = hepsi;
     // Ürün listesi büyük: uygulamayı bekletmeden arkadan yüklenir
     const ana = COLS.filter(c => c !== 'stok');
     const sonuc = await Promise.all(ana.map(hepsi));
@@ -103,9 +104,20 @@ const BE = DEMO ? {
     if (!data || !data.length) { toast('⛔ Silme yetkisi sadece yöneticide'); return false; }
     S[col] = S[col].filter(x => x.id !== id); degisti(col); return true;
   },
+  // Telefon arka plana alınınca canlı bağlantı kopar: öne gelince verileri yeniden çek
+  async tazele() {
+    if (!this._hepsi) return;
+    try {
+      const ana = COLS.filter(c => c !== 'stok');
+      const sonuc = await Promise.all(ana.map(c => this._hepsi(c)));
+      sonuc.forEach((rows, i) => { S[ana[i]] = rows.map(rowToObj); degisti(ana[i]); });
+      const ch = sb.getChannels()[0];
+      if (!ch || ch.state !== 'joined') { if (ch) await sb.removeChannel(ch); this.dinle(); }
+    } catch (e) { console.warn('tazele', e); }
+  },
   dinle() {
     const ch = sb.channel('ceylan-ofis');
-    COLS.forEach(col => ch.on('postgres_changes', {event: '*', schema: 'public', table: col}, p => {
+    COLS.filter(c => c !== 'stok').forEach(col => ch.on('postgres_changes', {event: '*', schema: 'public', table: col}, p => {
       if (p.eventType === 'DELETE') { S[col] = S[col].filter(x => x.id !== (p.old && p.old.id)); }
       else { const o = rowToObj(p.new); const i = S[col].findIndex(x => x.id === o.id); if (i >= 0) S[col][i] = o; else S[col].push(o); }
       degisti(col);
@@ -230,9 +242,9 @@ const ACIK = ['bekliyor', 'gonderildi', 'fiyat'];
 const tekSirali = () => [...S.teklifler].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || ''));
 // Vadesi geçen tutar: DİA vade raporundan (vgec) ya da elle girilen vade tarihinden
 const gecTutar = m => { if (m.durum === 'tahsil' || !Number(m.alacak)) return 0; if (m.vgec != null) return m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0) ? 0 : Math.min(Number(m.vgec) || 0, Math.abs(Number(m.alacak))); return m.vade && m.vade < bugun() ? Math.abs(Number(m.alacak)) : 0; };
-const vadeGecti = m => gecTutar(m) > 0;
+const vadeGecti = m => gecTutar(m) >= 1;
 // Yaklaşan vade: DİA'da vadesi gelmeyen kısmın ortalama vade tarihi (vgelT), yoksa elle girilen vade
-const yakVade = m => m.durum === 'tahsil' || !Number(m.alacak) || (m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0)) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
+const yakVade = m => m.durum === 'tahsil' || Math.abs(Number(m.alacak)) < 1 || (m.vgel != null && Number(m.vgel) < 1 && !(m.vgec == null)) || (m.vyon && (m.vyon === 'alacak') !== (Number(m.alacak) > 0)) ? '' : m.vgelT || (m.vgec == null && m.vade >= bugun() ? m.vade : '');
 const gunFark = t => Math.round((new Date(t + 'T12:00:00') - new Date(bugun() + 'T12:00:00')) / 864e5);
 function alacakOzet() {
   const acik = cariler().filter(m => m.durum !== 'tahsil');
@@ -783,7 +795,7 @@ function takvimCiz() {
   const gl = S.gorevler.filter(g => g.tarih === calSec).sort((a, b) => (a.saat || '').localeCompare(b.saat || ''));
   const gv = vg.get(calSec) || [];
   const box = $('#cal-gun-list'); box.innerHTML = gl.length || gv.length ? '' : '<div class="empty">Bu gün için görev yok</div>'; gl.forEach(g => box.appendChild(gorevEl(g, false)));
-  if (gv.length) box.insertAdjacentHTML('beforeend', `<div class="vu-h">Vadesi gelen <span>${gv.length} firma</span></div>` + gv.sort((a, b) => Math.abs(b.vgel || b.alacak) - Math.abs(a.vgel || a.alacak)).map(m => vadeSatir(m, 'yak')).join(''));
+  if (gv.length) box.insertAdjacentHTML('beforeend', `<div class="vu-h">Vadesi gelen <span>${gv.length} firma</span></div>` + gv.sort((a, b) => Math.abs(b.vgel || b.alacak) - Math.abs(a.vgel || a.alacak)).slice(0, 4).map(m => vadeSatir(m, 'yak')).join('') + (gv.length > 4 ? `<div class="vu-more">+${gv.length - 4} firma · Finans → Vade uyarıları</div>` : ''));
   const yak = S.gorevler.filter(g => g.tarih >= bugun() && !g.tamam).sort((a, b) => ((a.tarih || '') + (a.saat || '')).localeCompare((b.tarih || '') + (b.saat || ''))).slice(0, 15);
   const gecikmis = S.gorevler.filter(g => g.tarih < bugun() && !g.tamam);
   const b2 = $('#gorev-list'); b2.innerHTML = '';
@@ -1027,6 +1039,11 @@ async function uygulamayiAc() {
   rolUygula(); tfVarsayilan(); kalemlerCiz(); hepsiniCiz(); firmaListesi(); ayarlarCiz();
   git(lsGet('co_page', 'dashboard'));
   BE.dinle();
+  if (BE.tazele) {
+    let gizli = 0;
+    document.addEventListener('visibilitychange', () => { if (document.hidden) gizli = Date.now(); else if (gizli && Date.now() - gizli > 20000) BE.tazele(); });
+    window.addEventListener('online', () => BE.tazele());
+  }
   setTimeout(surumKontrol, 1500);
 }
 
