@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.2.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -354,7 +354,11 @@ function tfYeni() {
 }
 function tfVarsayilan() {
   const d = A.teklif;
-  [['odeme', d.odeme], ['teslimYeri', d.teslimYeri], ['teslimSure', d.teslimSure], ['gecerli', d.gecerli]].forEach(([k, val]) => { const e = $('#tf-' + k); if (val && !e.value) e.value = val; });
+  const taslak = lsGet('co_tf_meta', {});
+  [['odeme', d.odeme], ['teslimYeri', d.teslimYeri], ['teslimSure', d.teslimSure], ['gecerli', d.gecerli]].forEach(([k, val]) => {
+    const e = $('#tf-' + k); if (!val || taslak[k]) return;
+    if (e.tagName === 'SELECT') { if ([...e.options].some(o => o.value === val)) e.value = val; } else if (!e.value) e.value = val;
+  });
 }
 const benimAdim = () => (P[ME] && P[ME].ad) || '';
 // Müşteri seçilince firma kartındaki bilgileri doldur

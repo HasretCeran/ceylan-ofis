@@ -62,8 +62,13 @@ h1,h2,h3,.disp{font-family:'Space Grotesk','Inter',system-ui,sans-serif;letter-s
 .logo-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;line-height:1.1}
 .logo-sub{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
 
-.brand-plate{background:#fff;border-radius:12px;padding:8px 12px;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow);border:1px solid var(--line)}
-.brand-plate img{display:block;height:44px;width:auto}
+.brand-plate{display:inline-flex;align-items:center;justify-content:center}
+.brand-plate img{height:44px;width:auto}
+.logo-d{display:none!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo-l{display:none!important}:root:not([data-theme="light"]) .logo-d{display:block!important}}
+:root[data-theme="dark"] .logo-l{display:none!important}
+:root[data-theme="dark"] .logo-d{display:block!important}
+.logo-l{display:block}
 textarea.inp{height:auto;min-height:96px;padding:11px 13px;line-height:1.5;resize:vertical}
 details.more{border:1px solid var(--line);border-radius:12px;padding:0 13px;background:var(--surface2)}
 details.more summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--fg2);padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px}
@@ -364,12 +369,12 @@ button.row:hover{background:var(--surface2)}
   </defs>
 </svg>
 
-<div id="splash"><div class="brand-plate" style="animation:pulse 1.2s ease-in-out infinite"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon"></div></div>
+<div id="splash"><div class="brand-plate" style="animation:pulse 1.2s ease-in-out infinite;transform-origin:center"><style>#splash .brand-plate img{height:110px}</style><img class="logo-l" src="icons/ceylan-logo.svg" alt="Ceylan Endüstriyel Otomasyon"><img class="logo-d" src="icons/ceylan-logo-koyu.svg" alt=""></div></div>
 
 <!-- ═════════ GİRİŞ ═════════ -->
 <div id="login" hidden>
   <form class="login-card" id="login-form" autocomplete="on">
-    <div style="text-align:center;margin-bottom:16px"><div class="brand-plate"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon" style="height:64px"></div></div>
+    <div style="text-align:center;margin-bottom:16px"><div class="brand-plate"><img class="logo-l" src="icons/ceylan-logo.svg" alt="Ceylan Endüstriyel Otomasyon" style="height:96px"><img class="logo-d" src="icons/ceylan-logo-koyu.svg" alt="" style="height:96px"></div></div>
     <h1>Ceylan Ofis</h1>
     <p class="sub">Teklif · Müşteri · Stok · Takvim</p>
     <div class="login-err" id="login-err" hidden></div>
@@ -386,7 +391,7 @@ button.row:hover{background:var(--surface2)}
 <div id="app" hidden>
   <nav class="sidebar">
     <div class="sb-brand" style="flex-direction:column;align-items:stretch;gap:8px">
-      <div class="brand-plate" style="width:100%"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon" style="height:50px"></div>
+      <div class="brand-plate" style="width:100%"><img class="logo-l" src="icons/ceylan-logo.svg" alt="Ceylan Endüstriyel Otomasyon" style="height:64px"><img class="logo-d" src="icons/ceylan-logo-koyu.svg" alt="" style="height:64px"></div>
       <div class="logo-sub" style="text-align:center">Ceylan Ofis</div>
     </div>
     <button class="sb-item" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg>Genel Bakış</button>
@@ -405,7 +410,7 @@ button.row:hover{background:var(--surface2)}
 
   <div class="main">
     <header class="topbar">
-      <div class="brand-plate tb-logo" style="padding:3px 6px;border-radius:8px;width:auto;height:auto"><img src="icons/ceylan-logo.png" alt="Ceylan" style="height:26px"></div>
+      <div class="brand-plate tb-logo" style="width:auto;height:auto;background:none;box-shadow:none"><img class="logo-l" src="icons/ceylan-logo.svg" alt="Ceylan" style="height:30px"><img class="logo-d" src="icons/ceylan-logo-koyu.svg" alt="" style="height:30px"></div>
       <h2 id="page-title">Genel Bakış</h2>
       <div class="tb-right">
         <span class="sync" id="sync"><i></i><span>Bağlanıyor</span></span>
@@ -473,7 +478,7 @@ button.row:hover{background:var(--surface2)}
               <div class="fg">
                 <div class="fg2">
                   <div class="f"><label for="tf-odeme">Ödeme şekli</label><input class="inp" id="tf-odeme" placeholder="ör. 30 gün vadeli"></div>
-                  <div class="f"><label for="tf-gecerli">Opsiyon</label><select class="sel" id="tf-gecerli"><option>15 gün</option><option>7 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
+                  <div class="f"><label for="tf-gecerli">Opsiyon</label><select class="sel" id="tf-gecerli"><option>1 gün</option><option>2 gün</option><option>3 gün</option><option>4 gün</option><option>5 gün</option><option>7 gün</option><option>15 gün</option></select></div>
                 </div>
                 <div class="fg2">
                   <div class="f"><label for="tf-teslimYeri">Teslim yeri</label><input class="inp" id="tf-teslimYeri" placeholder="ör. Fabrika teslim"></div>
@@ -642,7 +647,7 @@ button.row:hover{background:var(--surface2)}
         <div class="card owner-only" id="ayar-teklif" hidden><div class="card-h"><h3>Teklif şablonu varsayılanları</h3><span class="pill p-gray">🔒 Yönetici</span></div><div class="card-b fg">
           <div class="fg2">
             <div class="f"><label for="at-odeme">Ödeme şekli</label><input class="inp" id="at-odeme" data-a="odeme" placeholder="ör. Peşin / 30 gün"></div>
-            <div class="f"><label for="at-gecerli">Opsiyon</label><select class="sel" id="at-gecerli" data-a="gecerli"><option>15 gün</option><option>7 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
+            <div class="f"><label for="at-gecerli">Opsiyon</label><select class="sel" id="at-gecerli" data-a="gecerli"><option>1 gün</option><option>2 gün</option><option>3 gün</option><option>4 gün</option><option>5 gün</option><option>7 gün</option><option>15 gün</option></select></div>
           </div>
           <div class="fg2">
             <div class="f"><label for="at-teslimYeri">Teslim yeri</label><input class="inp" id="at-teslimYeri" data-a="teslimYeri"></div>
@@ -677,8 +682,8 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.1.2"></script>
-<script src="teklif-cikti.js?v=1.1.2"></script>
-<script src="app.js?v=1.1.2"></script>
+<script src="config.js?v=1.2.0"></script>
+<script src="teklif-cikti.js?v=1.2.0"></script>
+<script src="app.js?v=1.2.0"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
     vfs: 'https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js',
   };
   const SABLON = 'sablon/teklif-sablonu.xlsx';
-  const LOGO = 'icons/ceylan-logo.png';
+  const LOGO = 'icons/ceylan-logo.svg'; // vektörel, şeffaf
   const TURKUAZ = '#34B6A7';
   const SATIR_ILK = 20, SATIR_SON = 181; // şablondaki kalem satırları
 
@@ -26,8 +26,7 @@
   let logoData = null;
   async function logoAl() {
     if (logoData) return logoData;
-    const b = await fetch(LOGO).then(r => r.blob());
-    logoData = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
+    logoData = await fetch(LOGO).then(r => { if (!r.ok) throw new Error('logo'); return r.text(); });
     return logoData;
   }
 
@@ -143,7 +142,7 @@
       footer: (cur, cnt) => ({columns: [{text: 'Ceylan Endüstriyel Otomasyon · www.ceylanotomasyon.com.tr · info@ceylanotomasyon.com.tr', fontSize: 6.5, color: '#98a1b2'}, {text: cur + ' / ' + cnt, alignment: 'right', fontSize: 6.5, color: '#98a1b2'}], margin: [28, 10, 28, 0]}),
       content: [
         {columns: [
-          logo ? {image: logo, width: 165} : {text: 'CEYLAN', bold: true, fontSize: 20},
+          logo ? {svg: logo, width: 150} : {text: 'CEYLAN', bold: true, fontSize: 20},
           {stack: [
             {text: 'Ceylan Endüstriyel ve Otomasyon Tic. Ltd. Şti.', bold: true, fontSize: 11},
             {text: (ayar && ayar.adres) || 'Gaziler Mah. İbrahim Ağa Cd. No:221/A Gebze / KOCAELİ', margin: [0, 3, 0, 0]},
