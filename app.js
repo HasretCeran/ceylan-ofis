@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.8.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -602,7 +602,7 @@ $('#tk-dosya').onchange = e => { const f = e.target.files; if (f && f.length) te
   document.addEventListener('drop', e => {
     if (!dosyaVar(e) || !acik()) return;
     e.preventDefault(); sayac = 0; $('#drop-ov').hidden = true; $('#tk-drop').classList.remove('on');
-    if (e.dataTransfer.files.length) teklifIceAl(e.dataTransfer.files);
+    if (e.dataTransfer.files.length) { if (aktifSayfa === 'teklif' && window.hizliTeklif) hizliTeklif([...e.dataTransfer.files]); else teklifIceAl(e.dataTransfer.files); }
   });
 }
 

@@ -34,6 +34,10 @@
   const num = v => { const n = Number(String(v ?? '').replace(',', '.')); return isFinite(n) ? n : 0; };
   const para = (n, d = 2) => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits: d, maximumFractionDigits: d});
   const PB = {'₺': 'TL', '€': 'EUR', '$': 'USD'};
+  // Kuruşun altındaki fiyatlar (kablo bağı vb.) 5 haneye kadar gösterilir
+  const fiyatYaz = n => n && Math.abs(n) < 1 ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 5}) : para(n);
+  // Büyük rakamlar sütuna sığsın diye harf küçülür (satır kaymasın)
+  const rakamFont = n => { const l = para(n).length; return l > 13 ? 5.8 : l > 11 ? 6.4 : 7; };
   const birimNet = k => num(k.fiyat) * (1 - num(k.iskonto) / 100);
   const satirToplam = k => birimNet(k) * (num(k.miktar) || 1);
 
@@ -111,14 +115,14 @@
     const tarih = (t.tarih ? new Date(t.tarih + 'T12:00:00') : new Date()).toLocaleDateString('tr-TR', {day: '2-digit', month: 'long', year: 'numeric'});
     const th = s => ({text: s, style: 'th'});
     const rows = kalemler.map((k, i) => [
-      {text: String(i + 1), alignment: 'center'}, {text: k.ref || '', bold: true}, k.aciklama || '', k.marka || '',
-      {text: para(num(k.miktar) || 1, 0), alignment: 'right'}, k.birim || 'Adet',
-      {text: k.fiyat === '' || k.fiyat == null ? '—' : para(num(k.fiyat)), alignment: 'right'}, {text: k.para || '€', alignment: 'center'},
-      {text: num(k.iskonto) ? '%' + para(num(k.iskonto), 0) : '', alignment: 'right'},
-      {text: k.fiyat === '' || k.fiyat == null ? '' : para(birimNet(k)), alignment: 'right'},
-      {text: k.fiyat === '' || k.fiyat == null ? '' : para(satirToplam(k)), alignment: 'right', bold: true},
-      {text: k.teslim || t.teslimSure || '', alignment: 'center'},
-    ]);
+      {text: String(i + 1), alignment: 'center'}, {text: k.ref || '', bold: true, fontSize: String(k.ref || '').length > 20 ? 6.2 : 6.9}, k.aciklama || '', {text: k.marka || '', fontSize: 6.6},
+      {text: para(num(k.miktar) || 1, num(k.miktar) % 1 ? 2 : 0), alignment: 'right', noWrap: true}, {text: k.birim || 'Adet', fontSize: 6.6},
+      {text: k.fiyat === '' || k.fiyat == null ? '—' : fiyatYaz(num(k.fiyat)), alignment: 'right', noWrap: true, fontSize: rakamFont(num(k.fiyat))}, {text: k.para || '€', alignment: 'center'},
+      {text: num(k.iskonto) ? '%' + para(num(k.iskonto), num(k.iskonto) % 1 ? 1 : 0) : '', alignment: 'right', noWrap: true},
+      {text: k.fiyat === '' || k.fiyat == null ? '' : fiyatYaz(birimNet(k)), alignment: 'right', noWrap: true, fontSize: rakamFont(birimNet(k))},
+      {text: k.fiyat === '' || k.fiyat == null ? '' : para(satirToplam(k)), alignment: 'right', bold: true, noWrap: true, fontSize: rakamFont(satirToplam(k))},
+      {text: k.teslim || t.teslimSure || '', alignment: 'center', fontSize: 6.6},
+    ].map(c => typeof c === 'string' ? {text: c} : c));
     const bilgi = (l, v) => [{text: l, style: 'lbl'}, {text: v || '', bold: !!v}];
     const sartlar = (ayar && ayar.sartlar || []).filter(Boolean);
     const topSatir = [];
@@ -136,11 +140,11 @@
       info: {title: 'Teklif ' + (t.no || ''), author: 'Ceylan Endüstriyel Otomasyon', subject: t.konu || ''},
       defaultStyle: {font: 'Roboto', fontSize: 8, color: '#1f2933'},
       styles: {
-        th: {bold: true, fontSize: 7.2, color: '#ffffff', fillColor: TURKUAZ, alignment: 'center'},
+        th: {bold: true, fontSize: 6.8, color: '#ffffff', fillColor: TURKUAZ, alignment: 'center', noWrap: true},
         lbl: {color: '#5b6475', fontSize: 7.5},
         kutuBaslik: {bold: true, color: '#ffffff', fillColor: TURKUAZ, alignment: 'center', fontSize: 8},
       },
-      footer: (cur, cnt) => ({columns: [{text: 'Ceylan Endüstriyel Otomasyon · www.ceylanotomasyon.com.tr · info@ceylanotomasyon.com.tr', fontSize: 6.5, color: '#98a1b2'}, {text: cur + ' / ' + cnt, alignment: 'right', fontSize: 6.5, color: '#98a1b2'}], margin: [28, 10, 28, 0]}),
+      footer: (cur, cnt) => ({columns: [{width: '*', text: 'Ceylan Endüstriyel Otomasyon · www.ceylanotomasyon.com.tr · info@ceylanotomasyon.com.tr', fontSize: 6.5, color: '#98a1b2'}, {width: 40, text: cur + ' / ' + cnt, alignment: 'right', fontSize: 6.5, color: '#98a1b2'}], margin: [28, 10, 28, 0]}),
       content: [
         {columns: [
           logo ? {svg: logo, width: 150} : {text: 'CEYLAN', bold: true, fontSize: 20},
@@ -158,10 +162,10 @@
         ], columnGap: 16},
         {table: {widths: ['*'], body: [[{text: 'TEKLİF FORMU', alignment: 'center', bold: true, fontSize: 12, color: '#ffffff', fillColor: TURKUAZ, margin: [0, 2, 0, 2]}]]}, layout: 'noBorders', margin: [0, 10, 0, 0]},
         {table: {headerRows: 1, dontBreakRows: true,
-          widths: [12, 66, '*', 38, 24, 22, 40, 12, 18, 40, 46, 30],
-          body: [[th('No'), th('Ürün Kodu'), th('Açıklama'), th('Marka'), th('Miktar'), th('Birim'), th('Liste Fiyat'), th('PB'), th('İsk.'), th('Birim Net'), th('Toplam'), th('Teslim')], ...rows]},
-          layout: {fillColor: (r) => r > 0 && r % 2 === 0 ? '#f2f8f7' : null, hLineColor: () => '#d6dedd', vLineColor: () => '#d6dedd', hLineWidth: () => .5, vLineWidth: () => .5, paddingTop: () => 3, paddingBottom: () => 3, paddingLeft: () => 2.5, paddingRight: () => 2.5},
-          fontSize: 7.2, margin: [0, 0, 0, 10]},
+          widths: [11, 80, '*', 40, 28, 22, 46, 10, 18, 46, 54, 30],
+          body: [[th('No'), th('Ürün Kodu'), th('Açıklama'), th('Marka'), th('Miktar'), th('Birim'), th('Liste Fiyat'), th('PB'), th('İsk.'), th('Net Fiyat'), th('Toplam'), th('Teslim')], ...rows]},
+          layout: {fillColor: (r) => r > 0 && r % 2 === 0 ? '#f2f8f7' : null, hLineColor: () => '#d6dedd', vLineColor: () => '#d6dedd', hLineWidth: () => .5, vLineWidth: () => .5, paddingTop: () => 3, paddingBottom: () => 3, paddingLeft: () => 2, paddingRight: () => 2},
+          fontSize: 7, margin: [0, 0, 0, 10]},
         {columns: [
           kutu('ŞARTLAR', [['Ödeme Şekli', t.odeme || ''], ['Opsiyon', t.gecerli || ''], ['Teslim Yeri', t.teslimYeri || ''], ['Hazırlayan', hz.toLocaleUpperCase('tr-TR')]].map(([a, b]) => [{text: a, style: 'lbl'}, b]), [70, '*']),
           kutu('TOPLAMLAR', topSatir.map(([a, b], i) => [{text: a, bold: i === topSatir.length - 1}, {text: b, alignment: 'right', bold: i === topSatir.length - 1}]), ['*', 120]),
