@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.7.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -10,6 +10,17 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
 const tl = n => '₺' + Number(n || 0).toLocaleString('tr-TR', {maximumFractionDigits:0});
+const fmtF = n => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: Math.abs(Number(n)) < 1 ? 5 : 2});
+// Ürün arama: Türkçe küçük harf, kelimelerin hepsi geçmeli; kod boşluk/tire olmadan da bulunur
+const nrmTR = s => String(s || '').toLocaleLowerCase('tr-TR');
+const refN = s => String(s || '').toUpperCase().replace(/[\s\-./_]/g, '');
+function urunAra(q, lim) {
+  const tk = nrmTR(q).split(/\s+/).filter(Boolean), qn = refN(q).toLowerCase();
+  const l = !tk.length ? S.stok.slice() : S.stok.filter(u => { if (!u._ix) u._ix = nrmTR([u.ref, refN(u.ref), u.marka, u.aciklama].join(' ')); return tk.every(t => u._ix.includes(t)) || (qn.length >= 3 && refN(u.ref).toLowerCase().startsWith(qn)); });
+  if (qn) l.sort((a, b) => (refN(b.ref).toLowerCase() === qn) - (refN(a.ref).toLowerCase() === qn) || (refN(b.ref).toLowerCase().startsWith(qn)) - (refN(a.ref).toLowerCase().startsWith(qn)));
+  return lim ? l.slice(0, lim) : l;
+}
+const urunBul = ref => { const n = refN(ref); return n ? S.stok.find(u => refN(u.ref) === n) : null; };
 const kisa = n => { n = Number(n||0); return n >= 1e6 ? '₺' + (n/1e6).toLocaleString('tr-TR',{maximumFractionDigits:1}) + 'M' : n >= 1e4 ? '₺' + Math.round(n/1000).toLocaleString('tr-TR') + 'K' : tl(n); };
 const dstr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 const bugun = () => dstr(new Date());
@@ -56,17 +67,20 @@ const BE = DEMO ? {
   async yukle() {
     // Supabase her istekte en fazla 1000 satır verir: sayfa sayfa hepsini çek
     const hepsi = async c => {
-      const out = [];
-      for (let i = 0; ; i += 1000) {
-        const {data, error} = await sb.from(c).select('*').order('id').range(i, i + 999);
-        if (error) throw error;
-        out.push(...data);
-        if (data.length < 1000) break;
+      const {count, error: e0} = await sb.from(c).select('id', {count: 'exact', head: true});
+      if (e0) throw e0;
+      const sayfa = Math.max(1, Math.ceil((count || 0) / 1000) + 1), out = [];
+      for (let i = 0; i < sayfa; i += 6) {   // 6'şar sayfa paralel
+        const parca = await Promise.all(Array.from({length: Math.min(6, sayfa - i)}, (_, k) => sb.from(c).select('*').order('id').range((i + k) * 1000, (i + k) * 1000 + 999)));
+        for (const {data, error} of parca) { if (error) throw error; out.push(...data); }
       }
       return out;
     };
-    const sonuc = await Promise.all(COLS.map(hepsi));
-    sonuc.forEach((rows, i) => { S[COLS[i]] = rows.map(rowToObj); });
+    // Ürün listesi büyük: uygulamayı bekletmeden arkadan yüklenir
+    const ana = COLS.filter(c => c !== 'stok');
+    const sonuc = await Promise.all(ana.map(hepsi));
+    sonuc.forEach((rows, i) => { S[ana[i]] = rows.map(rowToObj); });
+    hepsi('stok').then(rows => { S.stok = rows.map(rowToObj); degisti('stok'); }).catch(e => console.warn('stok', e));
     await profilYukle();
     await ayarYukle();
   },
@@ -328,12 +342,20 @@ function kalemlerCiz() {
         <div class="f c2"><label>Miktar</label><input class="inp num" data-k="miktar" type="number" inputmode="decimal" min="0" value="${esc(k.miktar || 1)}"></div>
         <div class="f c2"><label>Birim</label><select class="sel" data-k="birim">${opt(['Adet', 'Takım', 'Set', 'Metre', 'Kutu', 'kg'], k.birim || 'Adet')}</select></div>
         <div class="f c2"><label>İsk. %</label><input class="inp num" data-k="iskonto" type="number" inputmode="decimal" min="0" max="100" value="${esc(k.iskonto || 0)}"></div>
-        <div class="f c4"><label>Birim fiyat</label><input class="inp num" data-k="fiyat" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(k.fiyat)}" placeholder="0,00"></div>
+        <div class="f c4"><label>Birim fiyat</label><input class="inp num" data-k="fiyat" type="number" inputmode="decimal" min="0" step="any" value="${esc(k.fiyat)}" placeholder="0,00"></div>
         <div class="f c2"><label>Para</label><select class="sel" data-k="para">${opt(['€', '₺', '$'], k.para || '€')}</select></div>
       </div>`;
     const netYaz = () => { const n = kalemNet(k); el.querySelector('[data-net]').textContent = n > 0 ? (k.para || '€') + ' ' + fmt(n) : '—'; };
     netYaz();
     el.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => { k[inp.dataset.k] = inp.value; netYaz(); tfSakla(); }));
+    // Kod yazılınca fiyat listesinden doldur (boş alanları)
+    el.querySelector('[data-k="ref"]').addEventListener('change', () => {
+      const u = urunBul(k.ref); if (!u) return;
+      const set = (a, v) => { if (v !== undefined && v !== null && v !== '' && !k[a]) { k[a] = v; const i2 = el.querySelector(`[data-k="${a}"]`); if (i2) i2.value = v; } };
+      set('marka', u.marka); set('aciklama', u.aciklama);
+      if (u.fiyat && !Number(k.fiyat)) { k.fiyat = u.fiyat; k.para = u.para || k.para; el.querySelector('[data-k="fiyat"]').value = u.fiyat; el.querySelector('[data-k="para"]').value = k.para; }
+      netYaz(); tfSakla(); toast('✓ ' + u.marka + ' listesinden dolduruldu');
+    });
     el.querySelector('.del-x').onclick = () => { kalemler.splice(i, 1); tfSakla(); kalemlerCiz(); };
     box.appendChild(el);
   });
@@ -347,11 +369,10 @@ $('#k-stok').onclick = () => {
   if (!S.stok.length) { toast('Stok listesi boş'); return; }
   const sh = sheet('Stoktan ürün seç', `<div class="search" style="margin-bottom:10px"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="pk-ara" placeholder="Ara"></div><div class="rows picker" id="pk-list"></div>`);
   const ciz = () => {
-    const q = sh.el.querySelector('#pk-ara').value.toLowerCase();
-    const l = S.stok.filter(u => !q || [u.ref, u.aciklama, u.marka].join(' ').toLowerCase().includes(q)).slice(0, 80);
+    const l = urunAra(sh.el.querySelector('#pk-ara').value, 80);
     const box = sh.el.querySelector('#pk-list'); box.innerHTML = l.length ? '' : '<div class="empty">Sonuç yok</div>';
     l.forEach(u => { const b = document.createElement('button'); b.className = 'row';
-      b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)} · ${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmt(u.fiyat) : '—'}</b></div>`;
+      b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)} · ${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '—'}</b></div>`;
       b.onclick = () => { kalemler.push({ref: u.ref || '', aciklama: u.aciklama || '', marka: u.marka || '', miktar: 1, birim: 'Adet', fiyat: u.fiyat || '', para: u.para || '€', iskonto: 0}); kalemlerCiz(); toast('✅ ' + (u.ref || 'Ürün') + ' eklendi'); };
       box.appendChild(b); });
   };
@@ -699,13 +720,14 @@ let sMarka = '';
 function stokCiz() {
   const markalar = [...new Set(S.stok.map(u => u.marka).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr'));
   $('#s-chips').innerHTML = ['', ...markalar].map(m => `<button class="chip${sMarka === m ? ' on' : ''}" data-sm="${esc(m)}">${esc(m) || 'Tümü'}</button>`).join('');
-  const q = $('#s-ara').value.toLowerCase(), d = $('#s-durum').value;
-  const l = S.stok.filter(u => (!sMarka || u.marka === sMarka) && (!d || stokDurum(u) === d) && (!q || [u.ref, u.aciklama, u.marka].join(' ').toLowerCase().includes(q))).sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
+  const q = $('#s-ara').value.trim(), d = $('#s-durum').value;
+  let l = (q ? urunAra(q) : S.stok.slice()).filter(u => (!sMarka || u.marka === sMarka) && (!d || stokDurum(u) === d));
+  if (!q) l.sort((a, b) => (a.marka || '').localeCompare(b.marka || '', 'tr') || (a.ref || '').localeCompare(b.ref || ''));
   const krit = S.stok.filter(u => ['kritik', 'yok'].includes(stokDurum(u))).length;
-  $('#s-ozet').textContent = `${S.stok.length} ürün · ${markalar.length} marka · ${krit} kritik`;
+  $('#s-ozet').textContent = `${S.stok.length.toLocaleString('tr-TR')} ürün · ${markalar.length} marka${krit ? ' · ' + krit + ' kritik' : ''}${l.length > 300 ? ' · ilk 300 gösteriliyor, aramayla daralt' : ''}`;
   const pill = {yeterli: ['Yeterli', 'p-green'], kritik: ['Kritik', 'p-red'], yok: ['Yok', 'p-gray'], bilinmiyor: ['—', 'p-gray']};
   $('#s-list').innerHTML = l.length ? l.slice(0, 300).map(u => { const [pl, pc] = pill[stokDurum(u)];
-    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmt(u.fiyat) : '<span style="color:var(--fg3)">fiyat yok</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${u.stok !== '' && u.stok != null ? ' · ' + esc(u.stok) : ''}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
+    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${u.stok !== '' && u.stok != null ? ' · ' + esc(u.stok) : ''}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
 }
 $('#s-ara').oninput = stokCiz; $('#s-durum').onchange = stokCiz;
 $('#s-chips').onclick = e => { const c = e.target.closest('[data-sm]'); if (c) { sMarka = c.dataset.sm; stokCiz(); } };
