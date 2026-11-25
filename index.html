@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ceylan Ofis</title>
+<meta name="description" content="Ceylan Endüstriyel Otomasyon ofis uygulaması">
+<meta name="theme-color" content="#1a56db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ceylan Ofis">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5f9; --surface:#ffffff; --surface2:#f7f8fb; --line:#e4e8f0; --line2:#d5dbe6;
+  --fg:#111827; --fg2:#5b6475; --fg3:#98a1b2;
+  --brand:#1a56db; --brand2:#123fa6; --brand-soft:#e8effd; --brand-ink:#ffffff;
+  --green:#16803c; --green-soft:#e5f5eb; --red:#c8242f; --red-soft:#fdeaea;
+  --amber:#a15c00; --amber-soft:#fdf1dc; --orange:#c2410c; --orange-soft:#fdece3;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 2px 8px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 40px rgba(16,24,40,.18);
+  --r:14px; --r-sm:10px;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0f17; --surface:#141a24; --surface2:#1a212d; --line:#232b38; --line2:#2e3746;
+  --fg:#e8ecf3; --fg2:#9aa4b5; --fg3:#5d6779;
+  --brand:#4f83f1; --brand2:#2f63d6; --brand-soft:#16233d; --brand-ink:#ffffff;
+  --green:#3fb969; --green-soft:#13291c; --red:#f0646d; --red-soft:#33171a;
+  --amber:#e0a43a; --amber-soft:#2f2412; --orange:#f08a4b; --orange-soft:#311d12;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --shadow-lg:0 12px 40px rgba(0,0,0,.55);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0b0f17; --surface:#141a24; --surface2:#1a212d; --line:#232b38; --line2:#2e3746;
+  --fg:#e8ecf3; --fg2:#9aa4b5; --fg3:#5d6779;
+  --brand:#4f83f1; --brand2:#2f63d6; --brand-soft:#16233d; --brand-ink:#ffffff;
+  --green:#3fb969; --green-soft:#13291c; --red:#f0646d; --red-soft:#33171a;
+  --amber:#e0a43a; --amber-soft:#2f2412; --orange:#f08a4b; --orange-soft:#311d12;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --shadow-lg:0 12px 40px rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,.disp{font-family:'Space Grotesk','Inter',system-ui,sans-serif;letter-spacing:-.01em;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── LOGO ── */
+.logo-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,#2a6af0,#0f3ba0);display:grid;place-items:center;box-shadow:0 3px 10px rgba(26,86,219,.35);flex-shrink:0}
+.logo-mark svg{width:22px;height:22px}
+.logo-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;line-height:1.1}
+.logo-sub{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+
+/* ── LOGIN ── */
+#login{min-height:100%;display:grid;place-items:center;padding:calc(24px + var(--safe-t)) max(20px,var(--safe-r)) calc(24px + var(--safe-b)) max(20px,var(--safe-l));background:radial-gradient(1200px 500px at 50% -10%,var(--brand-soft),transparent 70%),var(--bg)}
+.login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px 24px;box-shadow:var(--shadow-lg)}
+.login-card .logo-mark{width:56px;height:56px;border-radius:16px;margin:0 auto 14px}
+.login-card .logo-mark svg{width:30px;height:30px}
+.login-card h1{text-align:center;font-size:22px;margin-bottom:4px}
+.login-card p.sub{text-align:center;color:var(--fg2);font-size:13px;margin-bottom:22px}
+.login-err{background:var(--red-soft);color:var(--red);font-size:12.5px;padding:9px 12px;border-radius:10px;margin-bottom:12px}
+
+/* ── LAYOUT ── */
+#app{display:flex;min-height:100%}
+.sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;padding:18px 12px}
+.sb-brand{display:flex;align-items:center;gap:11px;padding:2px 6px 18px}
+.sb-label{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg3);padding:14px 10px 6px}
+.sb-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;color:var(--fg2);font-weight:500;font-size:13.5px;border:0;background:none;width:100%;text-align:left}
+.sb-item svg{width:18px;height:18px;flex-shrink:0}
+.sb-item:hover{background:var(--surface2);color:var(--fg)}
+.sb-item.active{background:var(--brand-soft);color:var(--brand)}
+.sb-item .cnt{margin-left:auto;font-size:11px;font-weight:700;background:var(--brand);color:var(--brand-ink);border-radius:20px;padding:1px 7px}
+.sb-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;padding-left:6px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0}
+.sb-foot .who{min-width:0}
+.sb-foot .who b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-foot .who span{font-size:11px;color:var(--fg3)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line);padding:calc(10px + var(--safe-t)) max(24px,var(--safe-r)) 10px max(24px,var(--safe-l));display:flex;align-items:center;gap:12px;min-height:58px}
+.topbar .tb-logo{display:none}
+.topbar h2{font-size:17px;font-weight:600}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--fg2);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:4px 10px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--fg3)}
+.sync.ok i{background:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+.sync.warn i{background:var(--amber)}
+.sync.err i{background:var(--red)}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--fg2)}
+.icon-btn svg{width:17px;height:17px}
+.content{padding:22px max(24px,var(--safe-r)) 40px max(24px,var(--safe-l));max-width:1120px;width:100%;margin:0 auto}
+.page{display:none;animation:fade .18s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.ph h1{font-size:22px}
+.ph p{color:var(--fg2);font-size:13px;margin-top:2px}
+
+/* ── ICONS ── */
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── HERO ── */
+.hero{border-radius:20px;padding:22px 22px 20px;color:#fff;background:linear-gradient(135deg,#1f5fe8 0%,#123fa6 60%,#0d2f80 100%);position:relative;overflow:hidden;margin-bottom:16px;box-shadow:0 10px 30px rgba(26,86,219,.28)}
+.hero::after{content:"";position:absolute;right:-40px;top:-50px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%)}
+.hero .bolt{position:absolute;right:18px;bottom:-14px;width:120px;height:120px;opacity:.12}
+.hero small{font-size:12px;opacity:.8;font-weight:500}
+.hero h1{font-size:24px;margin:2px 0 16px}
+.hero-row{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.hero-chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 12px;min-width:120px;flex:1}
+.hero-chip span{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.hero-chip b{font-family:'Space Grotesk',sans-serif;font-size:20px;font-variant-numeric:tabular-nums}
+
+/* ── TILES / CARDS ── */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;box-shadow:var(--shadow);min-width:0}
+.tile .lbl{font-size:11px;font-weight:600;color:var(--fg2);display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.tile .lbl i{width:8px;height:8px;border-radius:3px;display:inline-block}
+.tile .val{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .hint{font-size:11.5px;color:var(--fg3);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.card-h h3{font-size:14.5px;font-weight:600}
+.card-b{padding:14px 16px}
+.link-btn{background:none;border:0;color:var(--brand);font-weight:600;font-size:12.5px;padding:4px 2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.qa{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;text-align:left;box-shadow:var(--shadow);transition:transform .12s,border-color .12s}
+.qa:active{transform:scale(.98)}
+.qa:hover{border-color:var(--brand)}
+.qa .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center}
+.qa .ic svg{width:19px;height:19px}
+.qa b{font-size:13.5px}
+.qa span{font-size:11.5px;color:var(--fg2);margin-top:-6px}
+
+/* ── LIST ROWS ── */
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);min-width:0;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.row:last-child{border-bottom:0}
+button.row:hover{background:var(--surface2)}
+.row .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex-shrink:0;font-weight:700;font-size:13px}
+.row .mid{flex:1;min-width:0}
+.row .t{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .s{font-size:12px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.row .end{text-align:right;flex-shrink:0}
+.row .end b{display:block;font-variant-numeric:tabular-nums;font-size:13.5px}
+.empty{padding:28px 16px;text-align:center;color:var(--fg3);font-size:13px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.p-green{background:var(--green-soft);color:var(--green)}
+.p-red{background:var(--red-soft);color:var(--red)}
+.p-amber{background:var(--amber-soft);color:var(--amber)}
+.p-orange{background:var(--orange-soft);color:var(--orange)}
+.p-blue{background:var(--brand-soft);color:var(--brand)}
+.p-gray{background:var(--surface2);color:var(--fg2)}
+
+/* ── FORMS ── */
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f label{font-size:12px;font-weight:600;color:var(--fg2)}
+.inp,.sel{width:100%;height:44px;padding:0 13px;border-radius:11px;border:1px solid var(--line2);background:var(--surface);font-size:15px;outline:none;transition:border-color .12s,box-shadow .12s}
+.sel{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2398a1b2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.inp:focus,.sel:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.fg{display:grid;gap:12px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.btn{height:44px;padding:0 18px;border-radius:11px;border:1px solid transparent;font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;transition:filter .12s,transform .08s}
+.btn:active{transform:scale(.98)}
+.btn svg{width:17px;height:17px}
+.btn-p{background:var(--brand);color:var(--brand-ink)}
+.btn-p:hover{filter:brightness(1.07)}
+.btn-g{background:var(--green);color:#fff}
+.btn-s{background:var(--surface);border-color:var(--line2);color:var(--fg)}
+.btn-d{background:var(--red-soft);color:var(--red)}
+.btn-sm{height:34px;padding:0 12px;font-size:12.5px;border-radius:9px}
+.btn-block{width:100%}
+.btn[disabled]{opacity:.55;pointer-events:none}
+.search{position:relative;flex:1;min-width:180px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--fg3)}
+.search .inp{padding-left:38px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+.chip{height:32px;padding:0 13px;border-radius:20px;border:1px solid var(--line2);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--fg2);white-space:nowrap}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+/* ── WIZARD ── */
+.stepper{display:flex;gap:6px;margin-bottom:16px}
+.step{flex:1;border:0;background:none;text-align:left;padding:0}
+.step .bar{height:4px;border-radius:4px;background:var(--line2);margin-bottom:7px;transition:background .2s}
+.step.on .bar,.step.done .bar{background:var(--brand)}
+.step small{font-size:10.5px;font-weight:600;color:var(--fg3);letter-spacing:.05em;text-transform:uppercase}
+.step b{display:block;font-size:13px;color:var(--fg2)}
+.step.on b{color:var(--fg)}
+.wp{display:none}.wp.active{display:block}
+.kalem{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.kalem-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.kalem-h .no{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--brand);background:var(--brand-soft);border-radius:8px;padding:3px 9px}
+.kalem-h .net{font-size:13px;color:var(--fg2)}
+.kalem-h .net b{color:var(--fg);font-variant-numeric:tabular-nums}
+.kalem .grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+.kalem .c2{grid-column:span 2}.kalem .c3{grid-column:span 3}.kalem .c4{grid-column:span 4}.kalem .c6{grid-column:span 6}
+.kalem .inp,.kalem .sel{height:40px;font-size:14.5px}
+.del-x{width:32px;height:32px;border-radius:9px;border:0;background:var(--red-soft);color:var(--red);display:grid;place-items:center}
+.del-x svg{width:15px;height:15px}
+.add-k{width:100%;height:52px;border-radius:var(--r);border:1.5px dashed var(--line2);background:transparent;color:var(--brand);font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
+.add-k svg{width:18px;height:18px}
+.wbar{position:sticky;bottom:0;z-index:5;margin:8px -4px 0;padding:12px 4px calc(4px);background:linear-gradient(transparent,var(--bg) 30%);display:flex;align-items:center;gap:10px}
+.wbar .tot{flex:1;min-width:0;font-size:12px;color:var(--fg2)}
+.wbar .tot b{display:block;font-size:15px;color:var(--fg);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prev-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.prev-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--fg3);text-transform:uppercase;letter-spacing:.05em;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.prev-table td{padding:9px 8px;border-bottom:1px solid var(--line)}
+.prev-table .r{text-align:right;font-variant-numeric:tabular-nums}
+.tscroll{overflow-x:auto}
+.picker{max-height:280px;overflow-y:auto}
+
+/* ── CALENDAR ── */
+.cal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px}
+.cal-head b{font-family:'Space Grotesk',sans-serif;font-size:15px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 12px 14px}
+.cal .dn{text-align:center;font-size:10.5px;font-weight:600;color:var(--fg3);padding:4px 0;text-transform:uppercase}
+.cal .d{aspect-ratio:1;max-width:100%;border:0;border-radius:11px;background:none;font-size:13px;font-weight:500;position:relative;display:grid;place-items:center;color:var(--fg)}
+.cal .d.o{color:var(--fg3)}
+.cal .d.we{color:var(--red)}
+.cal .d.today{background:var(--brand-soft);color:var(--brand);font-weight:700}
+.cal .d.sel{background:var(--brand);color:#fff;font-weight:700}
+.cal .d .dot{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--brand)}
+.cal .d.sel .dot{background:#fff}
+.task{display:flex;align-items:flex-start;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task .bar{width:4px;align-self:stretch;border-radius:4px;flex-shrink:0}
+.task .mid{flex:1;min-width:0}
+.task .t{font-weight:600;font-size:13.5px}
+.task .s{font-size:12px;color:var(--fg2);margin-top:2px}
+.task.past .t{color:var(--fg2);text-decoration:line-through}
+
+/* ── FİNANS ── */
+.bar-row{display:grid;grid-template-columns:minmax(0,140px) 1fr 80px;gap:10px;align-items:center;margin-bottom:10px;font-size:12.5px}
+.bar-row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg2)}
+.bar-row .tr{height:8px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.bar-row .tr i{display:block;height:100%;border-radius:6px;background:var(--brand)}
+.bar-row .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.tip{border-left:3px solid var(--brand);background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.55;color:var(--fg2)}
+.tip b{display:block;color:var(--fg);margin-bottom:2px}
+
+/* ── BANNERS ── */
+.banner{border-radius:12px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.demo{background:var(--amber-soft);color:var(--amber)}
+.banner.upd{background:var(--brand-soft);color:var(--brand)}
+
+/* ── BOTTOM NAV ── */
+.bnav{display:none}
+@media (max-width:760px){
+  .sidebar{display:none}
+  .topbar{padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r))}
+  .topbar .tb-logo{display:grid;width:32px;height:32px;border-radius:9px}
+  .topbar .tb-logo svg{width:18px;height:18px}
+  .content{padding:16px max(16px,var(--safe-r)) calc(96px + var(--safe-b)) max(16px,var(--safe-l))}
+  .tiles,.quick{grid-template-columns:1fr 1fr}
+  .grid2{grid-template-columns:1fr}
+  .fg2,.fg3{grid-template-columns:1fr 1fr}
+  .ph h1{font-size:20px}
+  .hero h1{font-size:21px}
+  .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px max(6px,var(--safe-r)) calc(6px + var(--safe-b)) max(6px,var(--safe-l))}
+  .bn{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:10.5px;font-weight:600;color:var(--fg3)}
+  .bn svg{width:22px;height:22px}
+  .bn.active{color:var(--brand)}
+  .bn-fab{flex:1;display:flex;justify-content:center;align-items:flex-start}
+  .bn-fab button{width:56px;height:56px;border-radius:18px;border:0;background:linear-gradient(140deg,#2a6af0,#0f3ba0);color:#fff;display:grid;place-items:center;margin-top:-22px;box-shadow:0 8px 20px rgba(26,86,219,.45)}
+  .bn-fab svg{width:26px;height:26px}
+  .wbar{bottom:calc(74px + var(--safe-b))}
+  .banner{flex-wrap:nowrap;align-items:flex-start}
+  .banner>span{flex:1;min-width:0}
+  .kalem .grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .kalem .m3{grid-column:span 3}.kalem .m6{grid-column:span 6}
+}
+@media (max-width:380px){ .fg3{grid-template-columns:1fr} .hero-chip{min-width:0} }
+
+/* ── SHEET / MODAL ── */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(10,15,25,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:fade .15s}
+.sheet{background:var(--surface);border-radius:20px;width:100%;max-width:480px;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px}
+.sheet-h h3{font-size:16px}
+.sheet-b{padding:4px 18px 16px;overflow-y:auto}
+.sheet-f{display:flex;gap:10px;padding:12px 18px calc(16px + var(--safe-b));border-top:1px solid var(--line)}
+.sheet-f .btn{flex:1}
+.grab{display:none}
+@media (max-width:760px){
+  .overlay{align-items:flex-end;padding:0}
+  .sheet{border-radius:22px 22px 0 0;max-width:none;max-height:92vh;animation:up .22s cubic-bezier(.2,.8,.2,1)}
+  .grab{display:block;width:38px;height:5px;border-radius:5px;background:var(--line2);margin:8px auto 0}
+}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.menu-list .row{padding:14px 4px}
+
+/* ── TOAST ── */
+.toast{position:fixed;left:50%;bottom:calc(24px + var(--safe-b));transform:translate(-50%,20px);background:var(--fg);color:var(--bg);padding:11px 18px;border-radius:12px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);z-index:99;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:760px){.toast{bottom:calc(92px + var(--safe-b))}}
+
+/* ── SPLASH ── */
+#splash{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:100}
+#splash .logo-mark{width:64px;height:64px;border-radius:18px;animation:pulse 1.2s ease-in-out infinite}
+#splash .logo-mark svg{width:34px;height:34px}
+@keyframes pulse{50%{transform:scale(.94);opacity:.8}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2 5 13.2h6.2L9.8 22 19 10.4h-6.3L13.5 2z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7H5a2 2 0 0 1 0-4h13v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15V7"/><path d="M16 14h.01"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  </defs>
+</svg>
+
+<div id="splash"><div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div></div>
+
+<!-- ═════════ GİRİŞ ═════════ -->
+<div id="login" hidden>
+  <form class="login-card" id="login-form" autocomplete="on">
+    <div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
+    <h1>Ceylan Ofis</h1>
+    <p class="sub">Ceylan Endüstriyel Otomasyon</p>
+    <div class="login-err" id="login-err" hidden></div>
+    <div class="fg">
+      <div class="f"><label for="l-user">Kullanıcı adı</label><input class="inp" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ör. ahmet" required></div>
+      <div class="f"><label for="l-pass">Şifre</label><input class="inp" id="l-pass" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-p btn-block" id="login-btn" type="submit">Giriş yap</button>
+    </div>
+    <p class="sub" style="margin:16px 0 0;font-size:12px">Kullanıcı adını ve şifreni yöneticinden al.</p>
+  </form>
+</div>
+
+<!-- ═════════ UYGULAMA ═════════ -->
+<div id="app" hidden>
+  <nav class="sidebar">
+    <div class="sb-brand">
+      <div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
+      <div><div class="logo-name">Ceylan Ofis</div><div class="logo-sub">Endüstriyel Otomasyon</div></div>
+    </div>
+    <button class="sb-item" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg>Genel Bakış</button>
+    <button class="sb-item" data-go="takvim"><svg class="i"><use href="#i-cal"/></svg>Takvim</button>
+    <div class="sb-label">Ticaret</div>
+    <button class="sb-item" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Teklif Oluştur</button>
+    <button class="sb-item" data-go="teklifler"><svg class="i"><use href="#i-doc"/></svg>Teklif Geçmişi<span class="cnt" data-acik hidden></span></button>
+    <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Müşteri / Borç</button>
+    <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
+    <div class="sb-label">Yönetim</div>
+    <button class="sb-item owner-only" data-go="finans" hidden><svg class="i"><use href="#i-chart"/></svg>Finans Raporu<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
+    <button class="sb-item" data-go="ayarlar"><svg class="i"><use href="#i-gear"/></svg>Ayarlar</button>
+    <div class="sb-foot"><div class="avatar" data-avatar>?</div><div class="who"><b data-adim>—</b><span data-rolum>—</span></div></div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="logo-mark tb-logo"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
+      <h2 id="page-title">Genel Bakış</h2>
+      <div class="tb-right">
+        <span class="sync" id="sync"><i></i><span>Bağlanıyor</span></span>
+        <button class="icon-btn" id="theme-btn" aria-label="Tema"><svg class="i"><use href="#i-sun"/></svg></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="banner demo" id="demo-banner" hidden>⚠️ <span><b>Demo modu</b> — veritabanı bağlı değil, kayıtlar sadece bu cihazda tutuluyor.</span></div>
+      <div class="banner upd" id="upd-banner" hidden>✨ <span style="flex:1">Yeni sürüm hazır.</span><button class="btn btn-p btn-sm" id="upd-btn">Şimdi yenile</button></div>
+
+      <!-- GENEL BAKIŞ -->
+      <section class="page" id="p-dashboard">
+        <div class="hero">
+          <svg class="bolt" style="color:#fff"><use href="#i-bolt"/></svg>
+          <small id="hero-date"></small>
+          <h1 id="hero-hi">Merhaba 👋</h1>
+          <div class="hero-row">
+            <div class="hero-chip"><span>Açık teklif</span><b data-acik-val>0</b></div>
+            <div class="hero-chip"><span>Bugün görev</span><b id="hero-gorev">0</b></div>
+          </div>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--amber)"></i>Kritik stok</div><div class="val num" id="d-kritik">0</div><div class="hint">yenileme gerekli</div></div>
+        </div>
+        <div class="quick">
+          <button class="qa" data-go="teklif"><div class="ic" style="background:var(--brand-soft);color:var(--brand)"><svg class="i"><use href="#i-plus"/></svg></div><b>Yeni teklif</b><span>3 adımda hazırla</span></button>
+          <button class="qa" data-act="hareket-ekle"><div class="ic" style="background:var(--green-soft);color:var(--green)"><svg class="i"><use href="#i-wallet"/></svg></div><b>Tahsilat / borç</b><span>Hareket gir</span></button>
+          <button class="qa" data-act="gorev-ekle"><div class="ic" style="background:var(--orange-soft);color:var(--orange)"><svg class="i"><use href="#i-clock"/></svg></div><b>Hatırlatıcı</b><span>Görev planla</span></button>
+          <button class="qa" data-go="stok"><div class="ic" style="background:var(--amber-soft);color:var(--amber)"><svg class="i"><use href="#i-box"/></svg></div><b>Stok ara</b><span>Ürün ve fiyat</span></button>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="card-h"><h3>Bugün</h3><button class="link-btn" data-go="takvim">Takvim →</button></div><div id="d-gorevler"></div></div>
+          <div class="card"><div class="card-h"><h3>Son teklifler</h3><button class="link-btn" data-go="teklifler">Tümü →</button></div><div class="rows" id="d-teklifler"></div></div>
+        </div>
+        <div class="card"><div class="card-h"><h3>Vadesi yaklaşan / geçen alacaklar</h3><button class="link-btn" data-go="musteri">Tümü →</button></div><div class="rows" id="d-vadeler"></div></div>
+      </section>
+
+      <!-- TEKLİF OLUŞTUR -->
+      <section class="page" id="p-teklif">
+        <div class="ph"><div><h1>Teklif oluştur</h1><p id="tf-durum">Yeni teklif</p></div><button class="btn btn-s btn-sm" id="tf-yeni"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
+        <div class="stepper">
+          <button class="step on" data-step="1"><div class="bar"></div><small>Adım 1</small><b>Müşteri</b></button>
+          <button class="step" data-step="2"><div class="bar"></div><small>Adım 2</small><b>Kalemler</b></button>
+          <button class="step" data-step="3"><div class="bar"></div><small>Adım 3</small><b>Önizle & indir</b></button>
+        </div>
+        <div class="wp active" id="wp1">
+          <div class="card"><div class="card-b fg">
+            <div class="f"><label for="tf-musteri">Müşteri firma *</label><input class="inp" id="tf-musteri" list="firma-list" placeholder="ör. CP Makina"></div>
+            <datalist id="firma-list"></datalist>
+            <div class="fg2">
+              <div class="f"><label for="tf-ilgili">İlgili kişi</label><input class="inp" id="tf-ilgili" placeholder="Ad Soyad"></div>
+              <div class="f"><label for="tf-no">Teklif no</label><input class="inp" id="tf-no" placeholder="otomatik"></div>
+            </div>
+            <div class="f"><label for="tf-konu">Konu</label><input class="inp" id="tf-konu" placeholder="ör. Siemens S7-1200 otomasyon"></div>
+            <div class="fg2">
+              <div class="f"><label for="tf-gecerli">Geçerlilik</label><select class="sel" id="tf-gecerli"><option>15 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
+              <div class="f"><label for="tf-not">Not</label><input class="inp" id="tf-not" placeholder="Teslimat, garanti…"></div>
+            </div>
+          </div></div>
+          <div class="wbar"><div class="tot"></div><button class="btn btn-p" data-step="2">Kalemlere geç<svg class="i"><use href="#i-right"/></svg></button></div>
+        </div>
+        <div class="wp" id="wp2">
+          <div id="kalemler"></div>
+          <button class="add-k" id="k-ekle"><svg class="i"><use href="#i-plus"/></svg>Kalem ekle</button>
+          <button class="btn btn-s btn-block" id="k-stok" style="margin-bottom:6px"><svg class="i"><use href="#i-box"/></svg>Stoktan ürün seç</button>
+          <div class="wbar"><button class="btn btn-s" data-step="1"><svg class="i"><use href="#i-left"/></svg></button><div class="tot">Toplam<b id="tf-tot2">—</b></div><button class="btn btn-p" data-step="3">Önizle<svg class="i"><use href="#i-right"/></svg></button></div>
+        </div>
+        <div class="wp" id="wp3">
+          <div class="card"><div class="card-b" id="tf-onizleme"></div></div>
+          <div class="wbar" style="flex-wrap:wrap">
+            <button class="btn btn-s" data-step="2"><svg class="i"><use href="#i-left"/></svg></button>
+            <div class="tot">Toplam<b id="tf-tot3">—</b></div>
+            <button class="btn btn-s" id="tf-kaydet">Kaydet</button>
+            <button class="btn btn-g" id="tf-xlsx"><svg class="i"><use href="#i-down"/></svg>Excel</button>
+          </div>
+          <p style="font-size:12px;color:var(--fg3);margin-top:10px;line-height:1.5">Excel'i indirince teklif otomatik olarak Teklif Geçmişi'ne kaydedilir. Telefonda dosya <b>İndirilenler</b> klasörüne iner (iPhone'da açılan ekrandan "Dosyalara Kaydet"). Ceylan şablonuna çevirmek için Claude'a yükleyip "teklife dök" de.</p>
+        </div>
+      </section>
+
+      <!-- TEKLİF GEÇMİŞİ -->
+      <section class="page" id="p-teklifler">
+        <div class="ph"><div><h1>Teklif geçmişi</h1><p>Ekibin hazırladığı tüm teklifler</p></div><button class="btn btn-p btn-sm" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="tk-ara" placeholder="Müşteri, konu, no ara"></div></div>
+        <div class="chips" id="tk-chips"></div>
+        <div class="card"><div class="rows" id="tk-list"></div></div>
+      </section>
+
+      <!-- MÜŞTERİ / BORÇ -->
+      <section class="page" id="p-musteri">
+        <div class="ph"><div><h1>Müşteri & borç</h1><p>Firma bazlı alacak ve tahsilat takibi</p></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-s btn-sm" data-act="hareket-ekle">+ Hareket</button><button class="btn btn-p btn-sm" data-act="firma-ekle">+ Firma</button></div></div>
+        <div class="tiles">
+          <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="m-alacak">₺0</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="m-gecmis">₺0</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsil</div><div class="val num" id="m-tahsil">₺0</div></div>
+          <div class="tile"><div class="lbl"><i style="background:var(--fg3)"></i>Firma</div><div class="val num" id="m-firma">0</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="m-ara" placeholder="Firma ara"></div></div>
+        <div class="grid2">
+          <div class="card"><div class="card-h"><h3>Firmalar</h3></div><div class="rows" id="m-list"></div></div>
+          <div class="card"><div class="card-h"><h3>Son hareketler</h3></div><div class="rows" id="h-list"></div></div>
+        </div>
+      </section>
+
+      <!-- STOK -->
+      <section class="page" id="p-stok">
+        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="s-ara" placeholder="Referans, açıklama, marka"></div>
+          <select class="sel" id="s-durum" style="width:auto;min-width:140px"><option value="">Tüm durumlar</option><option value="yeterli">Yeterli</option><option value="kritik">Kritik</option><option value="yok">Stok yok</option></select>
+        </div>
+        <div class="chips" id="s-chips"></div>
+        <div class="card"><div class="rows" id="s-list"></div></div>
+      </section>
+
+      <!-- TAKVİM -->
+      <section class="page" id="p-takvim">
+        <div class="ph"><div><h1>Takvim & planlayıcı</h1><p>Ekibin ortak görevleri ve hatırlatıcıları</p></div><button class="btn btn-p btn-sm" data-act="gorev-ekle">+ Görev</button></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="cal-head"><button class="icon-btn" id="cal-prev"><svg class="i"><use href="#i-left"/></svg></button><b id="cal-ay"></b><button class="icon-btn" id="cal-next"><svg class="i"><use href="#i-right"/></svg></button></div>
+            <div class="cal" id="cal"></div>
+          </div>
+          <div class="card"><div class="card-h"><h3 id="cal-gun">Bugün</h3><button class="link-btn" data-act="gorev-ekle">+ Ekle</button></div><div id="cal-gun-list"></div></div>
+        </div>
+        <div class="card"><div class="card-h"><h3>Yaklaşan görevler</h3></div><div id="gorev-list"></div></div>
+      </section>
+
+      <!-- FİNANS -->
+      <section class="page" id="p-finans">
+        <div class="ph"><div><h1>Finans raporu</h1><p>🔒 Sadece yönetici görür</p></div></div>
+        <div class="hero" style="margin-bottom:14px">
+          <small>Toplam açık alacak</small>
+          <h1 class="num" id="f-alacak" style="font-size:30px;margin-bottom:6px">₺0</h1>
+          <small id="f-alacak-sub"></small>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="lbl">Bu ay tahsilat</div><div class="val num" style="color:var(--green)" id="f-tahsil">₺0</div></div>
+          <div class="tile"><div class="lbl">Vadesi geçen</div><div class="val num" style="color:var(--red)" id="f-gecmis">₺0</div></div>
+          <div class="tile"><div class="lbl">Teklif dönüşümü</div><div class="val num" id="f-donusum">—</div><div class="hint" id="f-donusum-sub"></div></div>
+          <div class="tile"><div class="lbl">Stok değeri (€)</div><div class="val num" id="f-stok">—</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="card-h"><h3>Alacak dağılımı</h3></div><div class="card-b" id="f-dagilim"></div></div>
+          <div class="card"><div class="card-h"><h3>Çalışan bazlı teklif</h3></div><div class="card-b" id="f-calisan"></div></div>
+        </div>
+        <div class="card"><div class="card-h"><h3>💡 Kullanım önerileri</h3></div><div class="card-b">
+          <div class="tip" style="border-color:var(--green)"><b>Vade takibi</b>Firma eklerken vade tarihini gir; vadesi geçenler ana ekranda kırmızı görünür. Vade günü için Takvim'e "Ödeme / Tahsilat" görevi ekle.</div>
+          <div class="tip"><b>Teklif durumu</b>Teklif Geçmişi'nde durumu (Gönderildi / Onaylandı / Reddedildi) güncel tutun; dönüşüm oranı buradan hesaplanır.</div>
+          <div class="tip" style="border-color:var(--amber)"><b>Stok fiyat listesi</b>Marka fiyat listelerini Claude'a gönder, ürünleri toplu ekleyebilirsin. Fiyat ve adet girildikçe stok değeri hesaplanır.</div>
+          <div class="tip" style="border-color:var(--orange)"><b>DİA ERP ekstresi</b>DİA'dan cari ekstreyi Claude'a yapıştırıp "borç tablosuna dök" de; firma ve alacaklar hazır gelir.</div>
+          <div class="tip" style="border-color:var(--fg3)"><b>Aylık özet</b>Ay sonunda Claude'a "bu ayki teklifleri, alacakları ve stok durumunu özetle" de.</div>
+        </div></div>
+      </section>
+
+      <!-- AYARLAR -->
+      <section class="page" id="p-ayarlar">
+        <div class="ph"><div><h1>Ayarlar</h1></div></div>
+        <div class="card"><div class="rows">
+          <div class="row"><div class="avatar" data-avatar>?</div><div class="mid"><div class="t" data-adim>—</div><div class="s" data-rolum>—</div></div><button class="btn btn-s btn-sm" id="cikis"><svg class="i"><use href="#i-out"/></svg>Çıkış</button></div>
+        </div></div>
+        <div class="card"><div class="card-h"><h3>Şifre değiştir</h3></div><div class="card-b fg">
+          <div class="f"><label for="yeni-sifre">Yeni şifre</label><input class="inp" type="password" id="yeni-sifre" autocomplete="new-password" placeholder="en az 6 karakter"></div>
+          <button class="btn btn-s" id="sifre-btn">Şifreyi güncelle</button>
+        </div></div>
+        <div class="card"><div class="card-h"><h3>Görünüm</h3></div><div class="card-b" style="display:flex;gap:8px">
+          <button class="btn btn-s" style="flex:1" data-theme-set="light">Açık</button>
+          <button class="btn btn-s" style="flex:1" data-theme-set="dark">Koyu</button>
+          <button class="btn btn-s" style="flex:1" data-theme-set="system">Sistem</button>
+        </div></div>
+        <div class="card owner-only" hidden><div class="card-h"><h3>Ekip</h3></div><div class="rows" id="ekip-list"></div>
+          <div class="card-b" style="font-size:12.5px;color:var(--fg2);line-height:1.6;border-top:1px solid var(--line)">Yeni çalışan eklemek için Supabase panelinde <b>Authentication → Users → Add user</b>: e-posta olarak <b>kullaniciadi@ceylan.app</b> yaz, şifre belirle, "Auto Confirm User" işaretli olsun. Çalışan uygulamaya sadece kullanıcı adı ve şifreyle girer.</div>
+        </div>
+        <div class="card"><div class="card-h"><h3>Telefona kur</h3></div><div class="card-b" style="font-size:13px;color:var(--fg2);line-height:1.6">
+          <p><b style="color:var(--fg)">iPhone (Safari):</b> Paylaş ⬆ → Ana Ekrana Ekle</p>
+          <p><b style="color:var(--fg)">Android (Chrome):</b> ⋮ → Uygulamayı yükle / Ana ekrana ekle</p>
+          <button class="btn btn-p btn-block" id="kur-btn" style="margin-top:10px" hidden><svg class="i"><use href="#i-down"/></svg>Uygulamayı yükle</button>
+          <p style="margin-top:10px;font-size:12px;color:var(--fg3)">Sürüm <span id="surum"></span> · Güncellemeler otomatik gelir.</p>
+        </div></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bnav">
+    <button class="bn" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg>Özet</button>
+    <button class="bn" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Borç</button>
+    <div class="bn-fab"><button data-go="teklif" aria-label="Yeni teklif"><svg class="i"><use href="#i-plus"/></svg></button></div>
+    <button class="bn" data-go="takvim"><svg class="i"><use href="#i-cal"/></svg>Takvim</button>
+    <button class="bn" data-act="menu"><svg class="i"><use href="#i-menu"/></svg>Menü</button>
+  </nav>
+</div>
+
+<div id="sheet-root"></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
