@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -29,13 +29,20 @@ let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
 let sb = null;
+// Ayarlar (yönetici düzenler): teklif varsayılanları, mail şablonu, DİA bilgileri
+const A = {
+  teklif: {odeme: '', teslimYeri: '', teslimSure: '', gecerli: '15 gün', sartlar: ['Fiyatlarımızda KDV hariçtir. Ayrıca ilave edilecektir.', 'Sipariş kabulü imzalı ve kaşeli olarak işleme alınır.', 'Aksi belirtilmediği sürece nakliye ücreti müşteriye aittir.', 'Döviz cinsinden verilen fiyatlar fatura tarihindeki TCMB satış kuru üzerinden TL olarak fiyatlandırılacaktır.']},
+  mail: {konu: '{no} numaralı teklifimiz — Ceylan Otomasyon', govde: 'Sayın {ilgili},\n\n{konu} konulu teklifimiz ekte bilgilerinize sunulmuştur.\n\nSaygılarımızla,\n{hazirlayan}\nCeylan Endüstriyel Otomasyon\nTel: 0262 646 20 52'},
+  dia: {sunucu: '', firmaKodu: '', donemKodu: '', kullanici: '', aktar: {cari: true, stok: true, hareket: false}},
+};
 
 // ═══ VERİ KATMANI ═══
 const rowToObj = r => ({...(r.veri || {}), id: r.id, by: r.by || null, at: r.at || null});
 const bodyOf = o => { const b = {}; Object.keys(o).forEach(k => { if (!['id','by','at'].includes(k) && o[k] !== undefined) b[k] = o[k]; }); return b; };
 
 const BE = DEMO ? {
-  async yukle() { COLS.forEach(c => { const a = lsGet('co_' + c, []); S[c] = Array.isArray(a) ? a : []; }); P = {demo: {ad: 'Hasret', rol: 'sahip'}}; },
+  async yukle() { COLS.forEach(c => { const a = lsGet('co_' + c, []); S[c] = Array.isArray(a) ? a : []; }); P = {demo: {ad: 'Hasret Can Ceran', rol: 'sahip'}}; const a = lsGet('co_ayarlar', {}); Object.keys(A).forEach(k => { if (a[k]) A[k] = {...A[k], ...a[k]}; }); },
+  async ayarYaz(id, veri) { A[id] = veri; lsSet('co_ayarlar', A); ayarlarCiz(); return true; },
   async yaz(col, obj) {
     const i = S[col].findIndex(x => x.id === obj.id);
     const tam = {...obj, by: obj.by || ME, at: obj.at || new Date().toISOString()};
@@ -49,6 +56,12 @@ const BE = DEMO ? {
     const sonuc = await Promise.all(COLS.map(c => sb.from(c).select('*').limit(5000)));
     sonuc.forEach((r, i) => { if (r.error) throw r.error; S[COLS[i]] = r.data.map(rowToObj); });
     await profilYukle();
+    await ayarYukle();
+  },
+  async ayarYaz(id, veri) {
+    const {error} = await sb.from('ayarlar').upsert({id, veri, updated_at: new Date().toISOString()});
+    if (error) { hata(error); return false; }
+    A[id] = veri; ayarlarCiz(); return true;
   },
   async yaz(col, obj) {
     const satir = {id: obj.id, veri: bodyOf(obj)};
@@ -72,6 +85,7 @@ const BE = DEMO ? {
       degisti(col);
     }));
     ch.on('postgres_changes', {event: '*', schema: 'public', table: 'profiles'}, () => profilYukle().then(() => { rolUygula(); hepsiniCiz(); }));
+    ch.on('postgres_changes', {event: '*', schema: 'public', table: 'ayarlar'}, () => ayarYukle().then(ayarlarCiz));
     ch.subscribe(st => {
       if (st === 'SUBSCRIBED') setSync('ok', 'Canlı');
       else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') setSync('err', 'Bağlantı yok');
@@ -80,6 +94,10 @@ const BE = DEMO ? {
   },
 };
 
+async function ayarYukle() {
+  const {data, error} = await sb.from('ayarlar').select('id,veri');
+  if (!error && data) data.forEach(r => { if (A[r.id]) A[r.id] = {...A[r.id], ...(r.veri || {})}; });
+}
 async function profilYukle() {
   const {data, error} = await sb.from('profiles').select('id,ad,rol');
   if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol}; }); }
@@ -110,11 +128,11 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', musteri: 'Müşteri & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', musteri: 'Müşteri & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
-  if (p === 'finans' && !IS_OWNER) p = 'dashboard';
+  if ((p === 'finans' || p === 'entegrasyon') && !IS_OWNER) p = 'dashboard';
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
@@ -172,6 +190,7 @@ function menuAc() {
     ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
     ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
+    ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
     ${r('ayarlar', 'gear', 'Ayarlar', 'Hesap, şifre, görünüm')}
   </div>`);
 }
@@ -234,7 +253,7 @@ document.addEventListener('click', e => { const t = e.target.closest('[data-tekl
 // ═══════════════════════════════════════════
 // TEKLİF SİHİRBAZI
 // ═══════════════════════════════════════════
-const TF = ['musteri', 'ilgili', 'no', 'konu', 'gecerli', 'not'];
+const TF = ['musteri', 'ilgili', 'telefon', 'eposta', 'no', 'konu', 'gecerli', 'not', 'odeme', 'teslimYeri', 'teslimSure', 'kurUsd', 'kurEur'];
 let kalemler = lsGet('co_tf', []); if (!Array.isArray(kalemler)) kalemler = [];
 let tfId = lsGet('co_tf_id', null);
 { const m = lsGet('co_tf_meta', {}); TF.forEach(a => { if (m[a]) $('#tf-' + a).value = m[a]; }); }
@@ -242,7 +261,7 @@ TF.forEach(a => $('#tf-' + a).addEventListener('input', () => lsSet('co_tf_meta'
 
 function adim(n) {
   if (n >= 2 && !$('#tf-musteri').value.trim()) { toast('Önce müşteri adını yaz'); $('#tf-musteri').focus(); n = 1; }
-  if (n === 3) onizle();
+  if (n === 3) { onizle(); pdfOnHazirla(); }
   $$('.wp').forEach((w, i) => w.classList.toggle('active', i === n - 1));
   $$('.step').forEach((s, i) => { s.classList.toggle('on', i === n - 1); s.classList.toggle('done', i < n - 1); });
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -322,7 +341,7 @@ async function tfKaydet(sessiz) {
   if (!kalemler.length) { toast('Önce kalem ekle'); return false; }
   const m = tfMeta();
   const eski = tfId && S.teklifler.find(t => t.id === tfId);
-  const obj = {...(eski || {}), ...m, id: tfId || newId(), kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: bugun(), durum: (eski && eski.durum) || 'bekliyor'};
+  const obj = {...(eski || {}), ...m, id: tfId || newId(), kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
   const ok = await kaydet('teklifler', obj);
   if (ok) { tfId = obj.id; lsSet('co_tf_id', tfId); $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz) toast('✅ Teklif geçmişe kaydedildi'); }
   return ok;
@@ -330,8 +349,21 @@ async function tfKaydet(sessiz) {
 function tfYeni() {
   kalemler = []; tfId = null; lsSet('co_tf_id', null); lsSet('co_tf_meta', {});
   TF.forEach(a => { const e = $('#tf-' + a); if (e.tagName === 'SELECT') e.selectedIndex = 0; else e.value = ''; });
+  tfVarsayilan();
   kalemlerCiz(); adim(1); $('#tf-durum').textContent = 'Yeni teklif';
 }
+function tfVarsayilan() {
+  const d = A.teklif;
+  [['odeme', d.odeme], ['teslimYeri', d.teslimYeri], ['teslimSure', d.teslimSure], ['gecerli', d.gecerli]].forEach(([k, val]) => { const e = $('#tf-' + k); if (val && !e.value) e.value = val; });
+}
+const benimAdim = () => (P[ME] && P[ME].ad) || '';
+// Müşteri seçilince firma kartındaki bilgileri doldur
+$('#tf-musteri').addEventListener('change', () => {
+  const m = S.musteri.find(x => (x.firma || '').toLocaleLowerCase('tr-TR') === $('#tf-musteri').value.trim().toLocaleLowerCase('tr-TR'));
+  if (!m) return;
+  [['ilgili', m.ilgili], ['telefon', m.tel], ['eposta', m.eposta]].forEach(([k, val]) => { const e = $('#tf-' + k); if (val && !e.value) e.value = val; });
+  lsSet('co_tf_meta', Object.fromEntries(TF.map(x => [x, $('#tf-' + x).value])));
+});
 function tfAc(id) {
   const t = S.teklifler.find(x => x.id === id); if (!t) return;
   TF.forEach(a => { if (t[a] !== undefined) $('#tf-' + a).value = t[a]; });
@@ -342,32 +374,42 @@ function tfAc(id) {
 $('#tf-yeni').onclick = () => { if (kalemler.length && !tfId) { if (!confirmSheet('Taslak silinsin mi?', 'Kaydedilmemiş kalemler silinecek.', tfYeni)) return; } else tfYeni(); };
 function confirmSheet(baslik, metin, evet) { sheet(baslik, `<p style="color:var(--fg2);font-size:14px">${esc(metin)}</p>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Evet', cls: 'btn-d', onClick: evet}]); return false; }
 $('#tf-kaydet').onclick = () => tfKaydet();
-$('#tf-xlsx').onclick = async () => { if (!kalemler.length) { toast('Önce kalem ekle'); return; } excelIndir({...tfMeta(), kalemler}); tfKaydet(true); };
-
-function excelIndir(t) {
-  if (typeof XLSX === 'undefined') { toast('⚠️ Excel modülü yüklenemedi, internet bağlantısını kontrol et'); return; }
-  const wb = XLSX.utils.book_new();
-  const rows = [
-    ['Ceylan Endüstriyel Otomasyon Tic. Ltd. Şti.'],
-    ['Gaziler Mh. İbrahim Ağa Cd. No:221/A Gebze/Kocaeli · +90 262 646 20 52 · www.ceylanotomasyon.com.tr'],
-    [],
-    ['Müşteri:', t.musteri || '', '', 'Teklif No:', t.no || ''],
-    ['İlgili:', t.ilgili || '', '', 'Tarih:', new Date().toLocaleDateString('tr-TR')],
-    ['Konu:', t.konu || '', '', 'Geçerlilik:', t.gecerli || ''],
-    t.not ? ['Not:', t.not] : [],
-    [],
-    ['No', 'Referans / Part No', 'Açıklama', 'Marka', 'Miktar', 'Birim', 'Liste Fiyatı', 'Para', 'İskonto %', 'Net Tutar'],
-    ...(t.kalemler || []).map((k, i) => [i + 1, k.ref || '', k.aciklama || '', k.marka || '', Number(k.miktar) || 1, k.birim || 'Adet', Number(k.fiyat) || 0, k.para || '€', Number(k.iskonto) || 0, kalemNet(k)]),
-    [],
-    ['', '', '', '', '', '', '', '', 'Toplam:', toplamYazi(t.kalemler || [])],
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch: 5}, {wch: 24}, {wch: 42}, {wch: 14}, {wch: 8}, {wch: 8}, {wch: 13}, {wch: 6}, {wch: 10}, {wch: 16}];
-  XLSX.utils.book_append_sheet(wb, ws, 'Teklif');
-  const ad = 'Teklif_' + (t.musteri || 'Musteri').replace(/[^\wçğıöşüÇĞİÖŞÜ-]+/g, '_') + '_' + (t.no || '').replace(/[^\w-]/g, '-') + '.xlsx';
-  XLSX.writeFile(wb, ad);
-  toast('⬇ ' + ad + ' indiriliyor', 3200);
+// ═══ ÇIKTILAR: Excel (Ceylan şablonu), PDF, Mail/WhatsApp ═══
+const TC = window.TeklifCikti;
+const tfVeri = () => ({...tfMeta(), kalemler: kalemler.map(k => ({...k})), hazirlayan: (tfId && (S.teklifler.find(t => t.id === tfId) || {}).hazirlayan) || benimAdim(), tarih: (tfId && (S.teklifler.find(t => t.id === tfId) || {}).tarih) || bugun()});
+const tamTeklif = t => ({...t, hazirlayan: t.hazirlayan || (t.by ? adi(t.by) : benimAdim()), tarih: t.tarih || bugun()});
+let pdfOnbellek = {anahtar: '', blob: null, is: null};
+function pdfOnHazirla() {
+  if (!kalemler.length || !TC) return;
+  const t = tfVeri(), anahtar = JSON.stringify(t) + JSON.stringify(A.teklif);
+  if (pdfOnbellek.anahtar === anahtar && (pdfOnbellek.blob || pdfOnbellek.is)) return;
+  pdfOnbellek = {anahtar, blob: null, is: TC.pdfUret(t, A.teklif).then(b => { if (pdfOnbellek.anahtar === anahtar) pdfOnbellek.blob = b; return b; }).catch(() => null)};
 }
+async function pdfAl(t, tf) {
+  if (tf) { pdfOnHazirla(); const b = pdfOnbellek.blob || await pdfOnbellek.is; if (b) return b; }
+  return TC.pdfUret(t, A.teklif);
+}
+async function cikti(tur, t, tf) {
+  if (!t.kalemler || !t.kalemler.length) { toast('Önce kalem ekle'); return; }
+  const ad = TC.dosyaAdi(t, tur === 'excel' ? 'xlsx' : 'pdf');
+  try {
+    if (tur === 'excel') { toast('Excel hazırlanıyor…'); TC.indir(await TC.excelUret(t, A.teklif), ad); toast('⬇ ' + ad, 3200); }
+    else if (tur === 'pdf') { toast('PDF hazırlanıyor…'); TC.indir(await pdfAl(t, tf), ad); toast('⬇ ' + ad, 3200); }
+    else {
+      const blob = await pdfAl(t, tf);
+      const r = await TC.paylas(blob, ad, t, A.mail);
+      if (r === 'mailto') toast('PDF indirildi, mail açılıyor — PDF\'i eke ekle', 4500);
+    }
+    if (tf) tfKaydet(true);
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    if (e && e.name === 'NotAllowedError') { toast('Paylaşım hazır — bir kez daha bas', 3500); return; }
+    toast('⚠️ ' + (e && e.message || 'Dosya oluşturulamadı'), 4000);
+  }
+}
+$('#tf-xlsx').onclick = () => cikti('excel', tfVeri(), true);
+$('#tf-pdf').onclick = () => cikti('pdf', tfVeri(), true);
+$('#tf-gonder').onclick = () => cikti('gonder', tfVeri(), true);
 
 // ═══════════════════════════════════════════
 // TEKLİF GEÇMİŞİ
@@ -394,12 +436,13 @@ function teklifDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(adi(t.by))}</div></div></div>
     </div>
     <div class="f"><label for="td-durum">Durum</label><select class="sel" id="td-durum">${opts}</select></div>
-    ${kal ? '' : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
+    ${kal ? `<div class="fg3" style="margin-top:12px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
     ${IS_OWNER ? `<button class="btn btn-d btn-sm" id="td-sil" style="margin-top:14px">${ikon('trash')}Teklifi sil</button>` : ''}`,
     [
-      ...(kal ? [{label: 'Excel', onClick: () => { excelIndir(t); return false; }}, {label: 'Düzenle', onClick: () => tfAc(id)}] : []),
+      ...(kal ? [{label: 'Düzenle', onClick: () => tfAc(id)}] : []),
       {label: 'Kaydet', cls: 'btn-p', onClick: async ov => { const d = v(ov, 'td-durum'); if (d === t.durum) return; const ok = await kaydet('teklifler', {...t, durum: d}); if (ok) toast('✅ Durum güncellendi'); return ok; }},
     ]);
+  sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => cikti(b.dataset.td, tamTeklif(t), false));
   const sil = sh.el.querySelector('#td-sil');
   if (sil) sil.onclick = () => { sh.kapat(); confirmSheet('Teklif silinsin mi?', (t.no || '') + ' ' + (t.musteri || '') + ' kalıcı olarak silinecek.', () => BE.sil('teklifler', id)); };
 }
@@ -438,11 +481,12 @@ function firmaForm(id) {
     <div class="fg2"><div class="f"><label for="ff-alacak">Alacak (₺)</label><input class="inp num" id="ff-alacak" type="number" inputmode="decimal" step="0.01" value="${esc(m.alacak)}"></div>
     <div class="f"><label for="ff-vade">Vade</label><input class="inp" id="ff-vade" type="date" value="${esc(m.vade)}"></div></div>
     <div class="f"><label for="ff-durum">Durum</label><select class="sel" id="ff-durum">${[['aktif', 'Aktif'], ['bekliyor', 'Ödeme bekliyor'], ['tahsil', 'Tahsil edildi']].map(([k, l]) => `<option value="${k}"${(m.durum || 'aktif') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="f"><label for="ff-eposta">E-posta</label><input class="inp" id="ff-eposta" type="email" autocapitalize="none" value="${esc(m.eposta)}" placeholder="satinalma@firma.com"></div>
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Fatura no, açıklama"></div>
     ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
-    const ok = await kaydet('musteri', {...m, firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), alacak: v(ov, 'ff-alacak'), vade: v(ov, 'ff-vade'), durum: v(ov, 'ff-durum'), not: v(ov, 'ff-not')});
+    const ok = await kaydet('musteri', {...m, firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), alacak: v(ov, 'ff-alacak'), vade: v(ov, 'ff-vade'), durum: v(ov, 'ff-durum'), not: v(ov, 'ff-not')});
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
@@ -601,9 +645,45 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if (!IS_OWNER && aktifSayfa === 'finans') git('dashboard');
+  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon')) git('dashboard');
   if (IS_OWNER) ekipCiz();
 }
+
+// ═══ AYARLAR FORMLARI: teklif şablonu, mail, DİA ═══
+function alanlariDoldur(kok, veri) {
+  kok.querySelectorAll('[data-a]').forEach(e => {
+    const yol = e.dataset.a.split('.'); let val = veri; yol.forEach(k => { val = val == null ? val : val[k]; });
+    if (e.type === 'checkbox') e.checked = !!val;
+    else if (Array.isArray(val)) e.value = val.join('\n');
+    else e.value = val ?? '';
+  });
+}
+function alanlariOku(kok, temel) {
+  const out = JSON.parse(JSON.stringify(temel || {}));
+  kok.querySelectorAll('[data-a]').forEach(e => {
+    const yol = e.dataset.a.split('.'); let hedef = out;
+    yol.slice(0, -1).forEach(k => { hedef = hedef[k] = hedef[k] || {}; });
+    const son = yol[yol.length - 1];
+    hedef[son] = e.type === 'checkbox' ? e.checked : e.dataset.liste !== undefined ? e.value.split('\n').map(s => s.trim()).filter(Boolean) : e.value.trim();
+  });
+  return out;
+}
+function ayarlarCiz() {
+  if (!IS_OWNER) return;
+  alanlariDoldur($('#ayar-teklif'), A.teklif);
+  alanlariDoldur($('#ayar-mail'), A.mail);
+  alanlariDoldur($('#ayar-dia'), A.dia);
+  const dia = A.dia, dolu = dia.sunucu && dia.firmaKodu && dia.kullanici;
+  $('#dia-durum').className = 'pill ' + (dolu ? 'p-amber' : 'p-gray');
+  $('#dia-durum').textContent = dolu ? 'Bilgiler kayıtlı · bağlantı kurulumu bekliyor' : 'Henüz ayarlanmadı';
+}
+[['ayar-teklif', 'teklif'], ['ayar-mail', 'mail'], ['ayar-dia', 'dia']].forEach(([kutu, id]) => {
+  $('#' + kutu + ' [data-kaydet]').onclick = async e => {
+    const b = e.currentTarget; b.disabled = true;
+    const ok = await BE.ayarYaz(id, alanlariOku($('#' + kutu), A[id]));
+    b.disabled = false; if (ok) toast('✅ Kaydedildi');
+  };
+});
 function ekipCiz() {
   const box = $('#ekip-list');
   if (DEMO) { box.innerHTML = '<div class="empty">Demo modunda ekip yok</div>'; return; }
@@ -677,7 +757,7 @@ async function uygulamayiAc() {
     $('#splash').hidden = true; $('#app').hidden = false; setSync('err', 'Bağlantı yok'); hata(e);
   }
   $('#splash').hidden = true; $('#app').hidden = false;
-  rolUygula(); kalemlerCiz(); hepsiniCiz(); firmaListesi();
+  rolUygula(); tfVarsayilan(); kalemlerCiz(); hepsiniCiz(); firmaListesi(); ayarlarCiz();
   git(lsGet('co_page', 'dashboard'));
   BE.dinle();
   setTimeout(surumKontrol, 1500);

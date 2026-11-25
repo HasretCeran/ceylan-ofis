@@ -62,6 +62,24 @@ h1,h2,h3,.disp{font-family:'Space Grotesk','Inter',system-ui,sans-serif;letter-s
 .logo-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;line-height:1.1}
 .logo-sub{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
 
+.brand-plate{background:#fff;border-radius:12px;padding:8px 12px;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow);border:1px solid var(--line)}
+.brand-plate img{display:block;height:44px;width:auto}
+textarea.inp{height:auto;min-height:96px;padding:11px 13px;line-height:1.5;resize:vertical}
+details.more{border:1px solid var(--line);border-radius:12px;padding:0 13px;background:var(--surface2)}
+details.more summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--fg2);padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px}
+details.more summary::after{content:"＋";margin-left:auto;color:var(--fg3)}
+details.more[open] summary::after{content:"－"}
+details.more .fg{padding-bottom:13px}
+.out-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.out-grid .btn{height:50px}
+.out-grid .wide{grid-column:span 2}
+.integ-h{display:flex;align-items:center;gap:12px}
+.integ-h .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex-shrink:0}
+.integ-h .ic svg{width:21px;height:21px}
+.note{font-size:12.5px;color:var(--fg2);line-height:1.6;background:var(--surface2);border-radius:10px;padding:11px 13px}
+.chk{display:flex;align-items:center;gap:10px;font-size:13.5px;padding:6px 0}
+.chk input{width:19px;height:19px;accent-color:var(--brand)}
+
 /* ── LOGIN ── */
 #login{min-height:100%;display:grid;place-items:center;padding:calc(24px + var(--safe-t)) max(20px,var(--safe-r)) calc(24px + var(--safe-b)) max(20px,var(--safe-l));background:radial-gradient(1200px 500px at 50% -10%,var(--brand-soft),transparent 70%),var(--bg)}
 .login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px 24px;box-shadow:var(--shadow-lg)}
@@ -338,18 +356,22 @@ button.row:hover{background:var(--surface2)}
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
     <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
   </defs>
 </svg>
 
-<div id="splash"><div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div></div>
+<div id="splash"><div class="brand-plate" style="animation:pulse 1.2s ease-in-out infinite"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon"></div></div>
 
 <!-- ═════════ GİRİŞ ═════════ -->
 <div id="login" hidden>
   <form class="login-card" id="login-form" autocomplete="on">
-    <div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
+    <div style="text-align:center;margin-bottom:16px"><div class="brand-plate"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon" style="height:64px"></div></div>
     <h1>Ceylan Ofis</h1>
-    <p class="sub">Ceylan Endüstriyel Otomasyon</p>
+    <p class="sub">Teklif · Müşteri · Stok · Takvim</p>
     <div class="login-err" id="login-err" hidden></div>
     <div class="fg">
       <div class="f"><label for="l-user">Kullanıcı adı</label><input class="inp" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ör. ahmet" required></div>
@@ -363,9 +385,9 @@ button.row:hover{background:var(--surface2)}
 <!-- ═════════ UYGULAMA ═════════ -->
 <div id="app" hidden>
   <nav class="sidebar">
-    <div class="sb-brand">
-      <div class="logo-mark"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
-      <div><div class="logo-name">Ceylan Ofis</div><div class="logo-sub">Endüstriyel Otomasyon</div></div>
+    <div class="sb-brand" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div class="brand-plate" style="width:100%"><img src="icons/ceylan-logo.png" alt="Ceylan Endüstriyel Otomasyon" style="height:50px"></div>
+      <div class="logo-sub" style="text-align:center">Ceylan Ofis</div>
     </div>
     <button class="sb-item" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg>Genel Bakış</button>
     <button class="sb-item" data-go="takvim"><svg class="i"><use href="#i-cal"/></svg>Takvim</button>
@@ -375,6 +397,7 @@ button.row:hover{background:var(--surface2)}
     <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Müşteri / Borç</button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
     <div class="sb-label">Yönetim</div>
+    <button class="sb-item owner-only" data-go="entegrasyon" hidden><svg class="i"><use href="#i-plug"/></svg>Entegrasyonlar<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item owner-only" data-go="finans" hidden><svg class="i"><use href="#i-chart"/></svg>Finans Raporu<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item" data-go="ayarlar"><svg class="i"><use href="#i-gear"/></svg>Ayarlar</button>
     <div class="sb-foot"><div class="avatar" data-avatar>?</div><div class="who"><b data-adim>—</b><span data-rolum>—</span></div></div>
@@ -382,7 +405,7 @@ button.row:hover{background:var(--surface2)}
 
   <div class="main">
     <header class="topbar">
-      <div class="logo-mark tb-logo"><svg style="color:#fff"><use href="#i-bolt"/></svg></div>
+      <div class="brand-plate tb-logo" style="padding:3px 6px;border-radius:8px;width:auto;height:auto"><img src="icons/ceylan-logo.png" alt="Ceylan" style="height:26px"></div>
       <h2 id="page-title">Genel Bakış</h2>
       <div class="tb-right">
         <span class="sync" id="sync"><i></i><span>Bağlanıyor</span></span>
@@ -438,13 +461,31 @@ button.row:hover{background:var(--surface2)}
             <datalist id="firma-list"></datalist>
             <div class="fg2">
               <div class="f"><label for="tf-ilgili">İlgili kişi</label><input class="inp" id="tf-ilgili" placeholder="Ad Soyad"></div>
+              <div class="f"><label for="tf-telefon">Telefon</label><input class="inp" id="tf-telefon" type="tel" placeholder="05xx…"></div>
+            </div>
+            <div class="fg2">
+              <div class="f"><label for="tf-eposta">E-posta</label><input class="inp" id="tf-eposta" type="email" autocapitalize="none" placeholder="mail için"></div>
               <div class="f"><label for="tf-no">Teklif no</label><input class="inp" id="tf-no" placeholder="otomatik"></div>
             </div>
-            <div class="f"><label for="tf-konu">Konu</label><input class="inp" id="tf-konu" placeholder="ör. Siemens S7-1200 otomasyon"></div>
-            <div class="fg2">
-              <div class="f"><label for="tf-gecerli">Geçerlilik</label><select class="sel" id="tf-gecerli"><option>15 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
-              <div class="f"><label for="tf-not">Not</label><input class="inp" id="tf-not" placeholder="Teslimat, garanti…"></div>
-            </div>
+            <div class="f"><label for="tf-konu">Açıklama / konu</label><input class="inp" id="tf-konu" placeholder="ör. Siemens S7-1200 otomasyon"></div>
+            <details class="more">
+              <summary>Şartlar ve döviz kurları</summary>
+              <div class="fg">
+                <div class="fg2">
+                  <div class="f"><label for="tf-odeme">Ödeme şekli</label><input class="inp" id="tf-odeme" placeholder="ör. 30 gün vadeli"></div>
+                  <div class="f"><label for="tf-gecerli">Opsiyon</label><select class="sel" id="tf-gecerli"><option>15 gün</option><option>7 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
+                </div>
+                <div class="fg2">
+                  <div class="f"><label for="tf-teslimYeri">Teslim yeri</label><input class="inp" id="tf-teslimYeri" placeholder="ör. Fabrika teslim"></div>
+                  <div class="f"><label for="tf-teslimSure">Teslim süresi</label><input class="inp" id="tf-teslimSure" placeholder="ör. Stoktan / 2 hafta"></div>
+                </div>
+                <div class="fg2">
+                  <div class="f"><label for="tf-kurUsd">USD kuru (₺)</label><input class="inp num" id="tf-kurUsd" type="number" inputmode="decimal" step="0.0001" placeholder="boşsa TL'ye çevrilmez"></div>
+                  <div class="f"><label for="tf-kurEur">EUR kuru (₺)</label><input class="inp num" id="tf-kurEur" type="number" inputmode="decimal" step="0.0001" placeholder="boşsa TL'ye çevrilmez"></div>
+                </div>
+                <div class="f"><label for="tf-not">Not</label><input class="inp" id="tf-not" placeholder="Teklife eklenecek not"></div>
+              </div>
+            </details>
           </div></div>
           <div class="wbar"><div class="tot"></div><button class="btn btn-p" data-step="2">Kalemlere geç<svg class="i"><use href="#i-right"/></svg></button></div>
         </div>
@@ -456,13 +497,17 @@ button.row:hover{background:var(--surface2)}
         </div>
         <div class="wp" id="wp3">
           <div class="card"><div class="card-b" id="tf-onizleme"></div></div>
-          <div class="wbar" style="flex-wrap:wrap">
+          <div class="wbar" style="position:static;background:none;padding-top:0">
             <button class="btn btn-s" data-step="2"><svg class="i"><use href="#i-left"/></svg></button>
             <div class="tot">Toplam<b id="tf-tot3">—</b></div>
             <button class="btn btn-s" id="tf-kaydet">Kaydet</button>
+          </div>
+          <div class="out-grid">
+            <button class="btn btn-p wide" id="tf-gonder"><svg class="i"><use href="#i-send"/></svg>PDF'i mail / WhatsApp ile gönder</button>
+            <button class="btn btn-s" id="tf-pdf"><svg class="i"><use href="#i-down"/></svg>PDF indir</button>
             <button class="btn btn-g" id="tf-xlsx"><svg class="i"><use href="#i-down"/></svg>Excel</button>
           </div>
-          <p style="font-size:12px;color:var(--fg3);margin-top:10px;line-height:1.5">Excel'i indirince teklif otomatik olarak Teklif Geçmişi'ne kaydedilir. Telefonda dosya <b>İndirilenler</b> klasörüne iner (iPhone'da açılan ekrandan "Dosyalara Kaydet"). Ceylan şablonuna çevirmek için Claude'a yükleyip "teklife dök" de.</p>
+          <p style="font-size:12px;color:var(--fg3);margin-top:6px;line-height:1.5">PDF ve Excel, Ceylan teklif formatında logolu hazırlanır; indirince ya da gönderince teklif otomatik olarak Teklif Geçmişi'ne kaydedilir. Telefonda dosyalar <b>İndirilenler</b> klasörüne iner.</p>
         </div>
       </section>
 
@@ -542,6 +587,43 @@ button.row:hover{background:var(--surface2)}
         </div></div>
       </section>
 
+      <!-- ENTEGRASYONLAR -->
+      <section class="page" id="p-entegrasyon">
+        <div class="ph"><div><h1>Entegrasyonlar</h1><p>🔒 Sadece yönetici görür ve düzenler</p></div></div>
+        <div class="grid2">
+          <div class="card" id="ayar-mail">
+            <div class="card-h"><div class="integ-h"><div class="ic" style="background:var(--brand-soft);color:var(--brand)"><svg class="i"><use href="#i-mail"/></svg></div><div><h3>E-posta</h3><span class="pill p-green" style="margin-top:4px">Aktif · telefonun mail uygulamasıyla</span></div></div></div>
+            <div class="card-b fg">
+              <div class="note">Teklifte <b>"PDF'i mail / WhatsApp ile gönder"</b>e basınca PDF hazırlanır ve telefonun paylaşım menüsü açılır: Mail, Outlook, Gmail ya da WhatsApp'ı seçersin. Konu ve metin aşağıdaki şablondan gelir. Bilgisayarda PDF iner ve mail programı açılır.</div>
+              <div class="f"><label for="m-konu">Mail konusu</label><input class="inp" id="m-konu" data-a="konu"></div>
+              <div class="f"><label for="m-govde">Mail metni</label><textarea class="inp" id="m-govde" data-a="govde" rows="7"></textarea></div>
+              <p style="font-size:11.5px;color:var(--fg3)">Kullanılabilir alanlar: {musteri} {ilgili} {no} {konu} {hazirlayan}</p>
+              <button class="btn btn-p" data-kaydet>Kaydet</button>
+              <div class="note"><b style="color:var(--fg)">Sonraki adım (hazır yer):</b> Mailin uygulamadan, şirket adresinden (info@ceylanotomasyon.com.tr) otomatik gitmesi. Bunun için mail sağlayıcınızın (Gmail / Outlook / hosting) SMTP bilgileri sunucu tarafına güvenli şekilde eklenecek. Hazır olduğunda Claude'a "otomatik mail gönderimini aç" de.</div>
+            </div>
+          </div>
+          <div class="card" id="ayar-dia">
+            <div class="card-h"><div class="integ-h"><div class="ic" style="background:var(--orange-soft);color:var(--orange)"><svg class="i"><use href="#i-db"/></svg></div><div><h3>DİA ERP</h3><span class="pill p-gray" id="dia-durum" style="margin-top:4px">Henüz ayarlanmadı</span></div></div></div>
+            <div class="card-b fg">
+              <div class="note">DİA'daki cari hesapları, stok kartlarını ve tahsilatları bu uygulamaya otomatik aktarmak için hazırlanan alan. DİA'nın <b>Web Servis (WS)</b> erişimi gerekir; DİA bayinizden "web servis API anahtarı" ve sunucu adresini isteyin.</div>
+              <div class="f"><label for="d-sunucu">DİA sunucu adresi</label><input class="inp" id="d-sunucu" data-a="sunucu" autocapitalize="none" placeholder="ör. firmakodu.ws.dia.com.tr"></div>
+              <div class="fg2">
+                <div class="f"><label for="d-firma">Firma kodu</label><input class="inp" id="d-firma" data-a="firmaKodu" inputmode="numeric"></div>
+                <div class="f"><label for="d-donem">Dönem kodu</label><input class="inp" id="d-donem" data-a="donemKodu" inputmode="numeric"></div>
+              </div>
+              <div class="f"><label for="d-kul">DİA kullanıcı adı</label><input class="inp" id="d-kul" data-a="kullanici" autocapitalize="none"></div>
+              <div class="f"><label>Aktarılacaklar</label>
+                <label class="chk"><input type="checkbox" data-a="aktar.cari"> Cari hesaplar → Müşteri / Borç</label>
+                <label class="chk"><input type="checkbox" data-a="aktar.stok"> Stok kartları ve fiyatlar → Stok</label>
+                <label class="chk"><input type="checkbox" data-a="aktar.hareket"> Fatura ve tahsilatlar → Hareketler</label>
+              </div>
+              <button class="btn btn-p" data-kaydet>Kaydet</button>
+              <div class="note">🔒 DİA <b>şifresi ve API anahtarı buraya yazılmaz</b>; bağlantı kurulurken sunucu tarafında gizli olarak saklanacak. Bilgiler hazır olunca Claude'a "DİA bağlantısını kur" de.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- AYARLAR -->
       <section class="page" id="p-ayarlar">
         <div class="ph"><div><h1>Ayarlar</h1></div></div>
@@ -556,6 +638,18 @@ button.row:hover{background:var(--surface2)}
           <button class="btn btn-s" style="flex:1" data-theme-set="light">Açık</button>
           <button class="btn btn-s" style="flex:1" data-theme-set="dark">Koyu</button>
           <button class="btn btn-s" style="flex:1" data-theme-set="system">Sistem</button>
+        </div></div>
+        <div class="card owner-only" id="ayar-teklif" hidden><div class="card-h"><h3>Teklif şablonu varsayılanları</h3><span class="pill p-gray">🔒 Yönetici</span></div><div class="card-b fg">
+          <div class="fg2">
+            <div class="f"><label for="at-odeme">Ödeme şekli</label><input class="inp" id="at-odeme" data-a="odeme" placeholder="ör. Peşin / 30 gün"></div>
+            <div class="f"><label for="at-gecerli">Opsiyon</label><select class="sel" id="at-gecerli" data-a="gecerli"><option>15 gün</option><option>7 gün</option><option>30 gün</option><option>45 gün</option><option>60 gün</option></select></div>
+          </div>
+          <div class="fg2">
+            <div class="f"><label for="at-teslimYeri">Teslim yeri</label><input class="inp" id="at-teslimYeri" data-a="teslimYeri"></div>
+            <div class="f"><label for="at-teslimSure">Teslim süresi</label><input class="inp" id="at-teslimSure" data-a="teslimSure"></div>
+          </div>
+          <div class="f"><label for="at-sartlar">Satış ve teslimat şartları (her satır bir madde, en fazla 4 Excel'e girer)</label><textarea class="inp" id="at-sartlar" data-a="sartlar" data-liste rows="5"></textarea></div>
+          <button class="btn btn-p" data-kaydet>Kaydet</button>
         </div></div>
         <div class="card owner-only" hidden><div class="card-h"><h3>Ekip</h3></div><div class="rows" id="ekip-list"></div>
           <div class="card-b" style="font-size:12.5px;color:var(--fg2);line-height:1.6;border-top:1px solid var(--line)">Yeni çalışan eklemek için Supabase panelinde <b>Authentication → Users → Add user</b>: e-posta olarak <b>kullaniciadi@ceylan.app</b> yaz, şifre belirle, "Auto Confirm User" işaretli olsun. Çalışan uygulamaya sadece kullanıcı adı ve şifreyle girer.</div>
@@ -583,8 +677,8 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
+<script src="teklif-cikti.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
