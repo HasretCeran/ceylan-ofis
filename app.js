@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -54,8 +54,19 @@ const BE = DEMO ? {
   dinle() { setSync('warn', 'Demo'); },
 } : {
   async yukle() {
-    const sonuc = await Promise.all(COLS.map(c => sb.from(c).select('*').limit(5000)));
-    sonuc.forEach((r, i) => { if (r.error) throw r.error; S[COLS[i]] = r.data.map(rowToObj); });
+    // Supabase her istekte en fazla 1000 satır verir: sayfa sayfa hepsini çek
+    const hepsi = async c => {
+      const out = [];
+      for (let i = 0; ; i += 1000) {
+        const {data, error} = await sb.from(c).select('*').order('id').range(i, i + 999);
+        if (error) throw error;
+        out.push(...data);
+        if (data.length < 1000) break;
+      }
+      return out;
+    };
+    const sonuc = await Promise.all(COLS.map(hepsi));
+    sonuc.forEach((rows, i) => { S[COLS[i]] = rows.map(rowToObj); });
     await profilYukle();
     await ayarYukle();
   },
