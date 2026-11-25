@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.3';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -263,6 +263,8 @@ function ortVadeToplam(yon) {
   cariler().forEach(m => { if (yon === 'alacak' ? Number(m.alacak) <= 0 : Number(m.alacak) >= 0) return; const o = ortVade(m); if (o) { w += o.tutar; g += tGun(o.tarih) * o.tutar; } });
   return w ? {tarih: gunT(g / w), tutar: w} : null;
 }
+// Sıralama: ödemesi yaklaşanlar en üstte (en yakın vade önce), vadesi geçmişler altta (en yeni geçen önce)
+const ovSira = m => { const g = gunFark(ortVade(m).tarih); return g >= 0 ? g : 100000 - g; };
 const gunYazi = t => { const g = gunFark(t); return g === 0 ? 'bugün' : g < 0 ? Math.abs(g) + ' gün geçti' : g + ' gün kaldı'; };
 const gunFark = t => Math.round((new Date(t + 'T12:00:00') - new Date(bugun() + 'T12:00:00')) / 864e5);
 function alacakOzet() {
@@ -621,6 +623,7 @@ function firmaSatir(m) {
   let l, c;
   if (!IS_FIN) [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
   else if (m.durum === 'tahsil') [l, c] = ['Kapandı', 'p-green'];
+  else if (mFiltre.startsWith('ort') && ortVade(m) && gunFark(ortVade(m).tarih) >= 0) [l, c] = [gunFark(ortVade(m).tarih) === 0 ? 'Bugün' : gunFark(ortVade(m).tarih) + ' gün kaldı', gunFark(ortVade(m).tarih) <= 7 ? 'p-amber' : 'p-blue'];
   else if (gec) [l, c] = [borc ? 'Ödemesi geçti' : 'Vadesi geçti', 'p-red'];
   else if (borc) [l, c] = ['Borcumuz', 'p-orange'];
   else if (al > 0) [l, c] = [yakVade(m) ? 'Vade ' + trKisa(yakVade(m)) : 'Alacak', 'p-blue'];
@@ -645,7 +648,7 @@ function musteriListe() {
     if (mFiltre === 'borc') return al < 0;
     if (mFiltre === 'musteri' || mFiltre === 'tedarikci' || mFiltre === 'diger') return m.tur === mFiltre;
     return true;
-  }).sort((a, b) => (mFiltre === 'ortAlacak' || mFiltre === 'ortVerecek' ? ortVade(a).tarih.localeCompare(ortVade(b).tarih) : 0) || (mFiltre === 'gecmis' ? gecTutar(b) - gecTutar(a) : 0) || (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
+  }).sort((a, b) => (mFiltre === 'ortAlacak' || mFiltre === 'ortVerecek' ? ovSira(a) - ovSira(b) : 0) || (mFiltre === 'gecmis' ? gecTutar(b) - gecTutar(a) : 0) || (vadeGecti(b) - vadeGecti(a)) || Math.abs(Number(b.alacak || 0)) - Math.abs(Number(a.alacak || 0)) || (a.firma || '').localeCompare(b.firma || '', 'tr'));
 }
 function musteriCiz() {
   cariKirli = true;
