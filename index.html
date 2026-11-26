@@ -568,7 +568,7 @@ button.row:hover{background:var(--surface2)}
           <div class="ph"><div><button class="link-btn" id="sy-geri" style="margin-bottom:4px">← Sayımlar</button><h1 id="sy-baslik"></h1><p id="sy-alt"></p></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="sy-dia" style="background:var(--green);color:#fff"><svg class="i"><use href="#i-down"/></svg>DİA dosyası</button><button class="btn btn-s btn-sm" id="sy-kapat">Sayımı tamamla</button><button class="btn btn-s btn-sm" id="sy-ac" hidden>Yeniden aç</button></div></div>
           <div class="card sy-giris" id="sy-giris"><div class="card-b fg">
-            <div class="f" style="position:relative"><label for="sy-kod">Ürün kodu ya da adı</label><input class="inp" id="sy-kod" autocomplete="off" autocapitalize="characters" placeholder="ör. MTH10-1080B ya da sigorta 80A" enterkeyhint="next">
+            <div class="f" style="position:relative"><label for="sy-kod">Ürün kodu ya da adı</label><div style="display:flex;gap:8px"><input class="inp" id="sy-kod" autocomplete="off" autocapitalize="characters" placeholder="ör. MTH10-1080B ya da sigorta 80A" enterkeyhint="next" style="flex:1;min-width:0"><button class="btn btn-s" id="sy-yok" type="button" style="white-space:nowrap;flex-shrink:0">+ Listede yok</button></div>
               <div class="sy-oneri card" id="sy-oneri" hidden></div><div class="s" id="sy-secili" style="font-size:12px;color:var(--fg3);margin-top:4px"></div></div>
             <div class="fg2" id="sy-yeni" hidden><div class="f"><label for="sy-aciklama">Açıklama</label><input class="inp" id="sy-aciklama"></div><div class="f"><label for="sy-marka">Marka</label><input class="inp" id="sy-marka"></div></div>
             <div class="sy-row"><div class="f"><label for="sy-miktar">Sayılan miktar</label><input class="inp num" id="sy-miktar" inputmode="decimal" placeholder="0" enterkeyhint="done"></div>
@@ -763,11 +763,11 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.10.0"></script>
-<script src="teklif-cikti.js?v=1.10.0"></script>
-<script src="app.js?v=1.10.0"></script>
-<script src="hizli-teklif.js?v=1.10.0"></script>
-<script src="siparis.js?v=1.10.0"></script>
-<script src="sayim.js?v=1.10.0"></script>
+<script src="config.js?v=1.10.1"></script>
+<script src="teklif-cikti.js?v=1.10.1"></script>
+<script src="app.js?v=1.10.1"></script>
+<script src="hizli-teklif.js?v=1.10.1"></script>
+<script src="siparis.js?v=1.10.1"></script>
+<script src="sayim.js?v=1.10.1"></script>
 </body>
 </html>

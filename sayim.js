@@ -61,7 +61,8 @@ function sySec(id) {
   $('#sy-oneri').hidden = true;
   if (id) { syUrun = S.stok.find(u => u.id === id); $('#sy-kod').value = syUrun.ref; $('#sy-secili').textContent = (syUrun.marka ? syUrun.marka + ' · ' : '') + (syUrun.aciklama || ''); $('#sy-yeni').hidden = true; }
   else { syUrun = null; $('#sy-secili').textContent = 'Listede olmayan ürün — açıklamasını yaz'; $('#sy-yeni').hidden = false; }
-  $('#sy-miktar').focus(); $('#sy-miktar').select();
+  if (id) { $('#sy-miktar').focus(); $('#sy-miktar').select(); }
+  else $('#sy-aciklama').focus();
 }
 async function syEkle() {
   const kod = $('#sy-kod').value.trim(), m = Number(String($('#sy-miktar').value).replace(',', '.'));
@@ -140,6 +141,7 @@ $('#sy-kod').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); con
 $('#sy-oneri').onclick = e => { const b = e.target.closest('[data-syu]'); if (b) sySec(b.dataset.syu); };
 $('#sy-miktar').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); syEkle(); } };
 $('#sy-ekle').onclick = syEkle;
+$('#sy-yok').onclick = () => { sySec(''); const a = $('#sy-aciklama'); if (!$('#sy-kod').value.trim()) $('#sy-kod').focus(); else a.focus(); };
 $('#sy-ara').oninput = e => { syFiltre = e.target.value; sayimCiz(); };
 $('#sy-toplam').onclick = e => { const r = e.target.closest('[data-syg]'); if (r) syGrupDetay(r.dataset.syg); };
 $('#sy-son').onclick = async e => { const b = e.target.closest('[data-sysil]'); if (b) { await BE.sil('sayim_kalem', b.dataset.sysil); toast('Giriş geri alındı'); } };
