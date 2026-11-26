@@ -53,7 +53,7 @@ async function spDosyaAc(f) {
   const {data, error} = await sb.storage.from('belgeler').createSignedUrl(f.yol, 900);
   if (error) { toast('⚠ Dosya açılamadı'); return; }
   const tip = f.tip || (/\.pdf$/i.test(f.ad) ? 'application/pdf' : /\.(jpe?g|png|webp|heic|gif)$/i.test(f.ad) ? 'image/jpeg' : '');
-  onizle({url: data.signedUrl, tip}, f.ad, [{label: 'İndir / aç', cls: 'btn-p', onClick: () => window.open(data.signedUrl, '_blank')}]);
+  belgeOnizle({url: data.signedUrl, tip}, f.ad, [{label: 'İndir / aç', cls: 'btn-p', onClick: () => window.open(data.signedUrl, '_blank')}]);
 }
 
 function siparisForm(s = {}, teklif = null) {

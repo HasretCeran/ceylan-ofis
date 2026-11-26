@@ -11,7 +11,7 @@
   }));
 
   // Tam ekran önizleme penceresi. kaynak: Blob | Promise<Blob> | {url, tip}
-  async function onizle(kaynak, baslik, eylemler = []) {
+  async function belgeOnizle(kaynak, baslik, eylemler = []) {
     const ov = document.createElement('div'); ov.className = 'onz';
     ov.innerHTML = `<div class="onz-h"><b>${esc(baslik || 'Önizleme')}</b><button class="icon-btn" aria-label="Kapat">${ikon('x')}</button></div>
       <div class="onz-b"><div class="onz-y">Önizleme hazırlanıyor…</div></div>
@@ -52,11 +52,11 @@
   function teklifOnizle(t, tf) {
     if (!t.kalemler || !t.kalemler.length) { toast('Önce kalem ekle'); return; }
     const tt = tamTeklif(t);
-    onizle(pdfAl(tt, tf), (t.no ? t.no + ' · ' : '') + (t.musteri || 'Teklif'), [
+    belgeOnizle(pdfAl(tt, tf), (t.no ? t.no + ' · ' : '') + (t.musteri || 'Teklif'), [
       {label: ikon('down') + 'PDF', onClick: () => cikti('pdf', tt, tf)},
       {label: ikon('down') + 'Excel', onClick: () => cikti('excel', tt, tf)},
       {label: ikon('send') + 'Gönder', cls: 'btn-p', onClick: () => cikti('gonder', tt, tf)},
     ]);
   }
-  window.onizle = onizle; window.teklifOnizle = teklifOnizle;
+  window.belgeOnizle = belgeOnizle; window.teklifOnizle = teklifOnizle;
 })();
