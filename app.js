@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -205,6 +205,13 @@ window.addEventListener('scroll', () => { const t = $('#topbar'); if (t) t.class
 function tema(t) { if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); lsSet('co_theme', t); }
 $('#theme-btn').onclick = () => { const c = document.documentElement.getAttribute('data-theme'); const koyu = c ? c === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; tema(koyu ? 'light' : 'dark'); };
 { const t = lsGet('co_theme', null); if (t) tema(t); }
+
+// İndirme: masaüstü Chrome/Edge'de kaydetme penceresi Masaüstü'nde açılır
+{ const cb = $('#indir-masa-cb'); if (cb && window.showSaveFilePicker) {
+  $('#indir-masa').hidden = false; $('#indir-not').textContent = 'Açıkken her indirmede kaydetme penceresi Masaüstü klasöründe açılır; Enter\'a basmanız yeterli. Kapalıyken dosyalar tarayıcının indirme klasörüne iner (Chrome / Edge: Ayarlar → İndirilenler → Konum).';
+  try { cb.checked = localStorage.getItem('co_indir_masaustu') !== '0'; } catch (e) { cb.checked = true; }
+  cb.onchange = () => { try { localStorage.setItem('co_indir_masaustu', cb.checked ? '1' : '0'); } catch (e) {} toast(cb.checked ? 'İndirmeler Masaüstü\'nde açılacak' : 'Normal indirme klasörü kullanılacak'); };
+} }
 
 // ═══ ALT PENCERE (SHEET) ═══
 function sheet(baslik, govde, butonlar = []) {
