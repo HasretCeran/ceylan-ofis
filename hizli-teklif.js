@@ -119,11 +119,9 @@
   }
 
   // ── Ana akış
-  async function hizliTeklif(dosyalar, metin) {
-    if (!S.stok.length) { toast('Ürün listesi henüz yüklenmedi, birkaç saniye sonra tekrar dene'); return; }
+  // Dosya / fotoğraf / metinden satırları oku (teklif ve stok sayımı ortak kullanır)
+  async function oku(dosyalar, metin, durum = () => {}) {
     dizin();
-    const sh = sheet('Hızlı teklif', '<div id="hz-durum" class="note">Hazırlanıyor…</div><div id="hz-govde"></div>');
-    const durum = s => { const e = sh.el.querySelector('#hz-durum'); if (e) e.textContent = s; };
     const sonuc = [], hatalar = [];
     let sablon = null;
     try {
@@ -147,6 +145,16 @@
         } catch (e) { hatalar.push(ad + ': ' + (e.message || e)); }
       }
     } catch (e) { hatalar.push(e.message || String(e)); }
+
+    return {sonuc, hatalar, sablon};
+  }
+
+  async function hizliTeklif(dosyalar, metin) {
+    if (!S.stok.length) { toast('Ürün listesi henüz yüklenmedi, birkaç saniye sonra tekrar dene'); return; }
+    dizin();
+    const sh = sheet('Hızlı teklif', '<div id="hz-durum" class="note">Hazırlanıyor…</div><div id="hz-govde"></div>');
+    const durum = s => { const e = sh.el.querySelector('#hz-durum'); if (e) e.textContent = s; };
+    const {sonuc, hatalar, sablon} = await oku(dosyalar, metin, durum);
 
     // Ceylan şablonundaki Excel: olduğu gibi forma aktar
     if (sablon) {
@@ -203,6 +211,12 @@
     sh.el.querySelector('#hz-dosya').onchange = e => { const fl = [...e.target.files]; if (!fl.length) return; sh.kapat(); hizliTeklif(fl); };
   }
   window.hizliTeklif = hizliTeklif;
+  // Sayım için: şablon Excel'i de kalem listesine çevirir
+  window.hzOku = async (dosyalar, metin, durum) => {
+    const r = await oku(dosyalar, metin, durum);
+    if (r.sablon) r.sonuc.push(...r.sablon.kalemler.map(k => ({u: bul(k.ref) || null, ref: k.ref, aciklama: k.aciklama, marka: k.marka, birim: k.birim, miktar: Number(k.miktar) || 1})));
+    return r;
+  };
   window.hzExcelKalemler = async f => { dizin(); return excelKalemler(f); };
   document.querySelectorAll('[data-act="hizli-teklif"]').forEach(b => b.onclick = ac);
 })();

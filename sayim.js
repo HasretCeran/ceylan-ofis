@@ -37,7 +37,8 @@ function sayimCiz() {
   const g = syGrupla(s.id), q = nrmTR(syFiltre);
   $('#sy-baslik').textContent = s.ad;
   $('#sy-alt').textContent = [trT(s.tarih), s.depo, g.length + ' ürün', syKalemler(s.id).length + ' giriş', kapali ? 'Tamamlandı' : 'Sayılıyor'].filter(Boolean).join(' · ');
-  $('#sy-giris').hidden = kapali;
+  $('#sy-giris').hidden = kapali; $('#sy-dosya').hidden = kapali;
+  const sd = s.dosyalar || []; $('#sy-belge').parentElement.hidden = !sd.length; $('#sy-belge').innerHTML = sd.length ? '<div class="vu-h" style="padding-left:0">Yüklenen belgeler <span>' + sd.length + '</span></div>' + sd.map((f, i) => `<button class="row" style="padding:8px 0" data-sybel="${i}"><div class="mid"><div class="t">${/image/.test(f.tip) ? '🖼' : '📄'} ${esc(f.ad)}</div><div class="s">${f.at ? new Date(f.at).toLocaleString('tr-TR') : ''}</div></div><div class="end"><span class="s">Aç</span></div></button>`).join('') : '';
   $('#sy-kapat').hidden = kapali || !IS_OWNER; $('#sy-ac').hidden = !kapali || !IS_OWNER;
   const gl = g.filter(x => !q || nrmTR([x.ref, x.aciklama, x.marka, [...x.konumlar].join(' ')].join(' ')).includes(q));
   $('#sy-toplam').innerHTML = gl.length ? gl.map((x, i) => `<button class="row" data-syg="${esc(syKey(x.ref || x.aciklama))}">
@@ -155,6 +156,7 @@ $('#sy-yok').onclick = () => { sySec(''); const a = $('#sy-aciklama'); if (!$('#
 $('#sy-ara').oninput = e => { syFiltre = e.target.value; sayimCiz(); };
 $('#sy-toplam').onclick = e => { const r = e.target.closest('[data-syg]'); if (r) syGrupDetay(r.dataset.syg); };
 $('#sy-son').onclick = async e => { const b = e.target.closest('[data-sysil]'); if (b) { await BE.sil('sayim_kalem', b.dataset.sysil); toast('Giriş geri alındı'); } };
+$('#sy-belge').onclick = e => { const b = e.target.closest('[data-sybel]'); if (!b) return; const s = S.sayimlar.find(x => x.id === sayimAktif); spDosyaAc((s.dosyalar || [])[+b.dataset.sybel]); };
 $('#sy-dia').onclick = () => syDiaDosya(sayimAktif).catch(e => toast('⚠ ' + e.message));
 $('#sy-kapat').onclick = () => syKapat(sayimAktif);
 $('#sy-ac').onclick = async () => { const s = S.sayimlar.find(x => x.id === sayimAktif); await kaydet('sayimlar', {...s, durum: 'acik'}); toast('Sayım yeniden açıldı'); };
@@ -207,6 +209,7 @@ function smAra(q = '') {
   const b = sm.el.querySelector('#smo-b');
   b.innerHTML = `<div class="smod-ara"><input class="inp smod-inp" id="smo-q" value="${esc(q)}" placeholder="Kod ya da ürün adı yaz" autocomplete="off" autocapitalize="characters" enterkeyhint="search">
       <button class="btn btn-s smod-yok" id="smo-yok">+ Listede yok</button></div>
+    <button class="smod-foto" id="smo-foto">📷 Fotoğraf / dosyadan ekle <small>kağıda yazılan liste, Excel, PDF</small></button>
     <div class="smod-sonuc" id="smo-sonuc"></div><div id="smo-son"></div>`;
   const inp = b.querySelector('#smo-q');
   const ciz = () => {
@@ -222,6 +225,7 @@ function smAra(q = '') {
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const f = b.querySelector('[data-u]'); if (f) smMiktar(S.stok.find(u => u.id === f.dataset.u)); } };
   b.querySelector('#smo-sonuc').onclick = e => { const x = e.target.closest('[data-u]'); if (x) smMiktar(S.stok.find(u => u.id === x.dataset.u)); };
   b.querySelector('#smo-yok').onclick = () => smMiktar(null, inp.value.trim());
+  b.querySelector('#smo-foto').onclick = () => syDosyaSec(sm.id, sm.konum);
   ciz(); smSon();
   setTimeout(() => inp.focus(), 60);
 }
@@ -269,4 +273,43 @@ async function smKaydet() {
     smAra(); smUst();
   } else btn.disabled = false;
 }
+// ═══ Fotoğraf / dosyadan sayıma ekle (kağıda yazılan sayım listesi, Excel, PDF…) ═══
+async function syDosyadan(id, files, konum = '') {
+  files = [...files]; if (!files.length) return;
+  const sh = sheet('Dosyadan sayıma ekle', '<div id="syd-d" class="note">Hazırlanıyor…</div><div id="syd-g"></div>');
+  const durum = t => { const e = sh.el.querySelector('#syd-d'); if (e) e.textContent = t; };
+  let r;
+  try { r = await hzOku(files, '', durum); } catch (e) { durum('⚠ ' + (e.message || e)); return; }
+  const m = new Map();
+  for (const x of r.sonuc) { const k = syKey(x.u ? x.u.ref : (x.ref || x.aciklama)); if (!k) continue; if (m.has(k)) m.get(k).miktar += Number(x.miktar) || 0; else m.set(k, {...x, miktar: Number(x.miktar) || 1}); }
+  const l = [...m.values()];
+  durum(l.length ? `${l.length} ürün okundu — miktarları kontrol et, istemediklerinin işaretini kaldır` : 'Dosyadan ürün satırı okunamadı');
+  sh.el.querySelector('#syd-g').innerHTML = (r.hatalar.length ? `<div class="note" style="color:var(--red)">${r.hatalar.map(esc).join('<br>')}</div>` : '') +
+    `<div class="f" style="margin:6px 0 10px"><label for="syd-k">Raf / konum</label><input class="inp" id="syd-k" value="${esc(konum)}" placeholder="ör. A-3"></div>` +
+    '<div class="rows">' + l.slice(0, 300).map((x, i) => `<label class="row hz-row"><input type="checkbox" data-sd="${i}" checked><div class="mid"><div class="t">${esc(x.u ? x.u.ref : (x.ref || 'Kodsuz'))}${x.u ? '' : ' <span class="pill p-amber" style="margin-left:4px">listede yok</span>'}</div><div class="s">${esc(x.u ? x.u.aciklama || '' : x.aciklama || '')}</div></div><div class="end"><input class="inp num hz-m" data-sdm="${i}" type="number" min="0" step="any" value="${esc(x.miktar)}" aria-label="Miktar"></div></label>`).join('') + '</div>';
+  const f = document.createElement('div'); f.className = 'sheet-f';
+  f.innerHTML = '<button class="btn btn-s">Vazgeç</button><button class="btn btn-p">Sayıma ekle</button>';
+  sh.el.querySelector('.sheet').appendChild(f);
+  f.firstChild.onclick = () => sh.kapat();
+  f.lastChild.onclick = async () => {
+    const kon = sh.el.querySelector('#syd-k').value.trim(), ad = files.map(x => x.name).join(', ');
+    f.lastChild.disabled = true; let n = 0;
+    for (const cb of sh.el.querySelectorAll('[data-sd]')) {
+      if (!cb.checked) continue;
+      const x = l[+cb.dataset.sd], mk = Number(sh.el.querySelector(`[data-sdm="${cb.dataset.sd}"]`).value) || 0; if (!(mk > 0)) continue;
+      const k = {id: newId(), sayimId: id, ref: x.u ? x.u.ref : (x.ref || ''), aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '',
+        birim: x.birim || 'Adet', miktar: mk, konum: kon, stokId: x.u ? x.u.id : '', zaman: new Date().toISOString(), sayan: P[ME] ? P[ME].ad : '', kaynak: 'Dosya: ' + ad};
+      if (await kaydet('sayim_kalem', k)) n++;
+    }
+    // Orijinal dosyayı sayımın belgelerine sakla
+    if (!DEMO) {
+      const s = S.sayimlar.find(z => z.id === id), dos = [];
+      for (const fl of files) { const yol = `sayim/${id}/${Date.now()}-${fl.name.replace(/[^\w.\-]+/g, '_')}`; const {error} = await sb.storage.from('belgeler').upload(yol, fl, {contentType: fl.type || undefined}); if (!error) dos.push({ad: fl.name, yol, tip: fl.type || '', at: new Date().toISOString(), by: ME}); }
+      if (dos.length && s) await kaydet('sayimlar', {...s, dosyalar: [...(s.dosyalar || []), ...dos]});
+    }
+    sh.kapat(); toast(`✅ ${n} ürün sayıma eklendi`);
+  };
+}
+const syDosyaSec = (id, konum) => { const i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.accept = 'image/*,.pdf,.xlsx,.xls,.csv,.txt'; i.onchange = () => syDosyadan(id, i.files, konum); i.click(); };
+$('#sy-dosya').onclick = () => syDosyaSec(sayimAktif, $('#sy-konum').value.trim());
 sayimCiz();

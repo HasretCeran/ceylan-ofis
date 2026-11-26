@@ -304,6 +304,7 @@ button.row:hover{background:var(--surface2)}
 .smod-ara{display:flex;gap:8px}.smod-ara .smod-inp{flex:1;min-width:0}
 .smod-inp{height:54px;font-size:18px;border-radius:12px}
 .smod-yok{height:54px;white-space:nowrap;border-radius:12px;font-weight:700}
+.smod-foto{display:block;width:100%;margin-top:8px;padding:12px 14px;border-radius:12px;border:1px dashed var(--brand);background:var(--brand-soft);color:var(--fg);font:inherit;font-weight:700;text-align:left}.smod-foto small{display:block;font-weight:500;color:var(--fg3);font-size:12px}
 .smod-sonuc{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .smod-u{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:left;padding:14px;border-radius:14px;border:1px solid var(--line2);background:var(--surface);font:inherit;color:var(--fg);min-height:64px}
 .smod-u b{font-size:17px}.smod-u span{font-size:12.5px;color:var(--fg3);align-self:center}.smod-u small{grid-column:1/-1;font-size:13px;color:var(--fg2)}.smod-u em{grid-column:1/-1;font-style:normal;font-size:12.5px;color:var(--green);font-weight:700}
@@ -605,7 +606,7 @@ button.row:hover{background:var(--surface2)}
         </div>
         <div id="sy-detay" hidden>
           <div class="ph"><div><button class="link-btn" id="sy-geri" style="margin-bottom:4px">← Sayımlar</button><h1 id="sy-baslik"></h1><p id="sy-alt"></p></div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="sy-dia" style="background:var(--green);color:#fff"><svg class="i"><use href="#i-down"/></svg>DİA dosyası</button><button class="btn btn-s btn-sm" id="sy-kapat">Sayımı tamamla</button><button class="btn btn-s btn-sm" id="sy-ac" hidden>Yeniden aç</button></div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="sy-dia" style="background:var(--green);color:#fff"><svg class="i"><use href="#i-down"/></svg>DİA dosyası</button><button class="btn btn-s btn-sm" id="sy-dosya">📷 Foto / dosyadan ekle</button><button class="btn btn-s btn-sm" id="sy-kapat">Sayımı tamamla</button><button class="btn btn-s btn-sm" id="sy-ac" hidden>Yeniden aç</button></div></div>
           <button class="sy-ban sy-ban-b" id="sy-basla"><span>📱</span><div><b>Saymaya başla</b><small>Telefon için büyük ekran sayım modu</small></div><em>→</em></button>
           <div class="card sy-giris" id="sy-giris"><div class="card-b fg"><div class="vu-h" style="padding:0">Hızlı giriş (bilgisayar)</div>
             <div class="f" style="position:relative"><label for="sy-kod">Ürün kodu ya da adı</label><div style="display:flex;gap:8px"><input class="inp" id="sy-kod" autocomplete="off" autocapitalize="characters" placeholder="ör. MTH10-1080B ya da sigorta 80A" enterkeyhint="next" style="flex:1;min-width:0"><button class="btn btn-s" id="sy-yok" type="button" style="white-space:nowrap;flex-shrink:0">+ Listede yok</button></div>
@@ -619,6 +620,7 @@ button.row:hover{background:var(--surface2)}
           </div></div>
           <div style="display:flex;gap:8px;margin:12px 0"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sy-ara" placeholder="Sayılanlarda ara (kod, ad, raf)"></div></div>
           <div class="card"><div class="card-h"><h3>Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
+          <div class="card" style="margin-top:12px"><div class="card-b" id="sy-belge"></div></div>
         </div>
       </section>
 
@@ -803,12 +805,12 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.12.1"></script>
-<script src="teklif-cikti.js?v=1.12.1"></script>
-<script src="app.js?v=1.12.1"></script>
-<script src="hizli-teklif.js?v=1.12.1"></script>
-<script src="siparis.js?v=1.12.1"></script>
-<script src="sayim.js?v=1.12.1"></script>
-<script src="onizle.js?v=1.12.1"></script>
+<script src="config.js?v=1.13.0"></script>
+<script src="teklif-cikti.js?v=1.13.0"></script>
+<script src="app.js?v=1.13.0"></script>
+<script src="hizli-teklif.js?v=1.13.0"></script>
+<script src="siparis.js?v=1.13.0"></script>
+<script src="sayim.js?v=1.13.0"></script>
+<script src="onizle.js?v=1.13.0"></script>
 </body>
 </html>
