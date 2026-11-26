@@ -49,11 +49,11 @@ async function spDosyaYukle(id, files) {
   }
   return out;
 }
-async function spDosyaAc(yol) {
-  const w = window.open('', '_blank');
-  const {data, error} = await sb.storage.from('belgeler').createSignedUrl(yol, 600);
-  if (error) { if (w) w.close(); toast('⚠ Dosya açılamadı'); return; }
-  if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+async function spDosyaAc(f) {
+  const {data, error} = await sb.storage.from('belgeler').createSignedUrl(f.yol, 900);
+  if (error) { toast('⚠ Dosya açılamadı'); return; }
+  const tip = f.tip || (/\.pdf$/i.test(f.ad) ? 'application/pdf' : /\.(jpe?g|png|webp|heic|gif)$/i.test(f.ad) ? 'image/jpeg' : '');
+  onizle({url: data.signedUrl, tip}, f.ad, [{label: 'İndir / aç', cls: 'btn-p', onClick: () => window.open(data.signedUrl, '_blank')}]);
 }
 
 function siparisForm(s = {}, teklif = null) {
@@ -93,7 +93,7 @@ function siparisDetay(id) {
     <div class="rows" style="margin:6px -4px 10px">
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Müşteri sipariş no</div><div class="t">${esc(s.musteriSipNo || '—')}</div></div><div class="end"><div class="s">Tarih</div><b>${trT(s.tarih)}</b></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Termin</div><div class="t" style="${spGecikti(s) ? 'color:var(--red)' : ''}">${s.termin ? trT(s.termin) + (spAcik(s) ? ' · ' + gunYazi(s.termin) : '') : '—'}</div></div><div class="end"><div class="s">Tutar</div><b class="num">${esc(s.tutar || '—')}</b></div></div>
-      ${s.teklifNo || s.teklifId ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Bağlı teklif</div><div class="t">${esc(s.teklifNo || '—')}</div></div>${s.teklifId ? `<div class="end"><button class="btn btn-s btn-sm" data-spt>Teklifi aç</button></div>` : ''}</div>` : ''}
+      ${s.teklifNo || s.teklifId ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Bağlı teklif</div><div class="t">${esc(s.teklifNo || '—')}</div></div>${s.teklifId ? `<div class="end" style="flex-direction:row;gap:6px"><button class="btn btn-s btn-sm" data-spo>Önizle</button><button class="btn btn-s btn-sm" data-spt>Teklif</button></div>` : ''}</div>` : ''}
       ${s.not ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Not</div><div class="t" style="white-space:normal">${esc(s.not)}</div></div></div>` : ''}
     </div>
     ${k.length ? `<div class="vu-h" style="padding-left:0">Kalemler <span>${k.filter(x => x.geldi).length}/${k.length} hazır — geldikçe işaretle</span></div><div class="rows sp-kal">${k.map((x, i) => `<label class="row hz-row" style="padding:8px 4px"><input type="checkbox" data-sk="${i}"${x.geldi ? ' checked' : ''}><div class="mid"><div class="t">${esc(x.ref || 'Kodsuz')} <span style="color:var(--fg3);font-weight:500">${esc(x.marka || '')}</span></div><div class="s">${esc(x.aciklama || '')}</div></div><div class="end"><b class="num">${esc(x.miktar || 1)}</b><span class="s">${esc(x.birim || 'Adet')}</span></div></label>`).join('')}</div>` : ''}
@@ -115,12 +115,13 @@ function siparisDetay(id) {
     kaydet('siparisler', {...c, kalemler: kk, ...(hepsi && ['alindi', 'tedarik'].includes(c.durum) ? {durum: 'hazir', gecmis: [...(c.gecmis || []), {t: new Date().toISOString(), d: 'hazir', k: ME}]} : {})});
     if (hepsi) toast('✅ Tüm kalemler hazır — durum "Hazır" yapıldı');
   });
-  sh.el.querySelectorAll('[data-sdos]').forEach(b => b.onclick = () => spDosyaAc((guncel().dosyalar || [])[+b.dataset.sdos].yol));
+  sh.el.querySelectorAll('[data-sdos]').forEach(b => b.onclick = () => spDosyaAc((guncel().dosyalar || [])[+b.dataset.sdos]));
   sh.el.querySelector('#sd-dosya').onchange = async e => {
     const fl = [...e.target.files]; if (!fl.length) return;
     toast('Yükleniyor…'); const dos = await spDosyaYukle(id, fl);
     if (dos.length) { const c = guncel(); await kaydet('siparisler', {...c, dosyalar: [...(c.dosyalar || []), ...dos]}); toast('✅ ' + dos.length + ' belge eklendi'); sh.kapat(); siparisDetay(id); }
   };
+  const to = sh.el.querySelector('[data-spo]'); if (to) to.onclick = () => { const t = S.teklifler.find(x => x.id === s.teklifId); if (t) teklifOnizle(t, false); };
   const tb = sh.el.querySelector('[data-spt]'); if (tb) tb.onclick = () => { sh.kapat(); teklifDetay(s.teklifId); };
   const sil = sh.el.querySelector('#sd-sil');
   if (sil) sil.onclick = () => { sh.kapat(); confirmSheet('Sipariş silinsin mi?', (s.no || '') + ' ' + (s.musteri || '') + ' kalıcı olarak silinecek.', () => BE.sil('siparisler', id)); };

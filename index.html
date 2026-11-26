@@ -292,6 +292,15 @@ button.row:hover{background:var(--surface2)}
 .drop b{display:block;font-size:14px}
 .drop span{font-size:12.5px;color:var(--fg2)}
 
+.onz{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
+.onz-h{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--surface)}
+.onz-h b{flex:1;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.onz-b{flex:1;overflow:auto;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--bg2,#e9ecf1);-webkit-overflow-scrolling:touch}
+.onz-s{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);border-radius:2px;max-width:100%}
+.onz-img{max-width:100%;height:auto;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.onz-y{padding:40px 16px;text-align:center;color:var(--fg2)}
+.onz-f{display:flex;gap:8px;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:var(--surface)}
+.onz-f .btn{flex:1}
 .sy-oneri{position:absolute;left:0;right:0;top:100%;z-index:20;max-height:320px;overflow:auto;margin-top:4px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .sy-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
 .sp-adim{display:flex;gap:4px;margin:0 0 8px;overflow-x:auto;padding-bottom:4px}
@@ -551,6 +560,7 @@ button.row:hover{background:var(--surface2)}
           </div>
           <div class="out-grid">
             <button class="btn btn-p wide" id="tf-gonder"><svg class="i"><use href="#i-send"/></svg>PDF'i mail / WhatsApp ile gönder</button>
+            <button class="btn btn-s" id="tf-onizle"><svg class="i"><use href="#i-doc"/></svg>Önizle</button>
             <button class="btn btn-s" id="tf-pdf"><svg class="i"><use href="#i-down"/></svg>PDF indir</button>
             <button class="btn btn-g" id="tf-xlsx"><svg class="i"><use href="#i-down"/></svg>Excel</button>
           </div>
@@ -763,11 +773,12 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.10.1"></script>
-<script src="teklif-cikti.js?v=1.10.1"></script>
-<script src="app.js?v=1.10.1"></script>
-<script src="hizli-teklif.js?v=1.10.1"></script>
-<script src="siparis.js?v=1.10.1"></script>
-<script src="sayim.js?v=1.10.1"></script>
+<script src="config.js?v=1.11.0"></script>
+<script src="teklif-cikti.js?v=1.11.0"></script>
+<script src="app.js?v=1.11.0"></script>
+<script src="hizli-teklif.js?v=1.11.0"></script>
+<script src="siparis.js?v=1.11.0"></script>
+<script src="sayim.js?v=1.11.0"></script>
+<script src="onizle.js?v=1.11.0"></script>
 </body>
 </html>

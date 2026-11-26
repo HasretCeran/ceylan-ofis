@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.11.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -515,6 +515,7 @@ async function cikti(tur, t, tf) {
 }
 $('#tf-xlsx').onclick = () => cikti('excel', tfVeri(), true);
 $('#tf-pdf').onclick = () => cikti('pdf', tfVeri(), true);
+$('#tf-onizle').onclick = () => teklifOnizle(tfVeri(), true);
 $('#tf-gonder').onclick = () => cikti('gonder', tfVeri(), true);
 
 // ═══════════════════════════════════════════
@@ -542,14 +543,14 @@ function teklifDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(adi(t.by))}</div></div></div>
     </div>
     <div class="f"><label for="td-durum">Durum</label><select class="sel" id="td-durum">${opts}</select></div>
-    ${kal ? `<div class="fg3" style="margin-top:12px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
+    ${kal ? `<button class="btn btn-s btn-block" data-td="onizle" style="margin-top:12px">${ikon('doc')}Önizle</button><div class="fg3" style="margin-top:8px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
     ${IS_OWNER ? `<button class="btn btn-d btn-sm" id="td-sil" style="margin-top:14px">${ikon('trash')}Teklifi sil</button>` : ''}`,
     [
       ...(kal ? [{label: 'Düzenle', onClick: () => tfAc(id)}] : []),
       ...(S.siparisler.some(x => x.teklifId === id) ? [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(S.siparisler.find(x => x.teklifId === id).id), 0); }}] : [{label: 'Siparişe dönüştür', onClick: () => { setTimeout(() => siparisForm({}, t), 0); }}]),
       {label: 'Kaydet', cls: 'btn-p', onClick: async ov => { const d = v(ov, 'td-durum'); if (d === t.durum) return; const ok = await kaydet('teklifler', {...t, durum: d}); if (ok) toast('✅ Durum güncellendi'); return ok; }},
     ]);
-  sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => cikti(b.dataset.td, tamTeklif(t), false));
+  sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => b.dataset.td === 'onizle' ? teklifOnizle(t, false) : cikti(b.dataset.td, tamTeklif(t), false));
   const sil = sh.el.querySelector('#td-sil');
   if (sil) sil.onclick = () => { sh.kapat(); confirmSheet('Teklif silinsin mi?', (t.no || '') + ' ' + (t.musteri || '') + ' kalıcı olarak silinecek.', () => BE.sil('teklifler', id)); };
 }
