@@ -530,6 +530,23 @@ button.row:active{background:var(--surface2)}
   .bn.active::before{top:3px;left:50%;transform:translateX(-50%);width:54px;height:30px;border-radius:15px;background:var(--brand-soft);z-index:0}
   .bn.active{font-weight:700}
 }
+
+/* karşılaştırma tablosu */
+.kmod{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;flex-direction:column}
+.kmod-h{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.kmod-b{flex:1;overflow:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 18px max(16px,env(safe-area-inset-left,0px));-webkit-overflow-scrolling:touch}
+.kmod-f{display:flex;gap:8px;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:var(--surface)}
+.kmod-f .btn{flex:1}
+.kmat{border-collapse:separate;border-spacing:0;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:100%}
+.kmat th,.kmat td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;min-width:120px}
+.kmat th:first-child,.kmat td:first-child{position:sticky;left:0;background:var(--surface);z-index:1;min-width:150px;max-width:210px;box-shadow:1px 0 0 var(--line)}
+.kmat thead th{background:var(--surface2);font-size:12px;position:sticky;top:0}
+.kmat .r{text-align:right;min-width:70px}
+.kmat td.best{background:var(--green-soft)}
+.kmat td.none{color:var(--fg3)}
+.kmat small{display:block;font-size:11px;color:var(--fg3);margin-top:2px;font-weight:500}
+.kmat tfoot td{background:var(--surface2);border-bottom:0}
+.kmat tbody tr:last-child td{border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -909,14 +926,14 @@ button.row:active{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.22.0"></script>
-<script src="teklif-cikti.js?v=1.22.0"></script>
-<script src="app.js?v=1.22.0"></script>
-<script src="hizli-teklif.js?v=1.22.0"></script>
-<script src="siparis.js?v=1.22.0"></script>
-<script src="sayim.js?v=1.22.0"></script>
-<script src="stok-aktar.js?v=1.22.0"></script>
-<script src="satinalma.js?v=1.22.0"></script>
-<script src="onizle.js?v=1.22.0"></script>
+<script src="config.js?v=1.23.0"></script>
+<script src="teklif-cikti.js?v=1.23.0"></script>
+<script src="app.js?v=1.23.0"></script>
+<script src="hizli-teklif.js?v=1.23.0"></script>
+<script src="siparis.js?v=1.23.0"></script>
+<script src="sayim.js?v=1.23.0"></script>
+<script src="stok-aktar.js?v=1.23.0"></script>
+<script src="satinalma.js?v=1.23.0"></script>
+<script src="onizle.js?v=1.23.0"></script>
 </body>
 </html>
