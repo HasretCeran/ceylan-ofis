@@ -222,7 +222,7 @@
       musteri: String(g('F8') || ''), ilgili: String(g('F9') || ''), telefon: String(g('F10') || ''),
       konu: String(g('F11') || ''), no: String(g('F12') || ''),
       hazirlayan: String(g('D16') || sart(g('E187')) || ''),
-      tarih: tarihH instanceof Date ? tarihStr(tarihH) : tarihStr(new Date(file.lastModified || Date.now())),
+      tarih: tarihH instanceof Date ? tarihStr(new Date(tarihH.getTime() + 12 * 3600e3)) : tarihStr(new Date(file.lastModified || Date.now())),
       odeme: sart(g('E184')), gecerli: sart(g('E185')), teslimYeri: sart(g('E186')),
       kurUsd: kurU ? String(kurU) : '', kurEur: kurE ? String(kurE) : '',
       kalemler, kalemSayisi: kalemler.length, kaynakDosya: file.name,
