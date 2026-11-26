@@ -13,7 +13,7 @@ const SA_ACIK = ['verildi', 'onay', 'yolda'];
 const SA_SORU = [['fiyat', 'Birim fiyat'], ['stok', 'Stok durumu'], ['termin', 'Teslim süresi'], ['minimum', 'Minimum sipariş'], ['odeme', 'Ödeme koşulu']];
 const SA_BIRIM = ['Adet', 'Mt', 'Kg', 'Paket', 'Kutu', 'Takım', 'Rulo'];
 let saTab = lsGet('sa_tab', 'talepler'), saYuklendi = false, saSipFiltre = 'acik';
-const saF = {q: '', ted: '', para: '', stok: '', donem: 0, enDusuk: false};
+const saF = {q: '', ted: '', talep: '', para: '', stok: '', donem: 0, enDusuk: false};
 const saKur = () => { const k = lsGet('sa_kur', {}); return {'$': Number(k['$']) || 0, '€': Number(k['€']) || 0}; };
 const saTed = id => S.tedarikciler.find(t => t.id === id);
 const saTL = n => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -131,7 +131,7 @@ function saTalepDetay(id) {
       return `<div class="row" style="padding:8px 0;flex-wrap:wrap"><div class="mid" style="min-width:150px"><div class="t">${esc(x.ad)}</div><div class="s">${esc(x.eposta || 'e-posta yok')}${gd && gd.durum === 'gonderildi' ? ' · ✓ gönderildi ' + trT(String(gd.zaman || '').slice(0, 10)) + (gd.kanal === 'otomatik' ? ' (otomatik)' : '') : ''}${yan ? ' · ' + yan + ' fiyat girildi' : ''}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-s btn-sm" data-samail="${esc(tid)}">✉ Mail uygulamasında aç</button><button class="btn btn-s btn-sm" data-sagon="${esc(tid)}">${gd && gd.durum === 'gonderildi' ? 'Gönderilmedi say' : 'Gönderildi say'}</button><button class="btn btn-p btn-sm" data-sayan="${esc(tid)}">Fiyat gir</button></div></div>`; }).join('')}</div>
     <p class="note" style="margin-top:10px">${t.durum === 'gonderilecek' ? '⏳ Satınalma posta kutusu bağlanınca otomatik gönderilecek.' : 'Posta kutusu bağlıysa "Gönderime onayla" talebi otomatik gönderime alır; yoksa her tedarikçiye "Mail uygulamasında aç" ile gönder.'}</p>`,
-  [{label: 'Düzenle', onClick: () => { setTimeout(() => saTalepForm(id), 0); }}, ...(t.durum === 'taslak' ? [{label: 'Gönderime onayla', cls: 'btn-p', onClick: async () => kaydet('sa_talepler', {...t, durum: 'gonderilecek', onay: new Date().toISOString()})}] : [{label: 'Kapat', onClick: async () => kaydet('sa_talepler', {...t, durum: 'kapandi'})}])]);
+  [{label: 'Düzenle', onClick: () => { setTimeout(() => saTalepForm(id), 0); }}, ...(S.sa_teklifler.some(q => q.talepId === id) ? [{label: 'Karşılaştır', cls: 'btn-p', onClick: () => { setTimeout(() => saKarsTalep(id), 0); }}] : []), ...(t.durum === 'taslak' ? [{label: 'Gönderime onayla', cls: S.sa_teklifler.some(q => q.talepId === id) ? 'btn-s' : 'btn-p', onClick: async () => kaydet('sa_talepler', {...t, durum: 'gonderilecek', onay: new Date().toISOString()})}] : [{label: 'Kapat', onClick: async () => kaydet('sa_talepler', {...t, durum: 'kapandi'})}])]);
   const sil = document.createElement('button'); sil.className = 'btn btn-d btn-sm'; sil.style.margin = '0 18px 12px'; sil.innerHTML = ikon('trash') + 'Talebi sil'; sil.onclick = () => confirmSheet('Talep silinsin mi?', 'Bu talebe girilen teklifler Fiyat analizi\'nde kalır.', async () => { await BE.sil('sa_talepler', id); sh.kapat(); toast('Silindi'); });
   if (IS_OWNER) sh.el.querySelector('.sheet').insertBefore(sil, sh.el.querySelector('.sheet-f'));
   const gunc = () => S.sa_talepler.find(x => x.id === id);
@@ -191,7 +191,7 @@ function saTeklifForm() {
 // ═══ FİYAT ANALİZİ ═══
 function saGruplar() {
   const kur = saKur(), q = nrmTR(saF.q), lim = saF.donem ? Date.now() - saF.donem * 864e5 : 0;
-  const l = S.sa_teklifler.filter(t => (!saF.ted || t.tedarikciId === saF.ted) && (!saF.para || t.para === saF.para) && (!saF.stok || t.stok === saF.stok) && (!lim || Date.parse(t.tarih || '') >= lim)
+  const l = S.sa_teklifler.filter(t => (!saF.ted || t.tedarikciId === saF.ted) && (!saF.talep || t.talepId === saF.talep) && (!saF.para || t.para === saF.para) && (!saF.stok || t.stok === saF.stok) && (!lim || Date.parse(t.tarih || '') >= lim)
     && (!q || nrmTR([t.ref, t.aciklama, t.marka, t.tedarikci].join(' ')).includes(q)));
   const m = new Map();
   l.forEach(t => { const key = refN(t.ref) || nrmTR(t.aciklama).replace(/\s+/g, ' '); if (!m.has(key)) m.set(key, {key, ref: t.ref, aciklama: t.aciklama, q: []}); const g = m.get(key); g.q.push(t); if (!g.aciklama && t.aciklama) g.aciklama = t.aciklama; });
@@ -214,6 +214,7 @@ function saAnalizCiz(body) {
   gr.filter(g => g.q.filter(t => t._v != null).length > 1).forEach(g => g.q.filter(t => t._v != null).forEach(t => { const o = oz.get(t.tedarikciId) || {ad: t.tedarikci, n: 0, en: 0, fark: 0}; o.n++; if (t === g.en) o.en++; o.fark += (t._v / g.en._v - 1) * 100; oz.set(t.tedarikciId, o); }));
   body.innerHTML = `<div class="card"><div class="card-b fg">
     <div class="search" style="min-width:0"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sa-ara" placeholder="Ürün kodu, açıklama, marka, tedarikçi" value="${esc(saF.q)}"></div>
+    <div class="fg2"><select class="sel" id="sa-f-talep"><option value="">Tüm teklifler</option>${opt(S.sa_talepler.filter(x => S.sa_teklifler.some(q => q.talepId === x.id)).sort((a, b) => (b.no || '').localeCompare(a.no || '')).map(x => [x.id, x.no + (x.konu ? ' · ' + x.konu.slice(0, 28) : '')]), saF.talep)}</select><button class="btn btn-p" id="sa-tablo">Tablo olarak karşılaştır</button></div>
     <div class="fg3"><select class="sel" id="sa-f-ted"><option value="">Tüm tedarikçiler</option>${opt(teds.map(t => [t.id, t.ad]), saF.ted)}</select>
       <select class="sel" id="sa-f-para">${opt([['', 'Tüm para birimleri'], ['₺', '₺'], ['€', '€'], ['$', '$']], saF.para)}</select>
       <select class="sel" id="sa-f-stok">${opt([['', 'Stok: hepsi'], ['var', 'Sadece stokta'], ['yok', 'Stokta yok']], saF.stok)}</select></div>
@@ -302,11 +303,81 @@ function saRapor() {
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Satin_Alma'); TC.indir(new Blob([XLSX.write(wb, {bookType: 'xlsx', type: 'array'})], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `Satin_Alma_Raporu_${bugun()}.xlsx`); toast('⬇ Rapor indirildi'); return false; }}, {label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
 }
 
+// ═══ KARŞILAŞTIRMA TABLOSU: satır = ürün, sütun = tedarikçi ═══
+function saMatrisSatirTalep(t) {
+  return (t.kalemler || []).map((k, i) => { const q = {};
+    S.sa_teklifler.filter(x => x.talepId === t.id).forEach(x => { const m = /-(\d+)$/.exec(x.id || ''); if (m && +m[1] === i && x.tedarikciId) q[x.tedarikciId] = x; });
+    return {ref: k.ref, aciklama: k.aciklama, marka: k.marka, miktar: k.miktar, birim: k.birim || 'Adet', q}; });
+}
+function saMatrisSatirGrup() {
+  return saGruplar().map(g => { const q = {}; g.q.forEach(x => { if (!q[x.tedarikciId]) q[x.tedarikciId] = x; });   // g.q ucuzdan pahalıya sıralı
+    return {ref: g.ref, aciklama: g.aciklama, marka: (g.q[0] || {}).marka, miktar: null, birim: (g.q[0] || {}).birim || 'Adet', q}; });
+}
+function saKarsTalep(id) { const t = S.sa_talepler.find(x => x.id === id); if (t) saMatrisAc(`${t.no}${t.konu ? ' · ' + t.konu : ''}`, saMatrisSatirTalep(t)); }
+function saMatrisHesap(satirlar) {
+  const kur = saKur(), val = new Map();
+  satirlar.forEach(s => {
+    const qs = Object.values(s.q).filter(x => x.fiyat > 0), tek = new Set(qs.map(x => x.para)).size <= 1;
+    qs.forEach(x => val.set(x, x.para === '₺' ? x.fiyat : kur[x.para] ? x.fiyat * kur[x.para] : (tek ? x.fiyat : null)));
+    const l = qs.filter(x => val.get(x) != null); s.en = l.length ? l.reduce((a, b) => val.get(b) < val.get(a) ? b : a) : null; s.sayi = l.length;
+  });
+  const tids = [...new Set(satirlar.flatMap(s => Object.keys(s.q)))];
+  const ted = tids.map(id => ({id, ad: (saTed(id) || {}).ad || 'Silinmiş tedarikçi', top: {}, eksik: 0, kazan: 0}));
+  ted.forEach(t => satirlar.forEach(s => { const x = s.q[t.id]; if (x && x.fiyat > 0) { const m = Number(s.miktar) || Number(x.miktar) || 1; t.top[x.para] = (t.top[x.para] || 0) + x.fiyat * m; if (s.en === x && s.sayi > 1) t.kazan++; } else t.eksik++; }));
+  const sepet = {}; satirlar.forEach(s => { if (s.en) { const m = Number(s.miktar) || Number(s.en.miktar) || 1; sepet[s.en.para] = (sepet[s.en.para] || 0) + s.en.fiyat * m; } });
+  return {ted, val, sepet};
+}
+const saParaYazi = o => Object.entries(o).map(([p, n]) => saTL(n) + ' ' + p).join(' + ') || '—';
+function saMatrisAc(baslik, satirlar) {
+  if (!satirlar.length || !satirlar.some(s => Object.keys(s.q).length)) { toast('Karşılaştırılacak teklif yok'); return; }
+  const {ted, val, sepet} = saMatrisHesap(satirlar), tek = x => x.stok === 'var' ? '✓ stokta' : x.stok === 'yok' ? '✗ stok yok' : '';
+  const el = document.createElement('div'); el.className = 'kmod';
+  el.innerHTML = `<div class="kmod-h"><div style="flex:1;min-width:0"><b>Teklif karşılaştırma</b><div class="s" style="font-size:12px;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(baslik)}</div></div><button class="icon-btn" id="km-x" aria-label="Kapat">${ikon('x')}</button></div>
+    <div class="kmod-b"><div class="tscroll"><table class="kmat"><thead><tr><th>Ürün</th><th class="r">Miktar</th>${ted.map(t => `<th>${esc(t.ad)}<button class="btn btn-s btn-sm" data-kmsip="${esc(t.id)}" style="display:block;margin-top:5px">Sipariş ver</button></th>`).join('')}</tr></thead>
+      <tbody>${satirlar.map(s => `<tr><td><b>${esc(s.ref || s.aciklama)}</b>${s.ref && s.aciklama ? `<small>${esc(s.aciklama)}</small>` : ''}</td><td class="r">${s.miktar ? esc(s.miktar) + ' ' + esc(s.birim || '') : '—'}</td>${ted.map(t => { const x = s.q[t.id];
+        if (!x || !(x.fiyat > 0)) return `<td class="none">${x && x.stok === 'yok' ? '<small>✗ stok yok</small>' : '—'}</td>`;
+        const best = s.en === x && s.sayi > 1; return `<td class="${best ? 'best' : ''}"><b>${esc(fmtF(x.fiyat))} ${esc(x.para)}</b>${best ? ' <span class="pill p-green" style="margin-left:3px">en düşük</span>' : ''}<small>${esc([tek(x), x.termin].filter(Boolean).join(' · '))}</small></td>`; }).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td><b>Toplam</b></td><td></td>${ted.map(t => `<td><b>${esc(saParaYazi(t.top))}</b><small>${t.eksik ? t.eksik + ' kalemde fiyat yok' : 'tüm kalemler fiyatlı'}${t.kazan ? ' · ' + t.kazan + ' kalemde en düşük' : ''}</small></td>`).join('')}</tr></tfoot></table></div>
+      <div class="card" style="margin-top:12px"><div class="card-b"><div class="s" style="color:var(--fg2);font-size:12.5px">Her kalemi en düşük fiyatlı tedarikçiden alırsanız</div><div class="num" style="font-size:20px;font-weight:700;margin:2px 0 6px">${esc(saParaYazi(sepet))}</div>
+        <div class="s" style="font-size:12.5px;color:var(--fg2)">${ted.filter(t => t.kazan).map(t => `${esc(t.ad)}: ${t.kazan} kalem`).join(' · ') || 'Karşılaştırılabilir kalem yok (her üründe tek teklif var)'}</div></div></div>
+      <p class="note" style="margin-top:10px">Farklı para birimleri, Fiyatlar sekmesindeki kur girilmişse TL üzerinden; girilmediyse yalnızca aynı para birimindekiler karşılaştırılır.</p></div>
+    <div class="kmod-f"><button class="btn btn-s" id="km-xlsx">Excel'e dök</button><button class="btn btn-p" id="km-sip">En düşüğe göre sipariş</button></div>`;
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const kapat = () => { el.remove(); document.body.style.overflow = ''; };
+  el.querySelector('#km-x').onclick = kapat;
+  el.querySelector('#km-xlsx').onclick = () => saMatrisExcel(baslik, satirlar, ted, val, sepet).catch(e => toast('⚠ ' + e.message));
+  const kal = (s, x) => ({ref: s.ref, aciklama: s.aciklama, marka: s.marka || x.marka || '', miktar: Number(s.miktar) || Number(x.miktar) || 1, birim: s.birim || 'Adet', fiyat: x.fiyat, para: x.para, geldi: false});
+  el.querySelectorAll('[data-kmsip]').forEach(b => b.onclick = () => { const tid = b.dataset.kmsip, k = satirlar.filter(s => s.q[tid] && s.q[tid].fiyat > 0).map(s => kal(s, s.q[tid])); kapat(); saSipForm({tedarikciId: tid, kalemler: k}); });
+  el.querySelector('#km-sip').onclick = () => {
+    const grup = new Map(); satirlar.forEach(s => { if (s.en) { if (!grup.has(s.en.tedarikciId)) grup.set(s.en.tedarikciId, []); grup.get(s.en.tedarikciId).push(kal(s, s.en)); } });
+    if (!grup.size) { toast('En düşük belirlenebilen kalem yok'); return; }
+    const ozet = [...grup.entries()].map(([tid, k]) => `${(saTed(tid) || {}).ad}: ${k.length} kalem (${saTutarYazi(k)})`).join('\n');
+    confirmSheet('Siparişler oluşturulsun mu?', ozet + '\n\nHer tedarikçi için ayrı sipariş açılır.', async () => {
+      let n = 0; for (const [tid, k] of grup) { const x = saTed(tid); if (!x) continue; const no = saNo('SAS', 'sa_siparisler');
+        if (await kaydet('sa_siparisler', {no, tarih: bugun(), tedarikciId: tid, tedarikci: x.ad, kalemler: k, termin: '', tedarikciSipNo: '', not: 'Karşılaştırma tablosundan oluşturuldu', durum: 'verildi', teklifId: '', gecmis: [{t: new Date().toISOString(), d: 'verildi', k: ME}]})) n++; }
+      toast(`✅ ${n} sipariş oluşturuldu`); kapat(); saTab = 'siparisler'; lsSet('sa_tab', saTab); saCiz(); });
+    return false;
+  };
+}
+async function saMatrisExcel(baslik, satirlar, ted, val, sepet) {
+  await syXlsx();
+  const bas = ['#', 'Ürün kodu', 'Açıklama', 'Miktar', 'Birim']; ted.forEach(t => bas.push(t.ad + ' – Fiyat', t.ad + ' – Para', t.ad + ' – Stok / Termin')); bas.push('En düşük tedarikçi', 'En düşük fiyat', 'Para');
+  const aoa = [[baslik], [], bas];
+  satirlar.forEach((s, i) => { const r = [i + 1, s.ref || '', s.aciklama || '', s.miktar || '', s.birim || '']; ted.forEach(t => { const x = s.q[t.id]; r.push(x && x.fiyat > 0 ? x.fiyat : '', x && x.fiyat > 0 ? x.para : '', x ? [x.stok === 'var' ? 'Stokta' : x.stok === 'yok' ? 'Stok yok' : '', x.termin].filter(Boolean).join(' · ') : ''); });
+    r.push(s.en ? (saTed(s.en.tedarikciId) || {}).ad : '', s.en ? s.en.fiyat : '', s.en ? s.en.para : ''); aoa.push(r); });
+  aoa.push([]); const top = ['', 'TOPLAM', '', '', '']; ted.forEach(t => top.push(saParaYazi(t.top), '', t.eksik ? t.eksik + ' kalemde fiyat yok' : '')); aoa.push(top);
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{wch: 4}, {wch: 24}, {wch: 44}, {wch: 8}, {wch: 7}, ...ted.flatMap(() => [{wch: 12}, {wch: 6}, {wch: 20}]), {wch: 22}, {wch: 12}, {wch: 6}];
+  const oz = XLSX.utils.aoa_to_sheet([['Tedarikçi', 'Toplam', 'Fiyatsız kalem', 'En düşük olduğu kalem'], ...ted.map(t => [t.ad, saParaYazi(t.top), t.eksik, t.kazan]), [], ['Her kalem en düşükten alınırsa', saParaYazi(sepet)]]); oz['!cols'] = [{wch: 28}, {wch: 26}, {wch: 14}, {wch: 20}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Karşılaştırma'); XLSX.utils.book_append_sheet(wb, oz, 'Özet');
+  TC.indir(new Blob([XLSX.write(wb, {bookType: 'xlsx', type: 'array'})], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `Teklif_Karsilastirma_${bugun()}.xlsx`); toast('⬇ Karşılaştırma indirildi');
+}
+
 // ═══ OLAYLAR ═══
 document.addEventListener('click', e => {
-  const t = e.target.closest('#p-satinalma [data-satab], #sa-yeni-talep, #sa-yeni-teklif, #sa-yeni-sip, #sa-yeni-ted, #sa-rapor, #sa-excel, [data-sated], [data-satalep], [data-sasip], [data-satsil], [data-sasip-d], [data-sasf], [data-sanot]'); if (!t) return;
+  const t = e.target.closest('#p-satinalma [data-satab], #sa-yeni-talep, #sa-tablo, #sa-yeni-teklif, #sa-yeni-sip, #sa-yeni-ted, #sa-rapor, #sa-excel, [data-sated], [data-satalep], [data-sasip], [data-satsil], [data-sasip-d], [data-sasf], [data-sanot]'); if (!t) return;
   if (t.dataset.sanot !== undefined) { lsSet('sa_not_kapali', true); saCiz(); return; }
   if (t.dataset.satab) { saTab = t.dataset.satab; lsSet('sa_tab', saTab); saCiz(); }
+  else if (t.id === 'sa-tablo') { if (saF.talep) saKarsTalep(saF.talep); else saMatrisAc('Tüm teklifler', saMatrisSatirGrup()); }
   else if (t.id === 'sa-yeni-talep') saTalepForm(); else if (t.id === 'sa-yeni-teklif') saTeklifForm(); else if (t.id === 'sa-yeni-sip') saSipForm(); else if (t.id === 'sa-yeni-ted') saTedForm();
   else if (t.id === 'sa-rapor') saRapor(); else if (t.id === 'sa-excel') saExcel().catch(er => toast('⚠ ' + er.message));
   else if (t.dataset.sated) saTedForm(t.dataset.sated); else if (t.dataset.satalep) saTalepDetay(t.dataset.satalep);
@@ -319,6 +390,6 @@ document.addEventListener('input', e => {
   else if (e.target.id === 'sa-kur-usd' || e.target.id === 'sa-kur-eur') { clearTimeout(saCiz.k); saCiz.k = setTimeout(() => { const k = saKur(); k[e.target.id === 'sa-kur-usd' ? '$' : '€'] = Number(String(e.target.value).replace(',', '.')) || 0; lsSet('sa_kur', k); const id = e.target.id, p = e.target.selectionStart; saCiz(); const n = $('#' + id); if (n) { n.focus(); n.setSelectionRange(p, p); } }, 500); }
 });
 document.addEventListener('change', e => {
-  const m = {'sa-f-ted': 'ted', 'sa-f-para': 'para', 'sa-f-stok': 'stok'}[e.target.id];
+  const m = {'sa-f-ted': 'ted', 'sa-f-talep': 'talep', 'sa-f-para': 'para', 'sa-f-stok': 'stok'}[e.target.id];
   if (m) { saF[m] = e.target.value; saCiz(); } else if (e.target.id === 'sa-f-donem') { saF.donem = Number(e.target.value) || 0; saCiz(); } else if (e.target.id === 'sa-f-en') { saF.enDusuk = e.target.checked; saCiz(); }
 });
