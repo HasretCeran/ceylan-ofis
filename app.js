@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.12.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -416,11 +416,9 @@ $('#k-stok').onclick = () => {
   };
   sh.el.querySelector('#pk-ara').oninput = ciz; ciz();
 };
-function otoNo() {
-  const y = new Date().getFullYear(), re = new RegExp('^TKF-' + y + '-(\\d+)$');
-  const max = S.teklifler.reduce((m, t) => { const x = re.exec(t.no || ''); return x ? Math.max(m, +x[1]) : m; }, 0);
-  return 'TKF-' + y + '-' + String(max + 1).padStart(3, '0');
-}
+// Teklif no: tüm ekip için tek, ardışık sayı (en büyük numaranın bir fazlası)
+function noSayi(no) { const x = /^(?:TKF-\d{4}-)?0*(\d{1,6})$/.exec(String(no || '').trim()); return x ? +x[1] : 0; }
+function otoNo() { return String(S.teklifler.reduce((m, t) => Math.max(m, noSayi(t.no)), 0) + 1); }
 function tfMeta() {
   if (!$('#tf-no').value.trim()) { $('#tf-no').value = tfId ? ((S.teklifler.find(t => t.id === tfId) || {}).no || otoNo()) : otoNo(); lsSet('co_tf_meta', Object.fromEntries(TF.map(x => [x, $('#tf-' + x).value]))); }
   return Object.fromEntries(TF.map(a => [a, $('#tf-' + a).value.trim()]));
@@ -443,6 +441,8 @@ async function tfKaydet(sessiz) {
   if (!kalemler.length) { toast('Önce kalem ekle'); return false; }
   const m = tfMeta();
   const eski = tfId && S.teklifler.find(t => t.id === tfId);
+  // Aynı numara başka bir teklifte varsa (aynı anda iki kişi hazırladıysa) sıradakini ver
+  if (!m.no || S.teklifler.some(t => t.id !== tfId && String(t.no) === String(m.no))) { m.no = otoNo(); $('#tf-no').value = m.no; }
   const obj = {...(eski || {}), ...m, id: tfId || newId(), kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
   const ok = await kaydet('teklifler', obj);
   if (ok) { tfId = obj.id; lsSet('co_tf_id', tfId); $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz) toast('✅ Teklif geçmişe kaydedildi'); }

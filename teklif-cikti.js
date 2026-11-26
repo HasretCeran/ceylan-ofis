@@ -51,8 +51,9 @@
   }
 
   function dosyaAdi(t, ext) {
-    const temiz = s => String(s || '').replace(/[^\wçğıöşüÇĞİÖŞÜ-]+/g, '_').replace(/^_+|_+$/g, '');
-    return 'Teklif_' + (temiz(t.musteri) || 'Musteri') + (t.no ? '_' + temiz(t.no) : '') + '.' + ext;
+    // Dosya adı: FİRMA + teklif no (ör. "HEKTAŞ 136.pdf")
+    const temiz = s => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return (temiz(t.musteri) || 'Teklif') + (t.no ? ' ' + temiz(t.no) : '') + '.' + ext;
   }
 
   // ═══ EXCEL (gerçek Ceylan şablonu) ═══
