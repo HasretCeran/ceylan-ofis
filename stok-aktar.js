@@ -31,6 +31,7 @@ async function sakTopluYaz(col, objs, ilerle) {
 function sakOku(wb) {
   const out = [], uyar = [];
   for (const ad of wb.SheetNames) {
+    if (/kontrol|aktar[ıi]lmaz/i.test(ad)) { uyar.push(`"${ad}" sayfası atlandı (aktarılmaz)`); continue; }
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[ad], {header: 1, defval: '', raw: true});
     let h = rows.findIndex(r => r.some(c => /kod|ref/i.test(String(c))) && r.some(c => /fiyat|price/i.test(String(c))));
     if (h < 0) { if (rows.length > 1) uyar.push(`"${ad}" sayfasında "Stok Kodu" ve "Fiyat" başlıkları bulunamadı, atlandı`); continue; }
@@ -66,11 +67,12 @@ function stokAktarForm() {
   [{label: 'Vazgeç', onClick: () => {}}, {label: 'Stoğa aktar', cls: 'btn-p', onClick: async ov => {
     if (!liste || !liste.length) { toast('Önce bir Excel dosyası seç'); return false; }
     const marka = v(ov, 'sak-marka'), kaynak = v(ov, 'sak-kaynak') || ('Excel: ' + dosyaAdi);
-    const idx = new Map(S.stok.map(u => [nrmTR(u.marka || '') + '|' + refN(u.ref), u]));
+    const kodAnahtar = r => String(r || '').toUpperCase().replace(/\s+/g, ' ').trim();   // nokta / tire korunur: 3SK400-1.5 ≠ 3SK400-15
+    const idx = new Map(S.stok.map(u => [nrmTR(u.marka || '') + '|' + kodAnahtar(u.ref), u]));
     const gor = new Map(), objs = []; let yeni = 0, guncel = 0, ayni = 0;
     for (const x of liste) {
       const mk = x.marka || marka; if (!mk) { toast('Marka yaz (dosyada marka sütunu yok)'); return false; }
-      const key = nrmTR(mk) + '|' + refN(x.ref); if (gor.has(key)) continue; gor.set(key, 1);
+      const key = nrmTR(mk) + '|' + kodAnahtar(x.ref); if (gor.has(key)) continue; gor.set(key, 1);
       const var_ = idx.get(key);
       const veri = {ref: x.ref, aciklama: x.aciklama, marka: mk, fiyat: x.fiyat, para: x.para, kaynak};
       if (x.fiyat == null) { veri.fiyat = null; veri.fiyatSorunuz = true; }
