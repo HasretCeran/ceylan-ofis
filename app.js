@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -287,11 +287,16 @@ function alacakOzet() {
 }
 function stokDurum(u) { if (u.stok === '' || u.stok == null) return 'bilinmiyor'; const a = Number(u.stok), m = Number(u.min) || 1; return a <= 0 ? 'yok' : a <= m ? 'kritik' : 'yeterli'; }
 
+// Mailden otomatik aktarılan kayıtlar: kaynak maile bağlantı (yalnızca Gmail adresi kabul edilir)
+function mailSatir(o) {
+  if (!o || !o.mailUrl || !/^https:\/\/mail\.google\.com\//.test(o.mailUrl)) return '';
+  return `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Kaynak mail${o.mailTarih ? ' · ' + esc(trT(String(o.mailTarih).slice(0, 10))) : ''}</div><div class="t" style="white-space:normal">${esc(o.mailKonu || 'Mail')}</div></div><div class="end"><a class="btn btn-s btn-sm" href="${esc(o.mailUrl)}" target="_blank" rel="noopener">📧 Aç</a></div></div>`;
+}
 function teklifSatir(t, kisaMi) {
   const [l, c] = DURUM[t.durum] || DURUM.bekliyor;
   return `<button class="row" data-teklif="${esc(t.id)}">
     <div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(t.musteri))}</div>
-    <div class="mid"><div class="t">${esc(t.musteri) || '—'}</div><div class="s">${esc(t.konu) || '—'}${kisaMi ? '' : ' · ' + esc(adi(t.by))}</div></div>
+    <div class="mid"><div class="t">${t.mailUrl ? '📧 ' : ''}${esc(t.musteri) || '—'}</div><div class="s">${esc(t.konu) || '—'}${kisaMi ? '' : ' · ' + esc(adi(t.by))}</div></div>
     <div class="end"><span class="pill ${c}">${l}</span><div class="s num" style="font-size:11.5px;color:var(--fg3);margin-top:4px">${esc(t.no || '')} ${trKisa(t.tarih)}</div></div></button>`;
 }
 
@@ -545,7 +550,8 @@ function teklifDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Teklif no</div><div class="t">${esc(t.no) || '—'}</div></div><div class="end"><div class="s">Tarih</div><b>${trT(t.tarih)}</b></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Konu</div><div class="t" style="white-space:normal">${esc(t.konu) || '—'}</div></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Tutar</div><div class="t num">${esc(t.tutar) || '—'}</div></div><div class="end"><div class="s">Kalem</div><b>${esc(t.kalemSayisi ?? '—')}</b></div></div>
-      <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(adi(t.by))}</div></div></div>
+      <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(t.hazirlayan || adi(t.by))}</div></div></div>
+      ${mailSatir(t)}
     </div>
     <div class="f"><label for="td-durum">Durum</label><select class="sel" id="td-durum">${opts}</select></div>
     ${kal ? `<button class="btn btn-s btn-block" data-td="onizle" style="margin-top:12px">${ikon('doc')}Önizle</button><div class="fg3" style="margin-top:8px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}

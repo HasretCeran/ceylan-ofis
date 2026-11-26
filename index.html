@@ -479,6 +479,11 @@ td.empty{display:table-cell}td.empty::before{display:none}
   .card-h{padding:13px 14px}.row{padding:12px 14px}
   .chips{margin-left:calc(-1 * max(16px,var(--safe-l)));margin-right:calc(-1 * max(16px,var(--safe-r)));padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r))}
 }
+
+/* sayım: öneri işareti, fark etiketi */
+#sy-oneri [data-syu].on{background:var(--brand-soft)}
+.sy-fark{display:block;font-size:11px;font-weight:700;margin-top:3px;white-space:nowrap}
+.sy-fark.eks{color:var(--red)}.sy-fark.art{color:var(--amber)}
 </style>
 </head>
 <body>
@@ -690,7 +695,8 @@ td.empty{display:table-cell}td.empty::before{display:none}
             <div id="sy-son"></div>
           </div></div>
           <div style="display:flex;gap:8px;margin:12px 0"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sy-ara" placeholder="Sayılanlarda ara (kod, ad, raf)"></div></div>
-          <div class="card"><div class="card-h"><h3>Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
+          <div class="chips" id="sy-chips"></div>
+          <div class="card"><div class="card-h"><h3 id="sy-toplam-h">Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
           <div class="card" style="margin-top:12px"><div class="card-b" id="sy-belge"></div></div>
         </div>
       </section>
@@ -876,12 +882,12 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.15.0"></script>
-<script src="teklif-cikti.js?v=1.15.0"></script>
-<script src="app.js?v=1.15.0"></script>
-<script src="hizli-teklif.js?v=1.15.0"></script>
-<script src="siparis.js?v=1.15.0"></script>
-<script src="sayim.js?v=1.15.0"></script>
-<script src="onizle.js?v=1.15.0"></script>
+<script src="config.js?v=1.16.0"></script>
+<script src="teklif-cikti.js?v=1.16.0"></script>
+<script src="app.js?v=1.16.0"></script>
+<script src="hizli-teklif.js?v=1.16.0"></script>
+<script src="siparis.js?v=1.16.0"></script>
+<script src="sayim.js?v=1.16.0"></script>
+<script src="onizle.js?v=1.16.0"></script>
 </body>
 </html>
