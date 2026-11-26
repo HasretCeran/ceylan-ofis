@@ -379,7 +379,7 @@ button.row:hover{background:var(--surface2)}
   .bn-fab{flex:1;display:flex;justify-content:center;align-items:flex-start}
   .bn-fab button{width:56px;height:56px;border-radius:18px;border:0;background:linear-gradient(140deg,#2a6af0,#0f3ba0);color:#fff;display:grid;place-items:center;margin-top:-22px;box-shadow:0 8px 20px rgba(26,86,219,.45)}
   .bn-fab svg{width:26px;height:26px}
-  .wbar{bottom:calc(74px + var(--safe-b))}
+  .wbar{bottom:calc(66px + var(--safe-b))}
   .banner{flex-wrap:nowrap;align-items:flex-start}
   .banner>span{flex:1;min-width:0}
   .kalem .grid{grid-template-columns:repeat(6,minmax(0,1fr))}
@@ -414,6 +414,82 @@ button.row:hover{background:var(--surface2)}
 #splash .logo-mark{width:64px;height:64px;border-radius:18px;animation:pulse 1.2s ease-in-out infinite}
 #splash .logo-mark svg{width:34px;height:34px}
 @keyframes pulse{50%{transform:scale(.94);opacity:.8}}
+
+/* ── v1.15 ARAYÜZ İYİLEŞTİRMELERİ ── */
+:root{--focus:0 0 0 3px color-mix(in srgb,var(--brand) 35%,transparent)}
+:focus-visible{outline:none;box-shadow:var(--focus)!important;border-radius:10px}
+.inp:focus-visible,.sel:focus-visible{border-radius:11px}
+::selection{background:color-mix(in srgb,var(--brand) 25%,transparent)}
+*{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:10px;border:3px solid transparent;background-clip:content-box}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* kenar çubuğu: aktif şerit ve yumuşak geçiş */
+.sb-item{position:relative;transition:background .12s,color .12s}
+.sb-item.active{font-weight:600}
+.sb-item.active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.sb-item .cnt{min-width:20px;text-align:center}
+
+/* üst çubuk kaydırınca gölge */
+.topbar{transition:box-shadow .2s}
+.topbar.scrolled{box-shadow:0 4px 16px rgba(16,24,40,.06)}
+
+/* kartlar ve düğmeler */
+.inp:hover:not(:focus),.sel:hover:not(:focus){border-color:color-mix(in srgb,var(--fg3) 60%,var(--line2))}
+.btn-s:hover{background:var(--surface2);border-color:color-mix(in srgb,var(--fg3) 50%,var(--line2))}
+.btn-g:hover,.btn-d:hover{filter:brightness(1.06)}
+.icon-btn{transition:background .12s,color .12s}
+.icon-btn:hover{background:var(--surface2);color:var(--fg)}
+.qa{transition:transform .12s,border-color .12s,box-shadow .12s}
+@media (hover:hover){.qa:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(16,24,40,.08)}}
+.tile[data-mf-tile]{transition:border-color .12s}.tile[data-mf-tile]:hover{border-color:var(--brand)}
+.chip{transition:background .12s,border-color .12s,color .12s}
+.chip:hover:not(.on){border-color:var(--fg3);color:var(--fg)}
+button.row{transition:background .1s}
+.link-btn:hover{text-decoration:underline;text-underline-offset:3px}
+.card-h h3{display:flex;align-items:center;gap:8px}
+
+/* boş durumlar */
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 16px}
+.empty::before{content:"";width:40px;height:40px;border-radius:12px;background:var(--surface2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2398a1b2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center/20px no-repeat}
+td.empty{display:table-cell}td.empty::before{display:none}
+
+/* koyu tema: sabit renkleri değişkene bağla */
+.smod-uyari{background:var(--amber-soft);color:var(--amber)}
+.onz-b{background:var(--surface2)}
+.smod-kaydet{background:var(--green)}
+.sy-ban{box-shadow:0 8px 22px rgba(13,148,136,.25)}
+
+/* telefon */
+@media (max-width:760px){
+  .topbar{min-height:54px;gap:10px}
+  .topbar h2{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .sync{padding:4px 8px}
+  .icon-btn{width:34px;height:34px}
+  .bn{position:relative;transition:color .12s}
+  .bn svg{transition:transform .15s}
+  .bn.active svg{transform:translateY(-1px)}
+  .bn.active::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--brand)}
+  .bn-fab button:active{transform:scale(.94)}
+  /* sihirbaz alt çubuğu: form alanlarını kapatmayan sabit, buzlu çubuk */
+  .wbar{margin:12px calc(-1 * max(16px,var(--safe-l))) 0;padding:10px max(16px,var(--safe-r)) 10px max(16px,var(--safe-l));background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  .wbar .btn{height:46px}
+  .ph{margin-bottom:14px}
+  .ph p{font-size:12.5px}
+  .card-h{padding:13px 14px}.row{padding:12px 14px}
+  .chips{margin-left:calc(-1 * max(16px,var(--safe-l)));margin-right:calc(-1 * max(16px,var(--safe-r)));padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r))}
+}
+
+/* sayım: öneri işareti, fark etiketi */
+#sy-oneri [data-syu].on{background:var(--brand-soft)}
+/* yönetici tutar kutuları: yıldızlı, dokununca açılır */
+.tile.gizli{cursor:pointer}
+.tile.gizli .val{font-size:0!important;height:27px;display:flex;align-items:center}
+.tile.gizli .val::after{content:"*****";font-size:24px;letter-spacing:.18em;color:var(--fg3);font-weight:700}
+.tile.gizli .lbl::after{content:"dokun · göster";margin-left:auto;font-size:10px;font-weight:600;color:var(--fg3);opacity:.8}
+.tile.gizli #m-ortal-h,.tile.gizli #m-ortbo-h{visibility:hidden}
+.sy-fark{display:block;font-size:11px;font-weight:700;margin-top:3px;white-space:nowrap}
+.sy-fark.eks{color:var(--red)}.sy-fark.art{color:var(--amber)}
 </style>
 </head>
 <body>
@@ -445,6 +521,9 @@ button.row:hover{background:var(--surface2)}
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></symbol>
     <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
   </defs>
 </svg>
 
@@ -478,10 +557,11 @@ button.row:hover{background:var(--surface2)}
     <div class="sb-label">Ticaret</div>
     <button class="sb-item" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Teklif Oluştur</button>
     <button class="sb-item" data-go="teklifler"><svg class="i"><use href="#i-doc"/></svg>Teklif Geçmişi<span class="cnt" data-acik hidden></span></button>
-    <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-box"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
+    <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-cart"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
+    <button class="sb-item owner-only" data-go="satinalma" hidden><svg class="i"><use href="#i-bag"/></svg>Satınalma<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
-    <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-db"/></svg>Stok Sayımı</button>
+    <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-check"/></svg>Stok Sayımı</button>
     <div class="sb-label">Yönetim</div>
     <button class="sb-item owner-only" data-go="entegrasyon" hidden><svg class="i"><use href="#i-plug"/></svg>Entegrasyonlar<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item owner-only" data-go="finans" hidden><svg class="i"><use href="#i-chart"/></svg>Finans Raporu<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
@@ -490,12 +570,12 @@ button.row:hover{background:var(--surface2)}
   </nav>
 
   <div class="main">
-    <header class="topbar">
+    <header class="topbar" id="topbar">
       <div class="brand-plate tb-logo" style="width:auto;height:auto;background:none;box-shadow:none"><img class="logo-l" src="icons/ceylan-logo.svg" alt="Ceylan" style="height:30px"><img class="logo-d" src="icons/ceylan-logo-koyu.svg" alt="" style="height:30px"></div>
       <h2 id="page-title">Genel Bakış</h2>
       <div class="tb-right">
         <span class="sync" id="sync"><i></i><span>Bağlanıyor</span></span>
-        <button class="icon-btn" id="theme-btn" aria-label="Tema"><svg class="i"><use href="#i-sun"/></svg></button>
+        <button class="icon-btn" id="theme-btn" aria-label="Tema" title="Açık / koyu tema"><svg class="i"><use href="#i-sun"/></svg></button>
       </div>
     </header>
 
@@ -518,9 +598,9 @@ button.row:hover{background:var(--surface2)}
           </div>
         </div>
         <div class="tiles">
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--amber)"></i>Kritik stok</div><div class="val num" id="d-kritik">0</div><div class="hint">yenileme gerekli</div></div>
         </div>
         <div class="quick">
@@ -623,9 +703,17 @@ button.row:hover{background:var(--surface2)}
             <div id="sy-son"></div>
           </div></div>
           <div style="display:flex;gap:8px;margin:12px 0"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sy-ara" placeholder="Sayılanlarda ara (kod, ad, raf)"></div></div>
-          <div class="card"><div class="card-h"><h3>Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
+          <div class="chips" id="sy-chips"></div>
+          <div class="card"><div class="card-h"><h3 id="sy-toplam-h">Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
           <div class="card" style="margin-top:12px"><div class="card-b" id="sy-belge"></div></div>
         </div>
+      </section>
+
+      <!-- SATINALMA -->
+      <section class="page" id="p-satinalma">
+        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet">🔒 Sadece yönetici · tedarikçilere fiyat ve stok sor, teklifleri karşılaştır, alımları takip et</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+        <div class="chips" id="sa-tabs"></div>
+        <div id="sa-body"></div>
       </section>
 
       <section class="page" id="p-siparisler">
@@ -649,7 +737,7 @@ button.row:hover{background:var(--surface2)}
       <section class="page" id="p-musteri">
         <div class="ph"><div><h1>Cariler & borç</h1><p>DİA cari kartları, alacak ve borç takibi</p></div>
           <div style="display:flex;gap:8px"><button class="btn btn-s btn-sm fin-only" data-act="hareket-ekle" hidden>+ Hareket</button><button class="btn btn-p btn-sm" data-act="firma-ekle">+ Firma</button></div></div>
-        <div class="tiles t6 fin-only" hidden>
+        <div class="tiles t6 owner-fin" hidden>
           <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="m-alacak">₺0</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--orange)"></i>Borcumuz</div><div class="val num" style="color:var(--orange)" id="m-borc">₺0</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="m-gecmis">₺0</div></div>
@@ -668,7 +756,7 @@ button.row:hover{background:var(--surface2)}
 
       <!-- STOK -->
       <section class="page" id="p-stok">
-        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div>
+        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><div style="display:flex;gap:8px"><button class="btn btn-s btn-sm owner-only" data-act="stok-aktar" hidden><svg class="i"><use href="#i-down"/></svg>Excel'den aktar</button><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div></div>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="s-ara" placeholder="Referans, açıklama, marka"></div>
           <select class="sel" id="s-durum" style="width:auto;min-width:140px"><option value="">Tüm durumlar</option><option value="yeterli">Yeterli</option><option value="kritik">Kritik</option><option value="yok">Stok yok</option></select>
@@ -770,6 +858,10 @@ button.row:hover{background:var(--surface2)}
           <button class="btn btn-s" style="flex:1" data-theme-set="dark">Koyu</button>
           <button class="btn btn-s" style="flex:1" data-theme-set="system">Sistem</button>
         </div></div>
+        <div class="card" id="ayar-indir"><div class="card-h"><h3>İndirilen dosyalar</h3></div><div class="card-b fg">
+          <label class="chk" id="indir-masa" hidden><input type="checkbox" id="indir-masa-cb"> PDF / Excel'i Masaüstü'ne kaydet (kaydetme penceresi Masaüstü'nde açılır)</label>
+          <p class="note" id="indir-not">Dosyalar tarayıcının indirme klasörüne iner. Klasörü değiştirmek için Chrome / Edge: Ayarlar → İndirilenler → Konum.</p>
+        </div></div>
         <div class="card owner-only" id="ayar-teklif" hidden><div class="card-h"><h3>Teklif şablonu varsayılanları</h3><span class="pill p-gray">🔒 Yönetici</span></div><div class="card-b fg">
           <div class="fg2">
             <div class="f"><label for="at-odeme">Ödeme şekli</label><input class="inp" id="at-odeme" data-a="odeme" placeholder="ör. Peşin / 30 gün"></div>
@@ -809,12 +901,14 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.14.0"></script>
-<script src="teklif-cikti.js?v=1.14.0"></script>
-<script src="app.js?v=1.14.0"></script>
-<script src="hizli-teklif.js?v=1.14.0"></script>
-<script src="siparis.js?v=1.14.0"></script>
-<script src="sayim.js?v=1.14.0"></script>
-<script src="onizle.js?v=1.14.0"></script>
+<script src="config.js?v=1.21.1"></script>
+<script src="teklif-cikti.js?v=1.21.1"></script>
+<script src="app.js?v=1.21.1"></script>
+<script src="hizli-teklif.js?v=1.21.1"></script>
+<script src="siparis.js?v=1.21.1"></script>
+<script src="sayim.js?v=1.21.1"></script>
+<script src="stok-aktar.js?v=1.21.1"></script>
+<script src="satinalma.js?v=1.21.1"></script>
+<script src="onizle.js?v=1.21.1"></script>
 </body>
 </html>

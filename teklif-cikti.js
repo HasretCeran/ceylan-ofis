@@ -275,10 +275,25 @@
     return new Promise((ok, no) => { try { pdfMake.createPdf(doc).getBlob(ok); } catch (e) { no(e); } });
   }
 
-  function indir(blob, ad) {
+  function indirSade(blob, ad) {
     const u = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = u; a.download = ad; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 60000);
+  }
+  // Masaüstü Chrome/Edge: kaydetme penceresi Masaüstü'nde açılır (tarayıcı indirme klasörünü siteler değiştiremez).
+  // Telefon / Safari / Firefox ya da ayar kapalıysa normal indirme.
+  const masaustuAcik = () => { try { return !!window.showSaveFilePicker && localStorage.getItem('co_indir_masaustu') !== '0'; } catch (e) { return !!window.showSaveFilePicker; } };
+  const TIPLER = {xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Excel'], pdf: ['application/pdf', 'PDF']};
+  async function indir(blob, ad, sade) {
+    if (sade || !masaustuAcik()) return indirSade(blob, ad);
+    const uz = (/\.(\w+)$/.exec(ad) || [])[1] || '', t = TIPLER[uz.toLowerCase()];
+    try {
+      const fh = await window.showSaveFilePicker({suggestedName: ad, startIn: 'desktop', ...(t ? {types: [{description: t[1], accept: {[t[0]]: ['.' + uz.toLowerCase()]}}]} : {})});
+      const w = await fh.createWritable(); await w.write(blob); await w.close();
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;          // kullanıcı vazgeçti
+      indirSade(blob, ad);                                // izin / jest süresi doldu vb. → normal indirme
+    }
   }
 
   function sablonDoldur(s, t) {
@@ -293,11 +308,11 @@
       await navigator.share({files: [file], title: konu, text: govde});
       return 'paylasildi';
     }
-    indir(blob, ad);
+    indirSade(blob, ad);
     const to = encodeURIComponent(t.eposta || '');
-    location.href = 'mailto:' + to + '?subject=' + encodeURIComponent(konu) + '&body=' + encodeURIComponent(govde + '\n\n(PDF teklif dosyası ekte — indirilenler klasöründen ekleyin)');
+    location.href = 'mailto:' + to + '?subject=' + encodeURIComponent(konu) + '&body=' + encodeURIComponent(govde + '\n\n(PDF teklif dosyası ekte — indirdiğiniz dosyayı ekleyin)');
     return 'mailto';
   }
 
-  window.TeklifCikti = {excelUret, pdfUret, sablonOku, listeExcel, listePdf, indir, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
+  window.TeklifCikti = {excelUret, pdfUret, sablonOku, listeExcel, listePdf, indir, indirSade, paylas, dosyaAdi, toplamlar, pdfHazirla, excelHazirla};
 })();

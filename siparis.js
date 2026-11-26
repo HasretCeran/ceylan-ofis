@@ -20,7 +20,7 @@ function spSatir(s) {
   const k = Array.isArray(s.kalemler) ? s.kalemler : [], gel = k.filter(x => x.geldi).length;
   const alt = [s.no, s.musteriSipNo ? 'PO ' + s.musteriSipNo : '', s.termin ? 'Termin ' + trT(s.termin) : '', k.length ? `${gel}/${k.length} kalem hazır` : '', (s.dosyalar || []).length ? '📎' + s.dosyalar.length : ''].filter(Boolean).join(' · ');
   return `<button class="row" data-sp="${esc(s.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(s.musteri))}</div>
-    <div class="mid"><div class="t">${esc(s.musteri || '—')}</div><div class="s">${esc(alt)}</div></div>
+    <div class="mid"><div class="t">${s.mailUrl ? '📧 ' : ''}${esc(s.musteri || '—')}</div><div class="s">${esc(alt)}</div></div>
     <div class="end">${s.tutar ? `<b class="num" style="font-size:12.5px">${esc(s.tutar)}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${l}</span></div></button>`;
 }
 function siparislerCiz() {
@@ -170,6 +170,7 @@ function siparisDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Müşteri sipariş no</div><div class="t">${esc(s.musteriSipNo || '—')}</div></div><div class="end"><div class="s">Tarih</div><b>${trT(s.tarih)}</b></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Termin</div><div class="t" style="${spGecikti(s) ? 'color:var(--red)' : ''}">${s.termin ? trT(s.termin) + (spAcik(s) ? ' · ' + gunYazi(s.termin) : '') : '—'}</div></div><div class="end"><div class="s">Tutar</div><b class="num">${esc(s.tutar || '—')}</b></div></div>
       ${s.teklifNo || s.teklifId ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Bağlı teklif</div><div class="t">${esc(s.teklifNo || '—')}</div></div>${s.teklifId ? `<div class="end" style="flex-direction:row;gap:6px"><button class="btn btn-s btn-sm" data-spo>Önizle</button><button class="btn btn-s btn-sm" data-spt>Teklif</button></div>` : ''}</div>` : ''}
+      ${mailSatir(s)}
       ${s.irsaliyeNo || s.faturaNo || s.kargo ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Sevk / fatura</div><div class="t" style="white-space:normal">${esc([s.irsaliyeNo && 'İrsaliye ' + s.irsaliyeNo, s.faturaNo && 'Fatura ' + s.faturaNo, s.kargo && 'Kargo ' + s.kargo].filter(Boolean).join(' · '))}</div></div></div>` : ''}
       ${s.not ? `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Not</div><div class="t" style="white-space:normal">${esc(s.not)}</div></div></div>` : ''}
     </div>

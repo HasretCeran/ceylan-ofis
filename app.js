@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.21.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -158,6 +158,7 @@ function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTi
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
   if (cols.includes('siparisler') && typeof siparislerCiz === 'function') siparislerCiz();
+  if (typeof SA_COLS !== 'undefined' && cols.some(c => SA_COLS.includes(c))) saCiz();
   if ((cols.includes('sayimlar') || cols.includes('sayim_kalem')) && typeof sayimCiz === 'function') sayimCiz();
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
@@ -169,17 +170,27 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
+// Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
+const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
+let gizleZaman = null;
+document.addEventListener('click', e => {
+  const t = e.target.closest('.tile.owner-fin, .tiles.owner-fin .tile'); if (!t) return;
+  if (t.classList.contains('gizli')) { e.stopPropagation(); e.preventDefault(); t.classList.remove('gizli'); clearTimeout(gizleZaman); gizleZaman = setTimeout(gizleTutar, 30000); }
+  else if (!t.dataset.mfTile) { t.classList.add('gizli'); }
+}, true);
 function git(p) {
+  gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
-  if ((p === 'finans' || p === 'entegrasyon') && !IS_OWNER) p = 'dashboard';
+  if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
   $('#page-title').textContent = BASLIK[p];
   if (p === 'finans') finansCiz();
   if (p === 'takvim') takvimCiz();
+  if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
   if (p === 'teklif') firmaListesi();
   lsSet('co_page', p);
   window.scrollTo({top: 0});
@@ -198,10 +209,20 @@ function aksiyon(a) {
   if (a === 'gorev-ekle') gorevForm();
 }
 
+// Üst çubuk: sayfa kayınca hafif gölge
+window.addEventListener('scroll', () => { const t = $('#topbar'); if (t) t.classList.toggle('scrolled', scrollY > 4); }, {passive: true});
+
 // ═══ TEMA ═══
 function tema(t) { if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); lsSet('co_theme', t); }
 $('#theme-btn').onclick = () => { const c = document.documentElement.getAttribute('data-theme'); const koyu = c ? c === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; tema(koyu ? 'light' : 'dark'); };
 { const t = lsGet('co_theme', null); if (t) tema(t); }
+
+// İndirme: masaüstü Chrome/Edge'de kaydetme penceresi Masaüstü'nde açılır
+{ const cb = $('#indir-masa-cb'); if (cb && window.showSaveFilePicker) {
+  $('#indir-masa').hidden = false; $('#indir-not').textContent = 'Açıkken her indirmede kaydetme penceresi Masaüstü klasöründe açılır; Enter\'a basmanız yeterli. Kapalıyken dosyalar tarayıcının indirme klasörüne iner (Chrome / Edge: Ayarlar → İndirilenler → Konum).';
+  try { cb.checked = localStorage.getItem('co_indir_masaustu') !== '0'; } catch (e) { cb.checked = true; }
+  cb.onchange = () => { try { localStorage.setItem('co_indir_masaustu', cb.checked ? '1' : '0'); } catch (e) {} toast(cb.checked ? 'İndirmeler Masaüstü\'nde açılacak' : 'Normal indirme klasörü kullanılacak'); };
+} }
 
 // ═══ ALT PENCERE (SHEET) ═══
 function sheet(baslik, govde, butonlar = []) {
@@ -229,8 +250,9 @@ function menuAc() {
   const r = (go, ic, t, s) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
   sheet('Menü', `<div class="rows menu-list">
     ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
-    ${r('siparisler', 'box', 'Siparişler', 'Gelen siparişler ve takip')}
-    ${r('sayim', 'db', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
+    ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
+    ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
+    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma 🔒', 'Tedarikçi fiyat talebi, analiz, takip') : ''}
     ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
@@ -284,11 +306,16 @@ function alacakOzet() {
 }
 function stokDurum(u) { if (u.stok === '' || u.stok == null) return 'bilinmiyor'; const a = Number(u.stok), m = Number(u.min) || 1; return a <= 0 ? 'yok' : a <= m ? 'kritik' : 'yeterli'; }
 
+// Mailden otomatik aktarılan kayıtlar: kaynak maile bağlantı (yalnızca Gmail adresi kabul edilir)
+function mailSatir(o) {
+  if (!o || !o.mailUrl || !/^https:\/\/mail\.google\.com\//.test(o.mailUrl)) return '';
+  return `<div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Kaynak mail${o.mailTarih ? ' · ' + esc(trT(String(o.mailTarih).slice(0, 10))) : ''}</div><div class="t" style="white-space:normal">${esc(o.mailKonu || 'Mail')}</div></div><div class="end"><a class="btn btn-s btn-sm" href="${esc(o.mailUrl)}" target="_blank" rel="noopener">📧 Aç</a></div></div>`;
+}
 function teklifSatir(t, kisaMi) {
   const [l, c] = DURUM[t.durum] || DURUM.bekliyor;
   return `<button class="row" data-teklif="${esc(t.id)}">
     <div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(t.musteri))}</div>
-    <div class="mid"><div class="t">${esc(t.musteri) || '—'}</div><div class="s">${esc(t.konu) || '—'}${kisaMi ? '' : ' · ' + esc(adi(t.by))}</div></div>
+    <div class="mid"><div class="t">${t.mailUrl ? '📧 ' : ''}${esc(t.musteri) || '—'}</div><div class="s">${esc(t.konu) || '—'}${kisaMi ? '' : ' · ' + esc(adi(t.by))}</div></div>
     <div class="end"><span class="pill ${c}">${l}</span><div class="s num" style="font-size:11.5px;color:var(--fg3);margin-top:4px">${esc(t.no || '')} ${trKisa(t.tarih)}</div></div></button>`;
 }
 
@@ -542,7 +569,8 @@ function teklifDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Teklif no</div><div class="t">${esc(t.no) || '—'}</div></div><div class="end"><div class="s">Tarih</div><b>${trT(t.tarih)}</b></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Konu</div><div class="t" style="white-space:normal">${esc(t.konu) || '—'}</div></div></div>
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Tutar</div><div class="t num">${esc(t.tutar) || '—'}</div></div><div class="end"><div class="s">Kalem</div><b>${esc(t.kalemSayisi ?? '—')}</b></div></div>
-      <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(adi(t.by))}</div></div></div>
+      <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(t.hazirlayan || adi(t.by))}</div></div></div>
+      ${mailSatir(t)}
     </div>
     <div class="f"><label for="td-durum">Durum</label><select class="sel" id="td-durum">${opts}</select></div>
     ${kal ? `<button class="btn btn-s btn-block" data-td="onizle" style="margin-top:12px">${ikon('doc')}Önizle</button><div class="fg3" style="margin-top:8px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
@@ -904,13 +932,15 @@ function rolUygula() {
   IS_OWNER = DEMO || p.rol === 'sahip';
   IS_FIN = IS_OWNER || !!p.finans;
   $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
+  $$('.owner-fin').forEach(e => e.hidden = !IS_OWNER);   // alacak / vadesi geçen / tahsilat toplamları: sadece yönetici
+  gizleTutar();
   cariKirli = true;
   $$('.owner-only').forEach(e => e.hidden = !IS_OWNER);
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon')) git('dashboard');
-  if (IS_OWNER) ekipCiz();
+  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) git('dashboard');
+  if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
 // ═══ AYARLAR FORMLARI: teklif şablonu, mail, DİA ═══
