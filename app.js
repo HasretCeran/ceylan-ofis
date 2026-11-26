@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.23.0';
+const APP_VERSION = '1.23.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -187,6 +187,7 @@ function git(p) {
   gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
   if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
+  if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
@@ -259,7 +260,7 @@ function menuAc() {
   const r = (go, ic, t, s, kilit) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}${kilit ? KILIT : ''}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
   sheet('Menü', `<div class="menu-grp">Günlük</div><div class="rows menu-list">
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
-    ${r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç')}
+    ${IS_FIN ? r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç') : ''}
     ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
   </div>
@@ -951,7 +952,7 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) git('dashboard');
+  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
   if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
