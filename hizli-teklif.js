@@ -61,9 +61,9 @@
     const harf = (line.match(/[A-Za-zÇĞİÖŞÜçğıöşü]/g) || []).length;
     if (harf >= 3 && line.length >= 5 && line.length <= 160 && /\d/.test(line) && !/(tarih|tel|fax|faks|e-?posta|vergi|iban|sayfa|toplam|kdv|adres|www\.|@)/i.test(line)) {
       const ki = tk.findIndex(t => /[A-Za-z]/.test(t) && /\d/.test(t) && t.length >= 5 && !/^\d+x\d+|^\d+[.,]?\d*(ad|adet|ka|a|v|w|kw|mm|mt|m)\.?$|^no:|^tkf-|^\d{4}-\d/i.test(t));
-      if (ki < 0) return [];
+      if (ki < 0) return harf >= 4 ? [{u: null, ref: '', aciklama: line.replace(/[|;\t]/g, ' ').replace(/\s+/g, ' ').trim(), miktar: miktarBul(0, tk.length) || 1, kaynak: line}] : [];
       kul[ki] = true;
-      return [{u: null, ref: tk[ki].replace(/[,;:]$/, ''), aciklama: line.replace(/\s+/g, ' ').trim(), miktar: miktarBul(ki + 1, tk.length) || miktarBul(0, ki) || 1, kaynak: line}];
+      return [{u: null, ref: tk[ki].replace(/[,;:]$/, ''), aciklama: line.replace(/[|;\t]/g, ' ').replace(/\s+/g, ' ').trim(), miktar: miktarBul(ki + 1, tk.length) || miktarBul(0, ki) || 1, kaynak: line}];
     }
     return [];
   }
@@ -87,6 +87,28 @@
     await script(LIB.tesseract);
     const r = await Tesseract.recognize(file, 'tur+eng', {logger: m => { if (m.status === 'recognizing text') ilerle('Fotoğraf okunuyor… %' + Math.round(m.progress * 100)); }});
     return r.data.text.split('\n');
+  }
+  // Excel'de başlık satırı (Kod / Açıklama / Miktar…) varsa her dolu satır bir kalem olur — kodsuzlar dahil
+  async function excelKalemler(file) {
+    await script(LIB.sheetjs);
+    const wb = XLSX.read(await file.arrayBuffer(), {type: 'array'}), out = [];
+    const RX = {kod: /^(ürün |malzeme |stok |parça )?(kod|kodu|code|ref|referans|part ?no|sipariş kodu|p\/n)/i, ac: /açıklama|aciklama|tanım|tanim|malzeme( adı)?$|ürün( adı)?$|description|cins|ürün tanımı|malzeme adı/i, mik: /miktar|adet|qty|quantity|sayı/i, bir: /^birim$|unit|ölçü/i, mar: /marka|brand|üretici/i};
+    for (const n of wb.SheetNames.slice(0, 5)) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: false, blankrows: false});
+      const hi = rows.findIndex((r, i) => i < 30 && r.some(c => RX.mik.test(String(c || ''))) && r.some(c => RX.ac.test(String(c || '')) || RX.kod.test(String(c || ''))));
+      if (hi < 0) continue;
+      const h = rows[hi].map(c => String(c || '').trim()), col = k => h.findIndex(c => RX[k].test(c));
+      const ck = col('kod'), ca = h.findIndex((c, i) => i !== ck && RX.ac.test(c)), cm = col('mik'), cb = col('bir'), cr = col('mar');
+      for (const r of rows.slice(hi + 1)) {
+        const v = i => i >= 0 && r[i] != null ? String(r[i]).trim() : '';
+        const kod = v(ck), ac = v(ca);
+        if (!kod && !ac) continue;
+        if (/toplam|genel|kdv/i.test(ac) && !kod) continue;
+        const u = (kod && bul(kod)) || null;
+        out.push({u, ref: kod, aciklama: ac, marka: v(cr), birim: v(cb), miktar: sayi(v(cm)) || 1, kaynak: kod + ' ' + ac});
+      }
+    }
+    return out;
   }
   async function excelSatirlar(file) {
     await script(LIB.sheetjs);
@@ -114,6 +136,8 @@
           if (/\.xlsx?$|\.xlsm$|spreadsheet|excel/.test(tur)) {
             if (/\.xlsx$/.test(ad.toLowerCase())) { try { sablon = await TC.sablonOku(f); } catch (e) { sablon = null; } }
             if (sablon) continue;
+            const ek = await excelKalemler(f);
+            if (ek.length) { sonuc.push(...ek); continue; }
             satirlar = await excelSatirlar(f);
           } else if (/\.csv$|\.txt$|text\//.test(tur)) satirlar = (await f.text()).split(/\r?\n/);
           else if (/\.pdf$|pdf/.test(tur)) satirlar = await pdfSatirlar(f);
@@ -133,20 +157,22 @@
       toast('✅ Şablondan ' + sablon.kalemler.length + ' kalem aktarıldı'); adim(bos && !sablon.musteri ? 1 : 2); return;
     }
 
-    // Aynı ürün birden çok satırda geçtiyse birleştir
-    const es = new Map(), eslesmeyen = [];
+    // Belge sırası korunur; aynı ürün tekrar ederse birleşir. Listede olmayan/kodsuz kalemler de eklenir (fiyatsız)
+    const liste = [], gor = new Map();
     for (const r of sonuc) {
-      if (r.u) { const k = r.u.id; if (es.has(k)) es.get(k).miktar = Math.max(es.get(k).miktar, r.miktar); else es.set(k, {...r}); }
-      else if (!eslesmeyen.some(x => x.aciklama === r.aciklama)) eslesmeyen.push(r);
+      const k = r.u ? 'u:' + r.u.id : 't:' + kN(r.ref) + '|' + (r.aciklama || '').toLowerCase();
+      if (gor.has(k)) { const x = gor.get(k); x.miktar = Math.max(x.miktar, r.miktar); continue; }
+      const x = {...r}; gor.set(k, x); liste.push(x);
     }
-    const liste = [...es.values()];
-    durum(liste.length ? `${liste.length} ürün fiyat listesiyle eşleşti${eslesmeyen.length ? ` · ${eslesmeyen.length} satır eşleşmedi (istersen işaretleyip ekle)` : ''}` : 'Fiyat listesinde eşleşen ürün kodu bulunamadı' + (eslesmeyen.length ? ' — okunan satırlar aşağıda, işaretleyip ekleyebilirsin' : ''));
+    const eslesen = liste.filter(r => r.u).length, eslesmeyen = liste.filter(r => !r.u);
+    durum(liste.length ? `${liste.length} kalem okundu · ${eslesen} tanesi fiyat listesinde${eslesmeyen.length ? ` · ${eslesmeyen.length} tanesi listede yok/kodsuz (fiyatsız eklenir)` : ''}. İstemediklerinin işaretini kaldır.` : 'Okunabilen kalem bulunamadı');
     const g = sh.el.querySelector('#hz-govde');
     const fy = u => u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : 'fiyat sorunuz';
     g.innerHTML = (hatalar.length ? `<div class="note" style="color:var(--red)">${hatalar.map(esc).join('<br>')}</div>` : '') +
-      (liste.length ? `<div class="vu-h">Eşleşen ürünler <span>${liste.length}</span></div><div class="rows">` + liste.map((r, i) => `<label class="row hz-row"><input type="checkbox" data-hz="e${i}" checked><div class="mid"><div class="t">${esc(r.u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(r.u.marka)}</span></div><div class="s">${esc(r.u.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="e${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">${fy(r.u)}</span></div></label>`).join('') + '</div>' : '') +
-      (eslesmeyen.length ? `<div class="vu-h">Eşleşmeyen satırlar <span>${eslesmeyen.length}</span></div><div class="rows">` + eslesmeyen.slice(0, 60).map((r, i) => `<label class="row hz-row"><input type="checkbox" data-hz="u${i}"><div class="mid"><div class="t">${esc(r.ref || '—')}</div><div class="s">${esc(r.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="u${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"></div></label>`).join('') + '</div>' : '');
-    if (!liste.length && !eslesmeyen.length) { g.insertAdjacentHTML('beforeend', '<div class="empty">Dosyadan okunabilen ürün satırı çıkmadı. Daha net bir fotoğraf ya da Excel/PDF dene.</div>'); }
+      (liste.length ? '<div class="rows">' + liste.slice(0, 200).map((r, i) => r.u
+        ? `<label class="row hz-row"><input type="checkbox" data-hz="${i}" checked><div class="mid"><div class="t">${esc(r.u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(r.u.marka)}</span></div><div class="s">${esc(r.u.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">${fy(r.u)}</span></div></label>`
+        : `<label class="row hz-row"><input type="checkbox" data-hz="${i}" checked><div class="mid"><div class="t">${esc(r.ref || 'Kodsuz')} <span class="pill p-amber" style="margin-left:4px">listede yok</span></div><div class="s">${esc(r.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">fiyatı sen gir</span></div></label>`).join('') + '</div>' : '');
+    if (!liste.length) { g.insertAdjacentHTML('beforeend', '<div class="empty">Dosyadan okunabilen ürün satırı çıkmadı. Daha net bir fotoğraf ya da Excel/PDF dene.</div>'); }
     const f = document.createElement('div'); f.className = 'sheet-f';
     f.innerHTML = '<button class="btn btn-s">Vazgeç</button><button class="btn btn-p">Teklife ekle</button>';
     sh.el.querySelector('.sheet').appendChild(f);
@@ -156,8 +182,9 @@
       sh.el.querySelectorAll('[data-hz]').forEach(cb => {
         if (!cb.checked) return;
         const id = cb.dataset.hz, m = Number(sh.el.querySelector(`[data-hzm="${id}"]`).value) || 1;
-        if (id[0] === 'e') { const u = liste[+id.slice(1)].u; kalemler.push({ref: u.ref || '', aciklama: u.aciklama || '', marka: u.marka || '', miktar: m, birim: 'Adet', fiyat: u.fiyat || '', para: u.para || '€', iskonto: 0}); }
-        else { const r = eslesmeyen[+id.slice(1)]; kalemler.push({ref: r.ref || '', aciklama: r.aciklama || '', marka: '', miktar: m, birim: 'Adet', fiyat: '', para: '€', iskonto: 0}); }
+        const r = liste[+id], u = r.u;
+        if (u) kalemler.push({ref: u.ref || '', aciklama: u.aciklama || r.aciklama || '', marka: u.marka || '', miktar: m, birim: r.birim || 'Adet', fiyat: u.fiyat || '', para: u.para || '€', iskonto: 0});
+        else kalemler.push({ref: r.ref || '', aciklama: r.aciklama || '', marka: r.marka || '', miktar: m, birim: r.birim || 'Adet', fiyat: '', para: '€', iskonto: 0});
         n++;
       });
       if (!n) { toast('Eklenecek kalem seçilmedi'); return; }
