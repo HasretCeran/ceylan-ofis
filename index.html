@@ -521,6 +521,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></symbol>
     <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
     <symbol id="i-cart" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
   </defs>
@@ -558,6 +559,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
     <button class="sb-item" data-go="teklifler"><svg class="i"><use href="#i-doc"/></svg>Teklif Geçmişi<span class="cnt" data-acik hidden></span></button>
     <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-cart"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
+    <button class="sb-item owner-only" data-go="satinalma" hidden><svg class="i"><use href="#i-bag"/></svg>Satınalma<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
     <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-check"/></svg>Stok Sayımı</button>
     <div class="sb-label">Yönetim</div>
@@ -705,6 +707,13 @@ td.empty{display:table-cell}td.empty::before{display:none}
           <div class="card"><div class="card-h"><h3 id="sy-toplam-h">Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
           <div class="card" style="margin-top:12px"><div class="card-b" id="sy-belge"></div></div>
         </div>
+      </section>
+
+      <!-- SATINALMA -->
+      <section class="page" id="p-satinalma">
+        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet">🔒 Sadece yönetici · tedarikçilere fiyat ve stok sor, teklifleri karşılaştır, alımları takip et</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+        <div class="chips" id="sa-tabs"></div>
+        <div id="sa-body"></div>
       </section>
 
       <section class="page" id="p-siparisler">
@@ -892,13 +901,14 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.20.0"></script>
-<script src="teklif-cikti.js?v=1.20.0"></script>
-<script src="app.js?v=1.20.0"></script>
-<script src="hizli-teklif.js?v=1.20.0"></script>
-<script src="siparis.js?v=1.20.0"></script>
-<script src="sayim.js?v=1.20.0"></script>
-<script src="stok-aktar.js?v=1.20.0"></script>
-<script src="onizle.js?v=1.20.0"></script>
+<script src="config.js?v=1.21.0"></script>
+<script src="teklif-cikti.js?v=1.21.0"></script>
+<script src="app.js?v=1.21.0"></script>
+<script src="hizli-teklif.js?v=1.21.0"></script>
+<script src="siparis.js?v=1.21.0"></script>
+<script src="sayim.js?v=1.21.0"></script>
+<script src="stok-aktar.js?v=1.21.0"></script>
+<script src="satinalma.js?v=1.21.0"></script>
+<script src="onizle.js?v=1.21.0"></script>
 </body>
 </html>

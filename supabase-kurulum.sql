@@ -126,3 +126,24 @@ create policy "ekle" on public.hareket for insert to authenticated with check (p
 drop policy if exists "duzenle" on public.hareket;
 create policy "duzenle" on public.hareket for update to authenticated using (public.is_finans()) with check (public.is_finans());
 alter publication supabase_realtime add table public.bakiye;
+
+-- ═══ v1.21: Satınalma modülü (tedarikçiler, fiyat talepleri, gelen teklifler, satın alma siparişleri) — sadece yönetici ═══
+do $$
+declare t text;
+begin
+  foreach t in array array['tedarikciler','sa_talepler','sa_teklifler','sa_siparisler'] loop
+    execute format('create table if not exists public.%I (id text primary key, veri jsonb not null default ''{}''::jsonb, "by" uuid default auth.uid() references auth.users on delete set null, at timestamptz not null default now())', t);
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "oku" on public.%I', t);
+    execute format('create policy "oku" on public.%I for select to authenticated using (public.is_sahip())', t);
+    execute format('drop policy if exists "ekle" on public.%I', t);
+    execute format('create policy "ekle" on public.%I for insert to authenticated with check (public.is_sahip())', t);
+    execute format('drop policy if exists "duzenle" on public.%I', t);
+    execute format('create policy "duzenle" on public.%I for update to authenticated using (public.is_sahip()) with check (public.is_sahip())', t);
+    execute format('drop policy if exists "sil" on public.%I', t);
+    execute format('create policy "sil" on public.%I for delete to authenticated using (public.is_sahip())', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    begin execute format('alter publication supabase_realtime add table public.%I', t); exception when duplicate_object then null; end;
+  end loop;
+end $$;

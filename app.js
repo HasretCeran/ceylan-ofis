@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -158,6 +158,7 @@ function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTi
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
   if (cols.includes('siparisler') && typeof siparislerCiz === 'function') siparislerCiz();
+  if (typeof SA_COLS !== 'undefined' && cols.some(c => SA_COLS.includes(c))) saCiz();
   if ((cols.includes('sayimlar') || cols.includes('sayim_kalem')) && typeof sayimCiz === 'function') sayimCiz();
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
@@ -169,7 +170,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -182,13 +183,14 @@ document.addEventListener('click', e => {
 function git(p) {
   gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
-  if ((p === 'finans' || p === 'entegrasyon') && !IS_OWNER) p = 'dashboard';
+  if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
   $('#page-title').textContent = BASLIK[p];
   if (p === 'finans') finansCiz();
   if (p === 'takvim') takvimCiz();
+  if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
   if (p === 'teklif') firmaListesi();
   lsSet('co_page', p);
   window.scrollTo({top: 0});
@@ -250,6 +252,7 @@ function menuAc() {
     ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
+    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma 🔒', 'Tedarikçi fiyat talebi, analiz, takip') : ''}
     ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
@@ -936,8 +939,8 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon')) git('dashboard');
-  if (IS_OWNER) ekipCiz();
+  if (!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) git('dashboard');
+  if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
 // ═══ AYARLAR FORMLARI: teklif şablonu, mail, DİA ═══
