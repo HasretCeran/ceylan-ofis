@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -171,7 +171,16 @@ function hepsiniCiz() { ciz(COLS); }
 // ═══ NAVİGASYON ═══
 const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
+// Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
+const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
+let gizleZaman = null;
+document.addEventListener('click', e => {
+  const t = e.target.closest('.tile.owner-fin, .tiles.owner-fin .tile'); if (!t) return;
+  if (t.classList.contains('gizli')) { e.stopPropagation(); e.preventDefault(); t.classList.remove('gizli'); clearTimeout(gizleZaman); gizleZaman = setTimeout(gizleTutar, 30000); }
+  else if (!t.dataset.mfTile) { t.classList.add('gizli'); }
+}, true);
 function git(p) {
+  gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
   if ((p === 'finans' || p === 'entegrasyon') && !IS_OWNER) p = 'dashboard';
   aktifSayfa = p;
@@ -921,6 +930,7 @@ function rolUygula() {
   IS_FIN = IS_OWNER || !!p.finans;
   $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
   $$('.owner-fin').forEach(e => e.hidden = !IS_OWNER);   // alacak / vadesi geçen / tahsilat toplamları: sadece yönetici
+  gizleTutar();
   cariKirli = true;
   $$('.owner-only').forEach(e => e.hidden = !IS_OWNER);
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');

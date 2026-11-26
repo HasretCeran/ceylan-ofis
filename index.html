@@ -482,6 +482,12 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
 /* sayım: öneri işareti, fark etiketi */
 #sy-oneri [data-syu].on{background:var(--brand-soft)}
+/* yönetici tutar kutuları: yıldızlı, dokununca açılır */
+.tile.gizli{cursor:pointer}
+.tile.gizli .val{font-size:0!important;height:27px;display:flex;align-items:center}
+.tile.gizli .val::after{content:"*****";font-size:24px;letter-spacing:.18em;color:var(--fg3);font-weight:700}
+.tile.gizli .lbl::after{content:"dokun · göster";margin-left:auto;font-size:10px;font-weight:600;color:var(--fg3);opacity:.8}
+.tile.gizli #m-ortal-h,.tile.gizli #m-ortbo-h{visibility:hidden}
 .sy-fark{display:block;font-size:11px;font-weight:700;margin-top:3px;white-space:nowrap}
 .sy-fark.eks{color:var(--red)}.sy-fark.art{color:var(--amber)}
 </style>
@@ -886,12 +892,12 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.18.0"></script>
-<script src="teklif-cikti.js?v=1.18.0"></script>
-<script src="app.js?v=1.18.0"></script>
-<script src="hizli-teklif.js?v=1.18.0"></script>
-<script src="siparis.js?v=1.18.0"></script>
-<script src="sayim.js?v=1.18.0"></script>
-<script src="onizle.js?v=1.18.0"></script>
+<script src="config.js?v=1.18.1"></script>
+<script src="teklif-cikti.js?v=1.18.1"></script>
+<script src="app.js?v=1.18.1"></script>
+<script src="hizli-teklif.js?v=1.18.1"></script>
+<script src="siparis.js?v=1.18.1"></script>
+<script src="sayim.js?v=1.18.1"></script>
+<script src="onizle.js?v=1.18.1"></script>
 </body>
 </html>
