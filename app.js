@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.23.1';
+const APP_VERSION = '1.24.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -42,6 +42,7 @@ const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], sipa
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
+let IS_DEPO = false; // depo / sevkiyat yetkisi: yönetici + depo yetkisi verilenler
 let IS_FIN = false; // bakiye görme yetkisi: yönetici + finans yetkisi verilenler
 let sb = null;
 // Ayarlar (yönetici düzenler): teklif varsayılanları, mail şablonu, DİA bilgileri
@@ -140,8 +141,8 @@ async function ayarYukle() {
   if (!error && data) data.forEach(r => { if (A[r.id]) A[r.id] = {...A[r.id], ...(r.veri || {})}; });
 }
 async function profilYukle() {
-  const {data, error} = await sb.from('profiles').select('id,ad,rol,finans,aktif,kullanici');
-  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol, finans: !!p.finans, aktif: p.aktif !== false, kullanici: p.kullanici || ''}; }); }
+  const {data, error} = await sb.from('profiles').select('id,ad,rol,finans,depo,aktif,kullanici');
+  if (!error && data) { P = {}; data.forEach(p => { P[p.id] = {ad: p.ad, rol: p.rol, finans: !!p.finans, depo: !!p.depo, aktif: p.aktif !== false, kullanici: p.kullanici || ''}; }); }
 }
 function hata(e) {
   const m = (e && (e.message || e.code)) || '';
@@ -160,7 +161,7 @@ const kirli = new Set();
 function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTimeout(() => { const k = [...kirli]; kirli.clear(); ciz(k); }, 30); }
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
-  if (cols.includes('siparisler') && typeof siparislerCiz === 'function') siparislerCiz();
+  if (cols.includes('siparisler') && typeof siparislerCiz === 'function') { siparislerCiz(); if (typeof dpCiz === 'function') dpCiz(); }
   if (typeof SA_COLS !== 'undefined' && cols.some(c => SA_COLS.includes(c))) saCiz();
   if ((cols.includes('sayimlar') || cols.includes('sayim_kalem')) && typeof sayimCiz === 'function') sayimCiz();
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
@@ -173,7 +174,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -187,6 +188,7 @@ function git(p) {
   gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
   if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
+  if (p === 'depo' && !IS_DEPO) p = 'siparisler';
   if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
@@ -260,6 +262,7 @@ function menuAc() {
   const r = (go, ic, t, s, kilit) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}${kilit ? KILIT : ''}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
   sheet('Menü', `<div class="menu-grp">Günlük</div><div class="rows menu-list">
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
+    ${IS_DEPO ? r('depo', 'box', 'Depo / Sevkiyat', 'Hazırla, onayla, fatura, sevk') : ''}
     ${IS_FIN ? r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç') : ''}
     ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
@@ -584,6 +587,8 @@ function teklifDetay(id) {
       <div class="row" style="padding:8px 4px"><div class="mid"><div class="s">Hazırlayan</div><div class="t">${esc(t.hazirlayan || adi(t.by))}</div></div></div>
       ${mailSatir(t)}
     </div>
+    ${kal && S.siparisler.some(x => x.teklifId === id) ? (() => { const gec = spTeklifSiparisli(t), kk = t.kalemler, kalanVar = kk.some((k, i) => gec[i] < (Number(k.miktar) || 1));
+      return `<div class="vu-h" style="padding-left:0">Sipariş durumu <span>${kk.filter((k, i) => gec[i] >= (Number(k.miktar) || 1)).length}/${kk.length} kalem siparişe geçti</span></div><div class="rows">${kk.map((k, i) => { const m = Number(k.miktar) || 1, g = gec[i]; return `<div class="row" style="padding:7px 4px"><div class="mid"><div class="t" style="font-size:13px;white-space:normal">${esc(k.ref || k.aciklama || '—')}</div></div><div class="end"><span class="pill ${g >= m ? 'p-green' : g > 0 ? 'p-orange' : 'p-gray'}">${g >= m ? 'Siparişte' : g > 0 ? g + '/' + m + ' siparişte' : 'Sipariş yok'}</span></div></div>`; }).join('')}</div>${kalanVar ? `<button class="btn btn-s btn-block" data-td="kalan" style="margin:8px 0 12px">Kalan kalemleri siparişe geçir</button>` : ''}`; })() : ''}
     <div class="f"><label for="td-durum">Durum</label><select class="sel" id="td-durum">${opts}</select></div>
     ${kal ? `<button class="btn btn-s btn-block" data-td="onizle" style="margin-top:12px">${ikon('doc')}Önizle</button><div class="fg3" style="margin-top:8px"><button class="btn btn-s btn-sm" data-td="pdf">${ikon('down')}PDF</button><button class="btn btn-s btn-sm" data-td="excel">${ikon('down')}Excel</button><button class="btn btn-p btn-sm" data-td="gonder">${ikon('send')}Gönder</button></div>` : '<p style="font-size:12px;color:var(--fg3);margin-top:10px">Bu teklif uygulama öncesinden; kalem detayı yok.</p>'}
     ${IS_OWNER ? `<button class="btn btn-d btn-sm" id="td-sil" style="margin-top:14px">${ikon('trash')}Teklifi sil</button>` : ''}`,
@@ -592,7 +597,7 @@ function teklifDetay(id) {
       ...(S.siparisler.some(x => x.teklifId === id) ? [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(S.siparisler.find(x => x.teklifId === id).id), 0); }}] : [{label: 'Siparişe dönüştür', onClick: () => { setTimeout(() => siparisForm({}, t), 0); }}]),
       {label: 'Kaydet', cls: 'btn-p', onClick: async ov => { const d = v(ov, 'td-durum'); if (d === t.durum) return; const ok = await kaydet('teklifler', {...t, durum: d}); if (ok) toast('✅ Durum güncellendi'); return ok; }},
     ]);
-  sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => b.dataset.td === 'onizle' ? teklifOnizle(t, false) : cikti(b.dataset.td, tamTeklif(t), false));
+  sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => b.dataset.td === 'kalan' ? (sh.kapat(), setTimeout(() => siparisForm({}, t), 0)) : b.dataset.td === 'onizle' ? teklifOnizle(t, false) : cikti(b.dataset.td, tamTeklif(t), false));
   const sil = sh.el.querySelector('#td-sil');
   if (sil) sil.onclick = () => { sh.kapat(); confirmSheet('Teklif silinsin mi?', (t.no || '') + ' ' + (t.musteri || '') + ' kalıcı olarak silinecek.', () => BE.sil('teklifler', id)); };
 }
@@ -944,6 +949,8 @@ function rolUygula() {
   const p = P[ME] || {};
   IS_OWNER = DEMO || p.rol === 'sahip';
   IS_FIN = IS_OWNER || !!p.finans;
+  IS_DEPO = IS_OWNER || !!p.depo;
+  $$('.depo-only').forEach(e => e.hidden = !IS_DEPO);
   $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
   $$('.owner-fin').forEach(e => e.hidden = !IS_OWNER);   // alacak / vadesi geçen / tahsilat toplamları: sadece yönetici
   gizleTutar();
@@ -991,7 +998,7 @@ function ekipCiz() {
   const box = $('#ekip-list');
   if (DEMO) { box.innerHTML = '<div class="empty">Demo modunda ekip yok</div>'; return; }
   box.innerHTML = Object.entries(P).sort((a, b) => (a[1].ad || '').localeCompare(b[1].ad || '', 'tr')).map(([id, p]) => {
-    const alt = [p.kullanici ? '@' + p.kullanici : '', p.rol === 'sahip' ? 'Yönetici' : p.finans ? 'Çalışan · bakiye yetkili' : 'Çalışan'].filter(Boolean).join(' · ');
+    const alt = [p.kullanici ? '@' + p.kullanici : '', p.rol === 'sahip' ? 'Yönetici' : [p.finans && 'bakiye yetkili', p.depo && 'depo yetkili'].filter(Boolean).join(', ') ? 'Çalışan · ' + [p.finans && 'bakiye yetkili', p.depo && 'depo yetkili'].filter(Boolean).join(', ') : 'Çalışan'].filter(Boolean).join(' · ');
     return `<button class="row" data-uye="${esc(id)}"><div class="avatar" style="${p.aktif === false ? 'background:var(--fg3)' : ''}">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${esc(alt)}</div></div>${p.aktif === false ? '<span class="pill p-red">Erişim durduruldu</span>' : ikon('right')}</button>`;
   }).join('');
 }
@@ -1045,11 +1052,12 @@ $('#ekip-list').onclick = e => {
     <div class="f"><label for="ue-ad">Görünen ad</label><input class="inp" id="ue-ad" value="${esc(p.ad)}"></div>
     <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${ben ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div>
     <label class="chk"><input type="checkbox" id="ue-fin"${p.finans || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Cari bakiyeleri ve tahsilatları görebilir</label>
+    <label class="chk"><input type="checkbox" id="ue-depo"${p.depo || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Depo / sevkiyat: paket hazırlama, onay, fatura ve sevk adımlarını yapabilir</label>
     ${ben ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
       <button class="btn btn-s btn-sm" id="ue-sifre">Şifre sıfırla</button>
       ${p.aktif === false ? '<button class="btn btn-s btn-sm" id="ue-ac">Erişimi tekrar aç</button>' : '<button class="btn btn-d btn-sm" id="ue-durdur">Erişimi durdur</button>'}</div>`}</div>`,
     [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
-      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: ben ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked}).eq('id', id);
+      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: ben ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked, depo: ov.querySelector('#ue-depo').checked}).eq('id', id);
       if (error) { hata(error); return false; } await profilYukle(); rolUygula(); hepsiniCiz(); toast('✅ Güncellendi');
     }}]);
   const sf = sh.el.querySelector('#ue-sifre');

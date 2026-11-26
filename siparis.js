@@ -2,10 +2,10 @@
 /* Ceylan Ofis — Sipariş takibi: tekliften ya da müşteri sipariş belgesinden sipariş açılır, durumu adım adım izlenir. */
 const SDURUM = {
   alindi: ['Sipariş alındı', 'p-blue'], tedarik: ['Tedarikte', 'p-amber'], hazir: ['Hazır', 'p-orange'],
-  sevk: ['Sevk edildi', 'p-blue'], teslim: ['Teslim edildi', 'p-green'], fatura: ['Faturalandı', 'p-green'], iptal: ['İptal', 'p-red'],
+  kismi: ['Kısmi sevk', 'p-orange'], sevk: ['Sevk edildi', 'p-blue'], teslim: ['Teslim edildi', 'p-green'], fatura: ['Faturalandı', 'p-green'], iptal: ['İptal', 'p-red'],
 };
 const SADIM = ['alindi', 'tedarik', 'hazir', 'sevk', 'teslim', 'fatura'];
-const SACIK = ['alindi', 'tedarik', 'hazir', 'sevk'];
+const SACIK = ['alindi', 'tedarik', 'hazir', 'kismi', 'sevk'];
 let spFiltre = 'acik';
 
 const spAcik = s => SACIK.includes(s.durum || 'alindi');
@@ -110,6 +110,18 @@ async function spBelgeOku(files, durum = () => {}) {
   return o;
 }
 
+// Tekliften kısmi sipariş: teklif kalemi başına şimdiye kadar siparişe geçen adet
+function spTeklifSiparisli(t, haricId) {
+  const n = (t.kalemler || []).map(() => 0); let eski = false;
+  S.siparisler.filter(x => x.teklifId === t.id && x.id !== haricId && (x.durum || 'alindi') !== 'iptal').forEach(x => (x.kalemler || []).forEach(k => { if (k.tIdx == null) eski = true; else if (n[k.tIdx] != null) n[k.tIdx] += Number(k.miktar) || 1; }));
+  return (t.kalemler || []).map((k, i) => eski ? (Number(k.miktar) || 1) : n[i]);   // tIdx'siz eski sipariş = teklifin tamamı geçmiş sayılır
+}
+function spKalSec(t, haricId) {
+  const gec = spTeklifSiparisli(t, haricId);
+  return `<div class="vu-h" style="padding-left:0">Siparişe geçecek kalemler <span>işaretsiz kalan ürünler siparişe geçmez</span></div><div class="rows">${(t.kalemler || []).map((k, i) => { const m = Number(k.miktar) || 1, kalan = Math.max(0, m - gec[i]);
+    return `<div class="row hz-row" style="padding:8px 4px;gap:10px"><input type="checkbox" data-ks="${i}"${kalan > 0 ? ' checked' : ' disabled'}><div class="mid"><div class="t" style="white-space:normal">${esc(k.ref || k.aciklama || '—')}</div><div class="s">${esc(k.ref ? (k.aciklama || '') : '')} · teklif ${m} ${esc(k.birim || '')}${gec[i] ? ' · siparişte ' + gec[i] : ''}</div></div>${kalan > 0 ? `<input class="inp num" data-km="${i}" type="number" min="0" max="${kalan}" step="any" value="${kalan}" style="width:84px">` : '<span class="pill p-green">tamam</span>'}</div>`; }).join('')}</div>`;
+}
+
 function siparisForm(s = {}, teklif = null) {
   const yeni = !s.id;
   if (teklif) s = {musteri: teklif.musteri, teklifId: teklif.id, teklifNo: teklif.no, tutar: teklif.tutar, kalemler: (teklif.kalemler || []).map(k => ({...k, geldi: false})), ...s};
@@ -123,6 +135,7 @@ function siparisForm(s = {}, teklif = null) {
     <div class="fg2"><div class="f"><label for="sp-termin">Termin (teslim)</label><input class="inp" id="sp-termin" type="date" value="${esc(s.termin || '')}"></div>
       <div class="f"><label for="sp-tutar">Tutar</label><input class="inp" id="sp-tutar" value="${esc(s.tutar || '')}" placeholder="ör. € 12.400"></div></div>
     <div class="f"><label for="sp-teklif">Bağlı teklif</label><select class="sel" id="sp-teklif"><option value="">— yok —</option>${tk.map(t => `<option value="${esc(t.id)}"${t.id === s.teklifId ? ' selected' : ''}>${esc((t.no || '') + ' · ' + (t.musteri || '') + ' · ' + trT(t.tarih))}</option>`).join('')}</select></div>
+    <div id="sp-kalsec"></div>
     <div class="f"><label for="sp-not">Not</label><textarea class="inp" id="sp-not" rows="2">${esc(s.not || '')}</textarea></div>
     <div class="fg2"><div class="f"><label for="sp-irs">İrsaliye no</label><input class="inp" id="sp-irs" value="${esc(s.irsaliyeNo || '')}"></div>
       <div class="f"><label for="sp-fat">Fatura no</label><input class="inp" id="sp-fat" value="${esc(s.faturaNo || '')}"></div></div>
@@ -131,17 +144,25 @@ function siparisForm(s = {}, teklif = null) {
     const mus = v(ov, 'sp-musteri'); if (!mus) { toast('Müşteri adı gerekli'); return false; }
     const id = s.id || newId(), tid = v(ov, 'sp-teklif'), t = S.teklifler.find(x => x.id === tid);
     const files = secili;
+    let secKal = null;   // teklif kalemlerinden seçilenler (kısmi sipariş)
+    if (yeni && t && !okunan.length && ov.querySelector('[data-ks]')) {
+      secKal = []; ov.querySelectorAll('[data-ks]').forEach(cb => { if (!cb.checked) return; const i = +cb.dataset.ks, k = (t.kalemler || [])[i], m = Number(ov.querySelector(`[data-km="${i}"]`).value); if (k && m > 0) secKal.push({...k, miktar: m, tIdx: i, geldi: false}); });
+      if (!secKal.length) { toast('Siparişe geçecek en az bir kalem seç'); return false; }
+    }
     const dos = files.length ? await spDosyaYukle(id, files) : [];
     const o = {...s, id, no: s.no || sipNo(), musteri: mus, musteriSipNo: v(ov, 'sp-po'), tarih: v(ov, 'sp-tarih') || bugun(), termin: v(ov, 'sp-termin'), tutar: v(ov, 'sp-tutar') || (t && t.tutar) || '', not: v(ov, 'sp-not'),
       teklifId: tid || '', teklifNo: t ? t.no : '', durum: s.durum || 'alindi', dosyalar: [...(s.dosyalar || []), ...dos],
       irsaliyeNo: v(ov, 'sp-irs'), faturaNo: v(ov, 'sp-fat'), kargo: v(ov, 'sp-kargo'),
-      kalemler: (s.kalemler && s.kalemler.length) ? s.kalemler : okunan.length ? okunan : (t && Array.isArray(t.kalemler) ? t.kalemler.map(k => ({...k, geldi: false})) : []),
+      kalemler: secKal ? secKal : (s.kalemler && s.kalemler.length && !(yeni && t && !okunan.length)) ? s.kalemler : okunan.length ? okunan : (t && Array.isArray(t.kalemler) ? t.kalemler.map(k => ({...k, geldi: false})) : []),
       gecmis: s.gecmis || [{t: new Date().toISOString(), d: 'alindi', k: ME}]};
     const ok = await kaydet('siparisler', o);
     if (ok && t && !['onaylandi', 'tamamlandi'].includes(t.durum)) await kaydet('teklifler', {...t, durum: 'onaylandi'});
     if (ok) { toast('✅ Sipariş kaydedildi' + (dos.length ? ' · ' + dos.length + ' dosya' : '')); if (aktifSayfa !== 'siparisler') git('siparisler'); }
   }}]);
   let secili = [], okunan = [];
+  const kalCiz = () => { const sec = sh.el.querySelector('#sp-kalsec'), tid = (sh.el.querySelector('#sp-teklif') || {}).value, tk = S.teklifler.find(x => x.id === tid);
+    sec.innerHTML = yeni && tk && !okunan.length && (tk.kalemler || []).length ? spKalSec(tk, s.id) : ''; };
+  setTimeout(kalCiz, 0); sh.el.querySelector('#sp-teklif').addEventListener('change', kalCiz);
   const el = sh.el, ou = el.querySelector('#sp-oku');
   el.querySelector('#sp-dosya').onchange = async e => {
     secili = [...secili, ...e.target.files]; e.target.value = '';
@@ -154,7 +175,7 @@ function siparisForm(s = {}, teklif = null) {
     if (d.tarih && !s.id) { const i = el.querySelector('#sp-tarih'); i.value = d.tarih; i.classList.add('okundu'); }
     const sel = el.querySelector('#sp-teklif');
     if (d.teklif && !sel.value) { if (![...sel.options].some(o => o.value === d.teklif.id)) sel.insertAdjacentHTML('beforeend', `<option value="${esc(d.teklif.id)}">${esc((d.teklif.no || '') + ' · ' + (d.teklif.musteri || '') + ' · ' + trT(d.teklif.tarih))}</option>`); sel.value = d.teklif.id; sel.classList.add('okundu'); }
-    okunan = d.kalemler || [];
+    okunan = d.kalemler || []; kalCiz();
     const bul = [d.musteri && 'müşteri', d.po && 'sipariş no', d.tarih && 'tarih', d.termin && 'termin', d.tutar && 'tutar', d.teklif && 'teklif', okunan.length && okunan.length + ' kalem'].filter(Boolean);
     ou.querySelector('#sp-okd').innerHTML = bul.length ? `✓ Okundu: <b>${bul.join(', ')}</b> — yeşil alanları kontrol et` : 'Belgeden bilgi okunamadı, alanları elle doldur. Belge yine de siparişe eklenecek.';
   };
@@ -176,6 +197,7 @@ function siparisDetay(id) {
     </div>
     ${k.length ? `<div class="vu-h" style="padding-left:0">Kalemler <span>${k.filter(x => x.geldi).length}/${k.length} hazır — geldikçe işaretle</span></div><div class="rows sp-kal">${k.map((x, i) => `<label class="row hz-row" style="padding:8px 4px"><input type="checkbox" data-sk="${i}"${x.geldi ? ' checked' : ''}><div class="mid"><div class="t">${esc(x.ref || 'Kodsuz')} <span style="color:var(--fg3);font-weight:500">${esc(x.marka || '')}</span></div><div class="s">${esc(x.aciklama || '')}</div></div><div class="end"><b class="num">${esc(x.miktar || 1)}</b><span class="s">${esc(x.birim || 'Adet')}</span></div></label>`).join('')}</div>` : ''}
     ${(s.gecmis || []).length ? `<div class="vu-h" style="padding-left:0">Takip geçmişi</div><div class="sp-tl">${(s.gecmis || []).slice().reverse().map(g => `<div><i></i><b>${esc((SDURUM[g.d] || [g.d])[0])}</b><small>${new Date(g.t).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})} · ${esc(adi(g.k))}${g.n ? ' · ' + esc(g.n) : ''}</small></div>`).join('')}</div>` : ''}
+    ${k.length ? `<button class="btn btn-p btn-block" data-dpgit style="margin:12px 0 2px">${ikon('box')}Depo / sevkiyat${s.paketler && s.paketler.length ? ' · ' + s.paketler.filter(p => p.durum !== 'iptal').length + ' paket' : ''}</button>` : ''}
     <div class="vu-h" style="padding-left:0">Belgeler <span>${(s.dosyalar || []).length}</span></div>
     <div class="rows">${(s.dosyalar || []).map((f, i) => `<button class="row" style="padding:8px 4px" data-sdos="${i}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${/image/.test(f.tip) ? '🖼' : '📄'}</div><div class="mid"><div class="t">${esc(f.ad)}</div><div class="s">${f.at ? trT(f.at.slice(0, 10)) : ''}</div></div><div class="end"><span class="s">Aç</span></div></button>`).join('') || '<div class="empty" style="padding:12px">Belge yok</div>'}</div>
     <label class="btn btn-s btn-block" style="margin-top:8px;cursor:pointer">${ikon('plus')}Belge / fotoğraf ekle<input type="file" id="sd-dosya" multiple accept="image/*,.pdf,.xlsx,.xls,.doc,.docx" hidden></label>
@@ -207,6 +229,7 @@ function siparisDetay(id) {
     toast('Yükleniyor…'); const dos = await spDosyaYukle(id, fl);
     if (dos.length) { const c = guncel(); await kaydet('siparisler', {...c, dosyalar: [...(c.dosyalar || []), ...dos]}); toast('✅ ' + dos.length + ' belge eklendi'); sh.kapat(); siparisDetay(id); }
   };
+  const dg = sh.el.querySelector('[data-dpgit]'); if (dg) dg.onclick = () => { sh.kapat(); setTimeout(() => dpDetay(id), 0); };
   const to = sh.el.querySelector('[data-spo]'); if (to) to.onclick = () => { const t = S.teklifler.find(x => x.id === s.teklifId); if (t) teklifOnizle(t, false); };
   const tb = sh.el.querySelector('[data-spt]'); if (tb) tb.onclick = () => { sh.kapat(); teklifDetay(s.teklifId); };
   const sil = sh.el.querySelector('#sd-sil');
