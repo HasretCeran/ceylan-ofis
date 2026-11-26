@@ -747,7 +747,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- STOK -->
       <section class="page" id="p-stok">
-        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div>
+        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><div style="display:flex;gap:8px"><button class="btn btn-s btn-sm owner-only" data-act="stok-aktar" hidden><svg class="i"><use href="#i-down"/></svg>Excel'den aktar</button><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div></div>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="s-ara" placeholder="Referans, açıklama, marka"></div>
           <select class="sel" id="s-durum" style="width:auto;min-width:140px"><option value="">Tüm durumlar</option><option value="yeterli">Yeterli</option><option value="kritik">Kritik</option><option value="yok">Stok yok</option></select>
@@ -892,12 +892,13 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.18.1"></script>
-<script src="teklif-cikti.js?v=1.18.1"></script>
-<script src="app.js?v=1.18.1"></script>
-<script src="hizli-teklif.js?v=1.18.1"></script>
-<script src="siparis.js?v=1.18.1"></script>
-<script src="sayim.js?v=1.18.1"></script>
-<script src="onizle.js?v=1.18.1"></script>
+<script src="config.js?v=1.19.0"></script>
+<script src="teklif-cikti.js?v=1.19.0"></script>
+<script src="app.js?v=1.19.0"></script>
+<script src="hizli-teklif.js?v=1.19.0"></script>
+<script src="siparis.js?v=1.19.0"></script>
+<script src="sayim.js?v=1.19.0"></script>
+<script src="stok-aktar.js?v=1.19.0"></script>
+<script src="onizle.js?v=1.19.0"></script>
 </body>
 </html>
