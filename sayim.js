@@ -101,7 +101,7 @@ function sayimCiz() {
       <div class="end"><b class="num" style="font-size:16px">${fmtM(x.toplam)}</b><span class="s">${esc(x.birim)}${x.girisler.length > 1 ? ' · ' + x.girisler.length + ' giriş' : ''}</span>${x.fark ? `<span class="sy-fark ${x.fark > 0 ? 'art' : 'eks'}">kayıtlı ${fmtM(x.kayitli)} · ${x.fark > 0 ? '+' : ''}${fmtM(x.fark)}</span>` : ''}</div></button>`).join('') : `<div class="empty">${g.length ? 'Bu filtrede ürün yok' : 'Henüz sayılan ürün yok'}</div>`;
   }
   const benim = syKalemler(s.id).filter(k => k.by === ME).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 5);
-  $('#sy-son').innerHTML = benim.length ? '<div class="vu-h" style="padding-left:0">Son girişlerin</div>' + benim.map(k => `<div class="row" style="padding:6px 0"><div class="mid"><div class="t">${esc(k.ref || k.aciklama)}${k._q ? ' <span class="pill p-gray">⏳ bekliyor</span>' : ''}</div><div class="s">${esc(k.konum || '')}</div></div><div class="end"><b class="num">${fmtM(k.miktar)} ${esc(k.birim || '')}</b>${kapali ? '' : `<button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}" style="margin-top:4px">Geri al</button>`}</div></div>`).join('') : '';
+  $('#sy-son').innerHTML = benim.length ? '<div class="vu-h" style="padding-left:0">Son girişlerin</div>' + benim.map(k => `<div class="row" style="padding:6px 0"><div class="mid"><div class="t">${esc(k.ref || k.aciklama)}${k._q ? ' <span class="pill p-gray">⏳ bekliyor</span>' : ''}</div><div class="s">${esc(k.konum || '')}</div></div><div class="end"><b class="num">${fmtM(k.miktar)} ${esc(k.birim || '')}</b>${kapali ? '' : `<div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end"><button class="btn btn-s btn-sm" data-syduz="${esc(k.id)}">✎ Düzelt</button><button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}">Geri al</button></div>`}</div></div>`).join('') : '';
 }
 let syGor = '';
 // Kayıtlı stok: sayım kapanınca ürün kartındaki stok sayılanla değişir, o yüzden önceki değer saklanır
@@ -116,6 +116,41 @@ function sySayilmayan(s, g) {
   return S.stok.filter(u => Number(u.stok) > 0 && !(u.sayimId === s.id) && !say.has(u.id) && !say.has('r:' + refN(u.ref))).sort((a, b) => (a.marka || '').localeCompare(b.marka || '', 'tr') || (a.ref || '').localeCompare(b.ref || ''));
 }
 const fmtM = n => Number(n || 0).toLocaleString('tr-TR', {maximumFractionDigits: 3});
+
+// ── Girişi sonradan düzelt: miktar, birim, raf ve ürün (kod / açıklama) değiştirilebilir; eski miktar kayıtta saklanır
+async function syGuncelle(k) {
+  const i = syKuyruk.findIndex(x => x.id === k.id);
+  if (i >= 0) { syKuyruk[i] = {...k, by: syKuyruk[i].by, _q: 1}; syQYaz(); degisti('sayim_kalem'); return true; }
+  const {_q, by, at, ...temiz} = k; return syYaz(temiz);
+}
+function syDuzeltForm(id) {
+  const k = [...S.sayim_kalem, ...syKuyruk].find(x => x.id === id); if (!k) { toast('Giriş bulunamadı'); return; }
+  const s = S.sayimlar.find(x => x.id === k.sayimId);
+  if (!s || s.durum === 'kapali') { toast('Tamamlanmış sayım düzeltilemez — önce "Yeniden aç"'); return; }
+  if (!(k.by === ME || IS_OWNER)) { toast('⛔ Sadece kendi girişini düzeltebilirsin'); return; }
+  const birimler = [...new Set([k.birim || 'Adet', 'Adet', 'Mt', 'Kg', 'Paket', 'Kutu', 'Takım', 'Rulo'])];
+  const zaman = k.zaman ? new Date(k.zaman).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+  sheet('Girişi düzelt', `<div class="fg">
+    <p class="note">${esc(k.sayan || adi(k.by))} · ${esc(zaman)}${k.duzeltildi ? ' · daha önce düzeltilmiş' : ''}<br>İlk girilen: <b>${fmtM(k.eskiMiktar != null ? k.eskiMiktar : k.miktar)} ${esc(k.birim || '')}</b></p>
+    <div class="fg2"><div class="f"><label for="syd-m">Miktar *</label><input class="inp num" id="syd-m" inputmode="decimal" value="${esc(String(k.miktar).replace('.', ','))}"></div>
+    <div class="f"><label for="syd-b">Birim</label><select class="sel" id="syd-b">${birimler.map(b => `<option${b === (k.birim || 'Adet') ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select></div></div>
+    <div class="f"><label for="syd-k">Raf / konum</label><input class="inp" id="syd-k" value="${esc(k.konum || '')}"></div>
+    <div class="f"><label for="syd-r">Ürün kodu</label><input class="inp" id="syd-r" value="${esc(k.ref || '')}" autocapitalize="characters"></div>
+    <div class="f"><label for="syd-a">Açıklama</label><input class="inp" id="syd-a" value="${esc(k.aciklama || '')}"></div>
+    <p class="note">Ürün kodunu değiştirirsen ve listede varsa açıklama/marka otomatik gelir.</p></div>`,
+  [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
+    const m = Number(String(v(ov, 'syd-m')).replace(',', '.'));
+    if (v(ov, 'syd-m') === '' || !(m >= 0)) { toast('Geçerli bir miktar gir'); return false; }
+    const ref = v(ov, 'syd-r'); let ac = v(ov, 'syd-a'); if (!ref && !ac) { toast('Ürün kodu ya da açıklama gerekli'); return false; }
+    const u = ref ? urunBul(ref) : null, kodDegisti = refN(ref) !== refN(k.ref);
+    const yeni = {...k, miktar: m, birim: v(ov, 'syd-b') || 'Adet', konum: v(ov, 'syd-k'), ref: u ? u.ref : ref,
+      aciklama: u && (kodDegisti || !ac) ? u.aciklama || ac : ac, marka: u ? u.marka || '' : k.marka || '', stokId: u ? u.id : (kodDegisti ? '' : k.stokId || ''),
+      duzeltildi: true, duzeltmeZaman: new Date().toISOString(), duzelten: ME, eskiMiktar: k.eskiMiktar != null ? k.eskiMiktar : k.miktar};
+    if (yeni.miktar === k.miktar && yeni.birim === k.birim && yeni.konum === (k.konum || '') && yeni.ref === k.ref && yeni.aciklama === (k.aciklama || '')) { toast('Değişiklik yok'); return true; }
+    if (await syGuncelle(yeni)) { toast(`✎ Düzeltildi · ${yeni.ref || yeni.aciklama} · ${fmtM(m)} ${yeni.birim}`); return true; }
+    return false;
+  }}]);
+}
 
 // ── Giriş: ürün seç, miktar yaz, Enter
 let syUrun = null;
@@ -203,7 +238,8 @@ function syGrupDetay(key) {
   const x = syGrupla(sayimAktif).find(z => syKey(z.ref || z.aciklama) === key); if (!x) return;
   const kapali = (S.sayimlar.find(s => s.id === sayimAktif) || {}).durum === 'kapali';
   const sh = sheet(x.ref || 'Kodsuz ürün', `<p class="note">${esc(x.aciklama || '')} — toplam <b>${fmtM(x.toplam)} ${esc(x.birim)}</b></p>
-    <div class="rows">${x.girisler.map(k => `<div class="row" style="padding:8px 0"><div class="mid"><div class="t">${fmtM(k.miktar)} ${esc(k.birim || '')}${k.konum ? ' · 📍' + esc(k.konum) : ''}</div><div class="s">${esc(k.sayan || adi(k.by))} · ${k.zaman ? new Date(k.zaman).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : ''}</div></div>${!kapali && (k.by === ME || IS_OWNER) ? `<div class="end"><button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}">Sil</button></div>` : ''}</div>`).join('')}</div>`, [{label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
+    <div class="rows">${x.girisler.map(k => `<div class="row" style="padding:8px 0"><div class="mid"><div class="t">${fmtM(k.miktar)} ${esc(k.birim || '')}${k.konum ? ' · 📍' + esc(k.konum) : ''}</div><div class="s">${esc(k.sayan || adi(k.by))} · ${k.zaman ? new Date(k.zaman).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : ''}${k.duzeltildi ? ' · ✎ düzeltildi' + (k.eskiMiktar != null ? ' (önceki ' + fmtM(k.eskiMiktar) + ')' : '') : ''}</div></div>${!kapali && (k.by === ME || IS_OWNER) ? `<div class="end" style="flex-direction:row;gap:6px"><button class="btn btn-s btn-sm" data-syduz="${esc(k.id)}">✎ Düzelt</button><button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}">Sil</button></div>` : ''}</div>`).join('')}</div>`, [{label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
+  sh.el.querySelectorAll('[data-syduz]').forEach(b => b.onclick = () => { sh.kapat(); syDuzeltForm(b.dataset.syduz); });
   sh.el.querySelectorAll('[data-sysil]').forEach(b => b.onclick = async () => { await sySil(b.dataset.sysil); sh.kapat(); toast('Giriş silindi'); });
 }
 
@@ -241,7 +277,7 @@ $('#sy-toplam').onclick = e => {
   if (matchMedia('(max-width:760px)').matches) { sayimModu(sayimAktif); smMiktar(S.stok.find(u => u.id === y.dataset.sysay)); }
   else { sySec(y.dataset.sysay); window.scrollTo({top: 0, behavior: 'smooth'}); }
 };
-$('#sy-son').onclick = async e => { const b = e.target.closest('[data-sysil]'); if (b) { await sySil(b.dataset.sysil); toast('Giriş geri alındı'); } };
+$('#sy-son').onclick = async e => { const d = e.target.closest('[data-syduz]'); if (d) { syDuzeltForm(d.dataset.syduz); return; } const b = e.target.closest('[data-sysil]'); if (b) { await sySil(b.dataset.sysil); toast('Giriş geri alındı'); } };
 $('#sy-belge').onclick = e => { const b = e.target.closest('[data-sybel]'); if (!b) return; const s = S.sayimlar.find(x => x.id === sayimAktif); spDosyaAc((s.dosyalar || [])[+b.dataset.sybel]); };
 $('#sy-dia').onclick = () => syDiaDosya(sayimAktif).catch(e => toast('⚠ ' + e.message));
 $('#sy-kapat').onclick = () => syKapat(sayimAktif);
@@ -319,7 +355,8 @@ function smAra(q = '') {
 function smSon() {
   const box = sm.el.querySelector('#smo-son'); if (!box) return;
   const l = syKalemler(sm.id).filter(k => k.by === ME).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 4);
-  box.innerHTML = l.length ? '<div class="smod-alt">Son girişlerin</div>' + l.map(k => `<div class="smod-son"><div><b>${esc(k.ref || k.aciklama)}</b><small>${esc(k.konum || '')}${k._q ? ' · ⏳ gönderilecek' : ''}</small></div><b>${fmtM(k.miktar)} ${esc(k.birim || '')}</b><button class="btn btn-s btn-sm" data-geri="${esc(k.id)}">Geri al</button></div>`).join('') : '';
+  box.innerHTML = l.length ? '<div class="smod-alt">Son girişlerin</div>' + l.map(k => `<div class="smod-son"><div><b>${esc(k.ref || k.aciklama)}</b><small>${esc(k.konum || '')}${k._q ? ' · ⏳ gönderilecek' : ''}</small></div><b>${fmtM(k.miktar)} ${esc(k.birim || '')}</b><button class="btn btn-s btn-sm" data-duz="${esc(k.id)}">✎ Düzelt</button><button class="btn btn-s btn-sm" data-geri="${esc(k.id)}">Geri al</button></div>`).join('') : '';
+  box.querySelectorAll('[data-duz]').forEach(x => x.onclick = () => syDuzeltForm(x.dataset.duz));
   box.querySelectorAll('[data-geri]').forEach(x => x.onclick = async () => { await sySil(x.dataset.geri); toast('Giriş geri alındı'); });
 }
 
