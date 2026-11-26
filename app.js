@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.21.1';
+const APP_VERSION = '1.22.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -30,6 +30,9 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ikon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
+const avRenk = ad => { let h = 0; for (const c of String(ad || '?')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const avatar = ad => `<div class="ico av" style="--h:${avRenk(ad)}">${esc(bas(ad))}</div>`;
+const KILIT = '<svg class="i lk"><use href="#i-lock"/></svg>';
 const bas = ad => (ad || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?';
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), ms); }
 
@@ -170,7 +173,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -188,6 +191,7 @@ function git(p) {
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
   $('#page-title').textContent = BASLIK[p];
+  const bm = $('#bn-menu'); if (bm) bm.classList.toggle('active', !['dashboard', 'teklifler', 'stok', 'teklif'].includes(p));
   if (p === 'finans') finansCiz();
   if (p === 'takvim') takvimCiz();
   if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
@@ -211,6 +215,11 @@ function aksiyon(a) {
 
 // Üst çubuk: sayfa kayınca hafif gölge
 window.addEventListener('scroll', () => { const t = $('#topbar'); if (t) t.classList.toggle('scrolled', scrollY > 4); }, {passive: true});
+
+// Genel Bakış'taki arama: yazılanla Stok sayfasını açar
+$('#hero-form').onsubmit = e => { e.preventDefault(); const q = $('#hero-ara').value.trim(); git('stok'); $('#s-ara').value = q; sMarka = ''; $('#s-durum').value = ''; stokCiz(); if (!q) $('#s-ara').focus(); $('#hero-ara').value = ''; };
+// Kurulu uygulamada "Telefona kur" kartı gereksiz
+if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) { const k = $('#kur-kart'); if (k) k.hidden = true; }
 
 // ═══ TEMA ═══
 function tema(t) { if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); lsSet('co_theme', t); }
@@ -247,15 +256,17 @@ function sheet(baslik, govde, butonlar = []) {
 const v = (ov, id) => ov.querySelector('#' + id).value.trim();
 
 function menuAc() {
-  const r = (go, ic, t, s) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
-  sheet('Menü', `<div class="rows menu-list">
-    ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
+  const r = (go, ic, t, s, kilit) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}${kilit ? KILIT : ''}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
+  sheet('Menü', `<div class="menu-grp">Günlük</div><div class="rows menu-list">
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
+    ${r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç')}
+    ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
-    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma 🔒', 'Tedarikçi fiyat talebi, analiz, takip') : ''}
-    ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
-    ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
-    ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
+  </div>
+  <div class="menu-grp">Yönetim</div><div class="rows menu-list">
+    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma', 'Tedarikçi fiyat talebi, analiz, takip', 1) : ''}
+    ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu', 'Alacak, tahsilat, dönüşüm', 1) : ''}
+    ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar', 'Mail şablonu', 1) : ''}
     ${r('ayarlar', 'gear', 'Ayarlar', 'Hesap, şifre, görünüm')}
   </div>`);
 }
@@ -314,7 +325,7 @@ function mailSatir(o) {
 function teklifSatir(t, kisaMi) {
   const [l, c] = DURUM[t.durum] || DURUM.bekliyor;
   return `<button class="row" data-teklif="${esc(t.id)}">
-    <div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(t.musteri))}</div>
+    ${avatar(t.musteri)}
     <div class="mid"><div class="t">${t.mailUrl ? '📧 ' : ''}${esc(t.musteri) || '—'}</div><div class="s">${esc(t.konu) || '—'}${kisaMi ? '' : ' · ' + esc(adi(t.by))}</div></div>
     <div class="end"><span class="pill ${c}">${l}</span><div class="s num" style="font-size:11.5px;color:var(--fg3);margin-top:4px">${esc(t.no || '')} ${trKisa(t.tarih)}</div></div></button>`;
 }
@@ -323,7 +334,7 @@ function dashboardCiz() {
   const s = new Date(), saat = s.getHours();
   const selam = saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar';
   const ad = (P[ME] && P[ME].ad) || '';
-  $('#hero-hi').textContent = selam + (ad ? ', ' + ad.split(' ')[0] : '') + ' 👋';
+  $('#hero-hi').textContent = selam + (ad ? ', ' + ad.split(' ')[0] : '');
   $('#hero-date').textContent = s.toLocaleDateString('tr-TR', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
   const acik = S.teklifler.filter(t => ACIK.includes(t.durum || 'bekliyor')).length;
   $$('[data-acik-val]').forEach(e => e.textContent = acik);
@@ -803,7 +814,8 @@ $('#m-xlsx').onclick = () => cariDisa('excel');
 let sMarka = '';
 function stokCiz() {
   const markalar = [...new Set(S.stok.map(u => u.marka).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr'));
-  $('#s-chips').innerHTML = ['', ...markalar].map(m => `<button class="chip${sMarka === m ? ' on' : ''}" data-sm="${esc(m)}">${esc(m) || 'Tümü'}</button>`).join('');
+  const sm = $('#s-marka'); if (sm.dataset.n !== String(markalar.length)) { sm.innerHTML = '<option value="">Tüm markalar</option>' + markalar.map(m => `<option>${esc(m)}</option>`).join(''); sm.dataset.n = markalar.length; }
+  if (sMarka && !markalar.includes(sMarka)) sMarka = ''; sm.value = sMarka;
   const q = $('#s-ara').value.trim(), d = $('#s-durum').value;
   let l = (q ? urunAra(q) : S.stok.slice()).filter(u => (!sMarka || u.marka === sMarka) && (!d || stokDurum(u) === d));
   if (!q) l.sort((a, b) => (a.marka || '').localeCompare(b.marka || '', 'tr') || (a.ref || '').localeCompare(b.ref || ''));
@@ -811,10 +823,10 @@ function stokCiz() {
   $('#s-ozet').textContent = `${S.stok.length.toLocaleString('tr-TR')} ürün · ${markalar.length} marka${krit ? ' · ' + krit + ' kritik' : ''}${l.length > 300 ? ' · ilk 300 gösteriliyor, aramayla daralt' : ''}`;
   const pill = {yeterli: ['Yeterli', 'p-green'], kritik: ['Kritik', 'p-red'], yok: ['Yok', 'p-gray'], bilinmiyor: ['—', 'p-gray']};
   $('#s-list').innerHTML = l.length ? l.slice(0, 300).map(u => { const [pl, pc] = pill[stokDurum(u)];
-    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${u.stok !== '' && u.stok != null ? ' · ' + esc(u.stok) : ''}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
+    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) + (u.birim && u.birim !== 'Adet' ? '<span class="bir"> / ' + esc(u.birim) + '</span>' : '') : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${u.stok !== '' && u.stok != null ? ' · ' + esc(u.stok) : ''}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
 }
 $('#s-ara').oninput = stokCiz; $('#s-durum').onchange = stokCiz;
-$('#s-chips').onclick = e => { const c = e.target.closest('[data-sm]'); if (c) { sMarka = c.dataset.sm; stokCiz(); } };
+$('#s-marka').onchange = e => { sMarka = e.target.value; stokCiz(); };
 function urunForm(id) {
   const u = id ? S.stok.find(x => x.id === id) : {}; if (id && !u) return;
   const sh = sheet(id ? u.ref : 'Yeni ürün', `<div class="fg">
@@ -966,12 +978,8 @@ function ayarlarCiz() {
   if (!IS_OWNER) return;
   alanlariDoldur($('#ayar-teklif'), A.teklif);
   alanlariDoldur($('#ayar-mail'), A.mail);
-  alanlariDoldur($('#ayar-dia'), A.dia);
-  const dia = A.dia, dolu = dia.sunucu && dia.firmaKodu && dia.kullanici;
-  $('#dia-durum').className = 'pill ' + (dolu ? 'p-amber' : 'p-gray');
-  $('#dia-durum').textContent = dolu ? 'Bilgiler kayıtlı · bağlantı kurulumu bekliyor' : 'Henüz ayarlanmadı';
 }
-[['ayar-teklif', 'teklif'], ['ayar-mail', 'mail'], ['ayar-dia', 'dia']].forEach(([kutu, id]) => {
+[['ayar-teklif', 'teklif'], ['ayar-mail', 'mail']].forEach(([kutu, id]) => {
   $('#' + kutu + ' [data-kaydet]').onclick = async e => {
     const b = e.currentTarget; b.disabled = true;
     const ok = await BE.ayarYaz(id, alanlariOku($('#' + kutu), A[id]));

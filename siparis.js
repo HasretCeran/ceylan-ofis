@@ -19,7 +19,7 @@ function spSatir(s) {
   const [l, c] = spGecikti(s) ? ['Termin geçti', 'p-red'] : (SDURUM[s.durum] || SDURUM.alindi);
   const k = Array.isArray(s.kalemler) ? s.kalemler : [], gel = k.filter(x => x.geldi).length;
   const alt = [s.no, s.musteriSipNo ? 'PO ' + s.musteriSipNo : '', s.termin ? 'Termin ' + trT(s.termin) : '', k.length ? `${gel}/${k.length} kalem hazır` : '', (s.dosyalar || []).length ? '📎' + s.dosyalar.length : ''].filter(Boolean).join(' · ');
-  return `<button class="row" data-sp="${esc(s.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(s.musteri))}</div>
+  return `<button class="row" data-sp="${esc(s.id)}">${avatar(s.musteri)}
     <div class="mid"><div class="t">${s.mailUrl ? '📧 ' : ''}${esc(s.musteri || '—')}</div><div class="s">${esc(alt)}</div></div>
     <div class="end">${s.tutar ? `<b class="num" style="font-size:12.5px">${esc(s.tutar)}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${l}</span></div></button>`;
 }
@@ -41,7 +41,7 @@ function siparislerCiz() {
     const ac = S.siparisler.filter(spAcik).sort((a, b) => (spGecikti(b) - spGecikti(a)) || (a.termin || '9999').localeCompare(b.termin || '9999'));
     dk.hidden = !ac.length;
     dk.innerHTML = ac.length ? `<div class="card" style="margin-bottom:14px"><div class="card-h"><h3>Sipariş takibi</h3><button class="link-btn" data-go="siparisler">Tümü →</button></div>
-      <div class="chips" style="padding:0 16px 8px">${SACIK.map(d => { const n = ac.filter(x => (x.durum || 'alindi') === d).length; return n ? `<span class="chip">${SDURUM[d][0]} · ${n}</span>` : ''; }).join('')}${gec ? `<span class="chip" style="color:var(--red);border-color:var(--red)">Termin geçti · ${gec}</span>` : ''}</div>
+      <div class="chips" style="padding:12px 16px 4px;margin-bottom:0">${SACIK.map(d => { const n = ac.filter(x => (x.durum || 'alindi') === d).length; return n ? `<span class="chip">${SDURUM[d][0]} · ${n}</span>` : ''; }).join('')}${gec ? `<span class="chip" style="color:var(--red);border-color:var(--red)">Termin geçti · ${gec}</span>` : ''}</div>
       <div class="rows">${ac.slice(0, 4).map(spSatir).join('')}</div></div>` : '';
   }
 }
