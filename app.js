@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -198,6 +198,9 @@ function aksiyon(a) {
   if (a === 'gorev-ekle') gorevForm();
 }
 
+// Üst çubuk: sayfa kayınca hafif gölge
+window.addEventListener('scroll', () => { const t = $('#topbar'); if (t) t.classList.toggle('scrolled', scrollY > 4); }, {passive: true});
+
 // ═══ TEMA ═══
 function tema(t) { if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); lsSet('co_theme', t); }
 $('#theme-btn').onclick = () => { const c = document.documentElement.getAttribute('data-theme'); const koyu = c ? c === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; tema(koyu ? 'light' : 'dark'); };
@@ -229,8 +232,8 @@ function menuAc() {
   const r = (go, ic, t, s) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
   sheet('Menü', `<div class="rows menu-list">
     ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
-    ${r('siparisler', 'box', 'Siparişler', 'Gelen siparişler ve takip')}
-    ${r('sayim', 'db', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
+    ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
+    ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
     ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
