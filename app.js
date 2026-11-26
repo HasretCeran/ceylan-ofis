@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -162,7 +162,7 @@ function ciz(cols) {
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
   if (cols.includes('stok')) stokCiz();
-  if (cols.includes('gorevler') || cols.includes('bakiye')) takvimCiz();
+  if (cols.includes('gorevler') || cols.includes('bakiye') || cols.includes('siparisler')) takvimCiz();
   dashboardCiz();
   if (aktifSayfa === 'finans') finansCiz();
 }
@@ -229,6 +229,8 @@ function menuAc() {
   const r = (go, ic, t, s) => `<button class="row" data-go="${go}" data-x><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon(ic)}</div><div class="mid"><div class="t">${t}</div><div class="s">${s}</div></div>${ikon('right')}</button>`;
   sheet('Menü', `<div class="rows menu-list">
     ${r('teklifler', 'doc', 'Teklif Geçmişi', 'Ekibin tüm teklifleri')}
+    ${r('siparisler', 'box', 'Siparişler', 'Gelen siparişler ve takip')}
+    ${r('sayim', 'db', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
     ${r('stok', 'box', 'Stok / Ürünler', 'Ürün, fiyat ve stok')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu 🔒', 'Sadece sen görürsün') : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar 🔒', 'Mail ve DİA ERP') : ''}
@@ -823,6 +825,7 @@ function takvimCiz() {
   $('#cal-ay').textContent = AYLAR[calM] + ' ' + calY;
   const off = (new Date(calY, calM, 1).getDay() + 6) % 7, n = new Date(calY, calM + 1, 0).getDate(), onc = new Date(calY, calM, 0).getDate();
   const dolu = new Set(S.gorevler.filter(g => !g.tamam).map(g => g.tarih));
+  const spT = new Map(); (S.siparisler || []).forEach(x => { if (x.termin && typeof spAcik === 'function' && spAcik(x)) { if (!spT.has(x.termin)) spT.set(x.termin, []); spT.get(x.termin).push(x); } }); spT.forEach((_, t) => dolu.add(t));
   const vg = new Map(); if (IS_FIN) cariler().forEach(m => { const t = yakVade(m); if (t) { if (!vg.has(t)) vg.set(t, []); vg.get(t).push(m); } });
   let h = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(d => `<div class="dn">${d}</div>`).join('');
   for (let i = 0; i < off; i++) h += `<button class="d o" disabled>${onc - off + 1 + i}</button>`;
@@ -835,8 +838,9 @@ function takvimCiz() {
   const sd = new Date(calSec + 'T12:00:00');
   $('#cal-gun').textContent = calSec === bugun() ? 'Bugün' : sd.toLocaleDateString('tr-TR', {weekday: 'long', day: 'numeric', month: 'long'});
   const gl = S.gorevler.filter(g => g.tarih === calSec).sort((a, b) => (a.saat || '').localeCompare(b.saat || ''));
-  const gv = vg.get(calSec) || [];
-  const box = $('#cal-gun-list'); box.innerHTML = gl.length || gv.length ? '' : '<div class="empty">Bu gün için görev yok</div>'; gl.forEach(g => box.appendChild(gorevEl(g, false)));
+  const gv = vg.get(calSec) || [], gs = spT.get(calSec) || [];
+  const box = $('#cal-gun-list'); box.innerHTML = gl.length || gv.length || gs.length ? '' : '<div class="empty">Bu gün için görev yok</div>'; gl.forEach(g => box.appendChild(gorevEl(g, false)));
+  if (gs.length) box.insertAdjacentHTML('beforeend', `<div class="vu-h">Termini gelen siparişler <span>${gs.length}</span></div>` + gs.map(spSatir).join(''));
   if (gv.length) box.insertAdjacentHTML('beforeend', `<div class="vu-h">Vadesi gelen <span>${gv.length} firma</span></div>` + gv.sort((a, b) => Math.abs(b.vgel || b.alacak) - Math.abs(a.vgel || a.alacak)).slice(0, 4).map(m => vadeSatir(m, 'yak')).join('') + (gv.length > 4 ? `<div class="vu-more">+${gv.length - 4} firma · Finans → Vade uyarıları</div>` : ''));
   const yak = S.gorevler.filter(g => g.tarih >= bugun() && !g.tamam).sort((a, b) => ((a.tarih || '') + (a.saat || '')).localeCompare((b.tarih || '') + (b.saat || ''))).slice(0, 15);
   const gecikmis = S.gorevler.filter(g => g.tarih < bugun() && !g.tamam);

@@ -211,6 +211,15 @@
     sh.el.querySelector('#hz-dosya').onchange = e => { const fl = [...e.target.files]; if (!fl.length) return; sh.kapat(); hizliTeklif(fl); };
   }
   window.hizliTeklif = hizliTeklif;
+  // Bir dosyanın düz metin satırları (sipariş formu okuma için)
+  window.hzMetin = async (f, durum = () => {}) => {
+    const ad = (f.name || '').toLowerCase(), tur = (f.type || '') + ' ' + ad;
+    if (/\.xlsx?$|\.xlsm$|spreadsheet|excel/.test(tur)) return excelSatirlar(f);
+    if (/\.csv$|\.txt$|text\//.test(tur)) return (await f.text()).split(/\r?\n/);
+    if (/\.pdf$|pdf/.test(tur)) return pdfSatirlar(f);
+    if (/image\/|\.(jpe?g|png|webp|heic|bmp)$/.test(tur)) return resimSatirlar(f, durum);
+    return [];
+  };
   // Sayım için: şablon Excel'i de kalem listesine çevirir
   window.hzOku = async (dosyalar, metin, durum) => {
     const r = await oku(dosyalar, metin, durum);

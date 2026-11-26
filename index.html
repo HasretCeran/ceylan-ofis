@@ -292,6 +292,9 @@ button.row:hover{background:var(--surface2)}
 .drop b{display:block;font-size:14px}
 .drop span{font-size:12.5px;color:var(--fg2)}
 
+.okundu{border-color:var(--green)!important;background:color-mix(in srgb,var(--green) 8%,var(--surface))!important}
+.sp-tl{position:relative;padding-left:18px;margin:4px 0 8px}.sp-tl>div{position:relative;padding:4px 0 10px}.sp-tl>div i{position:absolute;left:-18px;top:7px;width:10px;height:10px;border-radius:50%;background:var(--brand)}
+.sp-tl>div:not(:last-child)::before{content:"";position:absolute;left:-14px;top:17px;bottom:-4px;width:2px;background:var(--line2)}.sp-tl b{display:block;font-size:13.5px}.sp-tl small{color:var(--fg3);font-size:12px}
 .sy-ban{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;border-radius:16px;padding:14px 16px;margin-bottom:12px;background:linear-gradient(135deg,#16a34a,#0d9488);color:#fff;font:inherit;cursor:pointer}
 .sy-ban span{font-size:26px}.sy-ban div{flex:1;min-width:0}.sy-ban b{display:block;font-size:16px}.sy-ban small{opacity:.85;font-size:12.5px}.sy-ban em{font-style:normal;font-weight:700;white-space:nowrap}
 .smod{position:fixed;inset:0;z-index:48;background:var(--bg);display:flex;flex-direction:column}
@@ -504,6 +507,7 @@ button.row:hover{background:var(--surface2)}
       <!-- GENEL BAKIŞ -->
       <section class="page" id="p-dashboard">
         <div id="sy-banner" hidden></div>
+        <div id="d-sip" hidden></div>
         <div class="hero">
           <svg class="bolt" style="color:#fff"><use href="#i-bolt"/></svg>
           <small id="hero-date"></small>
@@ -805,12 +809,12 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.13.0"></script>
-<script src="teklif-cikti.js?v=1.13.0"></script>
-<script src="app.js?v=1.13.0"></script>
-<script src="hizli-teklif.js?v=1.13.0"></script>
-<script src="siparis.js?v=1.13.0"></script>
-<script src="sayim.js?v=1.13.0"></script>
-<script src="onizle.js?v=1.13.0"></script>
+<script src="config.js?v=1.14.0"></script>
+<script src="teklif-cikti.js?v=1.14.0"></script>
+<script src="app.js?v=1.14.0"></script>
+<script src="hizli-teklif.js?v=1.14.0"></script>
+<script src="siparis.js?v=1.14.0"></script>
+<script src="sayim.js?v=1.14.0"></script>
+<script src="onizle.js?v=1.14.0"></script>
 </body>
 </html>
