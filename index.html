@@ -590,9 +590,9 @@ td.empty{display:table-cell}td.empty::before{display:none}
           </div>
         </div>
         <div class="tiles">
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
-          <div class="tile fin-only" hidden><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
+          <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--amber)"></i>Kritik stok</div><div class="val num" id="d-kritik">0</div><div class="hint">yenileme gerekli</div></div>
         </div>
         <div class="quick">
@@ -722,7 +722,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
       <section class="page" id="p-musteri">
         <div class="ph"><div><h1>Cariler & borç</h1><p>DİA cari kartları, alacak ve borç takibi</p></div>
           <div style="display:flex;gap:8px"><button class="btn btn-s btn-sm fin-only" data-act="hareket-ekle" hidden>+ Hareket</button><button class="btn btn-p btn-sm" data-act="firma-ekle">+ Firma</button></div></div>
-        <div class="tiles t6 fin-only" hidden>
+        <div class="tiles t6 owner-fin" hidden>
           <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="m-alacak">₺0</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--orange)"></i>Borcumuz</div><div class="val num" style="color:var(--orange)" id="m-borc">₺0</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="m-gecmis">₺0</div></div>
@@ -886,12 +886,12 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.17.0"></script>
-<script src="teklif-cikti.js?v=1.17.0"></script>
-<script src="app.js?v=1.17.0"></script>
-<script src="hizli-teklif.js?v=1.17.0"></script>
-<script src="siparis.js?v=1.17.0"></script>
-<script src="sayim.js?v=1.17.0"></script>
-<script src="onizle.js?v=1.17.0"></script>
+<script src="config.js?v=1.18.0"></script>
+<script src="teklif-cikti.js?v=1.18.0"></script>
+<script src="app.js?v=1.18.0"></script>
+<script src="hizli-teklif.js?v=1.18.0"></script>
+<script src="siparis.js?v=1.18.0"></script>
+<script src="sayim.js?v=1.18.0"></script>
+<script src="onizle.js?v=1.18.0"></script>
 </body>
 </html>

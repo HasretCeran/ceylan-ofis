@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -920,6 +920,7 @@ function rolUygula() {
   IS_OWNER = DEMO || p.rol === 'sahip';
   IS_FIN = IS_OWNER || !!p.finans;
   $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
+  $$('.owner-fin').forEach(e => e.hidden = !IS_OWNER);   // alacak / vadesi geçen / tahsilat toplamları: sadece yönetici
   cariKirli = true;
   $$('.owner-only').forEach(e => e.hidden = !IS_OWNER);
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
