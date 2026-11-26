@@ -147,3 +147,6 @@ begin
     begin execute format('alter publication supabase_realtime add table public.%I', t); exception when duplicate_object then null; end;
   end loop;
 end $$;
+
+-- ═══ v1.24: depo / sevkiyat yetkisi ═══
+alter table public.profiles add column if not exists depo boolean not null default false;
