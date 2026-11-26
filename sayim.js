@@ -18,7 +18,9 @@ function syGrupla(id) {
 }
 
 function sayimCiz() {
+  if (sm) { smUst(); smSon(); }
   const el = $('#p-sayim'); if (!el) return;
+  syBanner();
   if (sayimAktif && !S.sayimlar.find(s => s.id === sayimAktif)) sayimAktif = null;
   $('#sy-liste').hidden = !!sayimAktif; $('#sy-detay').hidden = !sayimAktif;
   if (!sayimAktif) {
@@ -134,6 +136,14 @@ function syGrupDetay(key) {
 
 // ── Olaylar
 $('#sy-yeni-btn').onclick = sayimForm;
+$('#sy-basla').onclick = () => sayimModu(sayimAktif);
+// Açık sayım varsa ana sayfada büyük "Saymaya başla" kartı
+function syBanner() {
+  const a = S.sayimlar.filter(s => s.durum !== 'kapali'), el = $('#sy-banner'); if (!el) return;
+  el.hidden = !a.length;
+  el.innerHTML = a.map(s => `<button class="sy-ban" data-sbas="${esc(s.id)}"><span>📦</span><div><b>Stok sayımı devam ediyor</b><small>${esc(s.ad)} · ${syKalemler(s.id).length} giriş</small></div><em>Saymaya başla →</em></button>`).join('');
+  el.querySelectorAll('[data-sbas]').forEach(b => b.onclick = () => sayimModu(b.dataset.sbas));
+}
 $('#sy-list').onclick = e => { const r = e.target.closest('[data-sy]'); if (r) { sayimAktif = r.dataset.sy; syFiltre = ''; $('#sy-ara').value = ''; sayimCiz(); window.scrollTo({top: 0}); } };
 $('#sy-geri').onclick = () => { sayimAktif = null; sayimCiz(); };
 $('#sy-kod').oninput = syOneri;
@@ -148,4 +158,115 @@ $('#sy-son').onclick = async e => { const b = e.target.closest('[data-sysil]'); 
 $('#sy-dia').onclick = () => syDiaDosya(sayimAktif).catch(e => toast('⚠ ' + e.message));
 $('#sy-kapat').onclick = () => syKapat(sayimAktif);
 $('#sy-ac').onclick = async () => { const s = S.sayimlar.find(x => x.id === sayimAktif); await kaydet('sayimlar', {...s, durum: 'acik'}); toast('Sayım yeniden açıldı'); };
+
+// ═══ SAYIM MODU — telefonda tam ekran, büyük düğmeler; 5-10 kişi aynı anda sayar ═══
+const SYB = ['Adet', 'Mt', 'Kg', 'Paket', 'Kutu', 'Takım', 'Rulo'];
+let sm = null; // {id, urun, yeni, el}
+const lsG = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+const lsS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+function sayimModu(id) {
+  const s = S.sayimlar.find(x => x.id === id); if (!s) return;
+  if (s.durum === 'kapali') { toast('Bu sayım tamamlanmış'); return; }
+  if (sm && sm.el) sm.el.remove();
+  const el = document.createElement('div'); el.className = 'smod';
+  el.innerHTML = `<div class="smod-h"><div style="flex:1;min-width:0"><b>${esc(s.ad)}</b><div class="smod-st" id="smo-st"></div></div><button class="icon-btn" id="smo-x" aria-label="Kapat">${ikon('x')}</button></div>
+    <button class="smod-raf" id="smo-raf"></button>
+    <div class="smod-ekip" id="smo-ekip"></div>
+    <div class="smod-b" id="smo-b"></div>`;
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  sm = {id, urun: null, yeni: false, el, konum: lsG('sy_konum_' + id, ''), birim: 'Adet'};
+  el.querySelector('#smo-x').onclick = smKapat;
+  el.querySelector('#smo-raf').onclick = smRafSec;
+  smAra(); smUst();
+  if (!sm.konum) smRafSec();
+}
+function smKapat() { if (sm && sm.el) sm.el.remove(); sm = null; document.body.style.overflow = ''; sayimCiz(); }
+// Üst bilgi: benim / ekibin sayısı, kim hangi rafta
+function smUst() {
+  if (!sm) return;
+  const k = syKalemler(sm.id), ben = k.filter(x => x.by === ME).length, urun = new Set(k.map(x => syKey(x.ref || x.aciklama))).size;
+  sm.el.querySelector('#smo-st').textContent = `Sen ${ben} giriş · Ekip ${k.length} giriş · ${urun} ürün`;
+  sm.el.querySelector('#smo-raf').innerHTML = `📍 Raf / bölge: <b>${esc(sm.konum || 'seçilmedi')}</b><span>değiştir</span>`;
+  const son = new Map(), sinir = Date.now() - 20 * 60e3;
+  k.forEach(x => { const t = Date.parse(x.zaman || 0); if (t > sinir && (!son.has(x.by) || son.get(x.by).t < t)) son.set(x.by, {t, konum: x.konum, ad: x.sayan || adi(x.by)}); });
+  sm.el.querySelector('#smo-ekip').innerHTML = son.size ? '👥 ' + [...son.entries()].map(([by, v]) => `<span class="${by === ME ? 'ben' : ''}">${esc(by === ME ? 'Sen' : v.ad.split(' ')[0])}${v.konum ? ' · ' + esc(v.konum) : ''}</span>`).join('') : '';
+}
+function smRafSec() {
+  const rafl = [...new Set(syKalemler(sm.id).map(x => x.konum).filter(Boolean))].slice(-12);
+  const sh = sheet('Hangi raf / bölgeyi sayıyorsun?', `<div class="fg"><input class="inp smod-inp" id="smr-in" value="${esc(sm.konum)}" placeholder="ör. A-3, Depo arka, Vitrin" autocapitalize="characters">
+    ${rafl.length ? `<div class="chips" style="flex-wrap:wrap">${rafl.map(r => `<button class="chip" data-raf="${esc(r)}">${esc(r)}</button>`).join('')}</div>` : ''}
+    <p class="note">Ekip kimin nerede saydığını görür, aynı rafı iki kişi saymaz.</p></div>`,
+    [{label: 'Tamam', cls: 'btn-p', onClick: ov => { sm.konum = v(ov, 'smr-in'); lsS('sy_konum_' + sm.id, sm.konum); smUst(); setTimeout(() => { const i = sm && sm.el.querySelector('#smo-q'); if (i) i.focus(); }, 50); }}]);
+  sh.el.querySelectorAll('[data-raf]').forEach(b => b.onclick = () => { sh.el.querySelector('#smr-in').value = b.dataset.raf; });
+}
+
+// 1. adım: ürün ara
+function smAra(q = '') {
+  sm.urun = null; sm.yeni = false;
+  const b = sm.el.querySelector('#smo-b');
+  b.innerHTML = `<div class="smod-ara"><input class="inp smod-inp" id="smo-q" value="${esc(q)}" placeholder="Kod ya da ürün adı yaz" autocomplete="off" autocapitalize="characters" enterkeyhint="search">
+      <button class="btn btn-s smod-yok" id="smo-yok">+ Listede yok</button></div>
+    <div class="smod-sonuc" id="smo-sonuc"></div><div id="smo-son"></div>`;
+  const inp = b.querySelector('#smo-q');
+  const ciz = () => {
+    const t = inp.value.trim(), box = b.querySelector('#smo-sonuc');
+    if (t.length < 2) { box.innerHTML = '<div class="smod-ipucu">Ürün kodunun bir kısmını ya da adını yaz.<br>Bulamazsan <b>+ Listede yok</b>.</div>'; return; }
+    const l = urunAra(t, 12);
+    box.innerHTML = l.map(u => { const g = syGrupla(sm.id).find(x => syKey(x.ref) === syKey(u.ref));
+      return `<button class="smod-u" data-u="${esc(u.id)}"><b>${esc(u.ref)}</b><span>${esc(u.marka || '')}</span><small>${esc(u.aciklama || '')}</small>${g ? `<em>✓ sayıldı: ${fmtM(g.toplam)} ${esc(g.birim)}</em>` : ''}</button>`; }).join('')
+      || `<div class="smod-ipucu">"${esc(t)}" listede yok.<br><button class="btn btn-p" id="smo-yok2" style="margin-top:10px">Listede yok — yine de say</button></div>`;
+    const y2 = box.querySelector('#smo-yok2'); if (y2) y2.onclick = () => smMiktar(null, inp.value.trim());
+  };
+  inp.oninput = ciz;
+  inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const f = b.querySelector('[data-u]'); if (f) smMiktar(S.stok.find(u => u.id === f.dataset.u)); } };
+  b.querySelector('#smo-sonuc').onclick = e => { const x = e.target.closest('[data-u]'); if (x) smMiktar(S.stok.find(u => u.id === x.dataset.u)); };
+  b.querySelector('#smo-yok').onclick = () => smMiktar(null, inp.value.trim());
+  ciz(); smSon();
+  setTimeout(() => inp.focus(), 60);
+}
+function smSon() {
+  const box = sm.el.querySelector('#smo-son'); if (!box) return;
+  const l = syKalemler(sm.id).filter(k => k.by === ME).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 4);
+  box.innerHTML = l.length ? '<div class="smod-alt">Son girişlerin</div>' + l.map(k => `<div class="smod-son"><div><b>${esc(k.ref || k.aciklama)}</b><small>${esc(k.konum || '')}</small></div><b>${fmtM(k.miktar)} ${esc(k.birim || '')}</b><button class="btn btn-s btn-sm" data-geri="${esc(k.id)}">Geri al</button></div>`).join('') : '';
+  box.querySelectorAll('[data-geri]').forEach(x => x.onclick = async () => { await BE.sil('sayim_kalem', x.dataset.geri); toast('Giriş geri alındı'); });
+}
+
+// 2. adım: miktar
+function smMiktar(u, kod = '') {
+  sm.urun = u || null; sm.yeni = !u;
+  const key = syKey(u ? u.ref : kod), g = key ? syGrupla(sm.id).find(x => syKey(x.ref || x.aciklama) === key) : null;
+  sm.birim = (g && g.birim) || (u && u.birim) || 'Adet';
+  const b = sm.el.querySelector('#smo-b');
+  b.innerHTML = `<div class="smod-kart">${u ? `<b>${esc(u.ref)}</b><span>${esc(u.marka || '')}</span><small>${esc(u.aciklama || '')}</small>`
+      : `<div class="fg"><input class="inp smod-inp" id="smo-kod" value="${esc(kod)}" placeholder="Kod (yoksa boş bırak)" autocapitalize="characters"><input class="inp smod-inp" id="smo-ac" placeholder="Ürün adı / açıklama *"><input class="inp" id="smo-mr" placeholder="Marka (isteğe bağlı)"></div>`}</div>
+    ${g ? `<div class="smod-uyari">⚠ Bu ürün zaten sayıldı: <b>${fmtM(g.toplam)} ${esc(g.birim)}</b><br>${g.girisler.map(k => `${esc((k.sayan || adi(k.by)).split(' ')[0])}${k.konum ? ' · ' + esc(k.konum) : ''}: ${fmtM(k.miktar)}`).join('<br>')}<br><small>Başka raftaysa yine ekle, toplanır.</small></div>` : ''}
+    <div class="smod-m"><button class="smod-pm" data-d="-1">−</button><input class="smod-say" id="smo-m" inputmode="decimal" value="" placeholder="0"><button class="smod-pm" data-d="1">+</button></div>
+    <div class="smod-hz">${[5, 10, 25, 50, 100].map(n => `<button data-d="${n}">+${n}</button>`).join('')}</div>
+    <div class="chips smod-bir">${SYB.map(x => `<button class="chip${x === sm.birim ? ' on' : ''}" data-b="${x}">${x}</button>`).join('')}</div>
+    <div class="smod-f"><button class="btn btn-s" id="smo-geri">Vazgeç</button><button class="btn smod-kaydet" id="smo-kay">Kaydet</button></div>`;
+  const m = b.querySelector('#smo-m');
+  b.querySelectorAll('[data-d]').forEach(x => x.onclick = () => { m.value = String(Math.max(0, (Number(String(m.value).replace(',', '.')) || 0) + Number(x.dataset.d))); });
+  b.querySelectorAll('[data-b]').forEach(x => x.onclick = () => { sm.birim = x.dataset.b; b.querySelectorAll('[data-b]').forEach(y => y.classList.toggle('on', y === x)); });
+  b.querySelector('#smo-geri').onclick = () => smAra();
+  b.querySelector('#smo-kay').onclick = smKaydet;
+  m.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); smKaydet(); } };
+  setTimeout(() => (sm.yeni && !kod ? b.querySelector('#smo-kod') : sm.yeni ? b.querySelector('#smo-ac') : m).focus(), 60);
+}
+async function smKaydet() {
+  const b = sm.el.querySelector('#smo-b'), m = Number(String(b.querySelector('#smo-m').value).replace(',', '.'));
+  if (!(m > 0)) { toast('Miktar gir'); b.querySelector('#smo-m').focus(); return; }
+  const u = sm.urun;
+  let ref = u ? u.ref : b.querySelector('#smo-kod').value.trim(), ac = u ? u.aciklama || '' : b.querySelector('#smo-ac').value.trim();
+  if (!u && !ac && !ref) { toast('Ürün adı ya da kodu yaz'); b.querySelector('#smo-ac').focus(); return; }
+  if (!u && !ref) ref = '';
+  const btn = b.querySelector('#smo-kay'); btn.disabled = true;
+  const k = {id: newId(), sayimId: sm.id, ref, aciklama: ac, marka: u ? u.marka || '' : b.querySelector('#smo-mr').value.trim(), birim: sm.birim, miktar: m,
+    konum: sm.konum, stokId: u ? u.id : '', zaman: new Date().toISOString(), sayan: P[ME] ? P[ME].ad : ''};
+  if (await kaydet('sayim_kalem', k)) {
+    try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+    toast(`✓ ${ref || ac} · ${fmtM(m)} ${sm.birim}`);
+    smAra(); smUst();
+  } else btn.disabled = false;
+}
 sayimCiz();

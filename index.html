@@ -292,6 +292,34 @@ button.row:hover{background:var(--surface2)}
 .drop b{display:block;font-size:14px}
 .drop span{font-size:12.5px;color:var(--fg2)}
 
+.sy-ban{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;border-radius:16px;padding:14px 16px;margin-bottom:12px;background:linear-gradient(135deg,#16a34a,#0d9488);color:#fff;font:inherit;cursor:pointer}
+.sy-ban span{font-size:26px}.sy-ban div{flex:1;min-width:0}.sy-ban b{display:block;font-size:16px}.sy-ban small{opacity:.85;font-size:12.5px}.sy-ban em{font-style:normal;font-weight:700;white-space:nowrap}
+.smod{position:fixed;inset:0;z-index:48;background:var(--bg);display:flex;flex-direction:column}
+.smod-h{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.smod-h b{font-size:16px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.smod-st{font-size:12px;color:var(--fg3)}
+.smod-raf{display:flex;align-items:center;gap:6px;margin:10px 14px 0;padding:12px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--surface);font:inherit;font-size:15px;color:var(--fg);text-align:left}
+.smod-raf b{flex:1}.smod-raf span{font-size:12.5px;color:var(--brand);font-weight:600}
+.smod-ekip{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 0;font-size:12px;color:var(--fg3)}.smod-ekip span{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:2px 8px}.smod-ekip span.ben{border-color:var(--brand);color:var(--brand)}
+.smod-b{flex:1;overflow:auto;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 16px);-webkit-overflow-scrolling:touch}
+.smod-ara{display:flex;gap:8px}.smod-ara .smod-inp{flex:1;min-width:0}
+.smod-inp{height:54px;font-size:18px;border-radius:12px}
+.smod-yok{height:54px;white-space:nowrap;border-radius:12px;font-weight:700}
+.smod-sonuc{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.smod-u{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:left;padding:14px;border-radius:14px;border:1px solid var(--line2);background:var(--surface);font:inherit;color:var(--fg);min-height:64px}
+.smod-u b{font-size:17px}.smod-u span{font-size:12.5px;color:var(--fg3);align-self:center}.smod-u small{grid-column:1/-1;font-size:13px;color:var(--fg2)}.smod-u em{grid-column:1/-1;font-style:normal;font-size:12.5px;color:var(--green);font-weight:700}
+.smod-ipucu{padding:24px 10px;text-align:center;color:var(--fg2);font-size:14.5px}
+.smod-alt{margin:18px 0 6px;font-size:12.5px;font-weight:700;color:var(--fg2)}
+.smod-son{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.smod-son>div{flex:1;min-width:0}.smod-son small{display:block;font-size:12px;color:var(--fg3)}
+.smod-kart{padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line2);display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.smod-kart b{font-size:20px}.smod-kart span{color:var(--fg3);font-size:13px;align-self:center}.smod-kart small{grid-column:1/-1;color:var(--fg2);font-size:13.5px}.smod-kart .fg{grid-column:1/-1}
+.smod-uyari{margin-top:10px;padding:12px 14px;border-radius:12px;background:#fef3c7;color:#92400e;font-size:13.5px;line-height:1.5}
+.smod-m{display:flex;align-items:center;gap:10px;margin-top:16px}
+.smod-pm{width:72px;height:72px;border-radius:18px;border:1px solid var(--line2);background:var(--surface);font-size:34px;font-weight:600;color:var(--fg)}
+.smod-say{flex:1;min-width:0;height:72px;border-radius:18px;border:2px solid var(--brand);background:var(--surface);color:var(--fg);font-size:38px;font-weight:800;text-align:center}
+.smod-hz{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}.smod-hz button{height:46px;border-radius:12px;border:1px solid var(--line2);background:var(--surface);font:inherit;font-weight:700;color:var(--fg)}
+.smod-bir{margin-top:12px;flex-wrap:wrap}
+.smod-f{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:18px}.smod-f .btn{height:60px;font-size:17px;border-radius:14px}
+.smod-kaydet{background:#16a34a;color:#fff;font-weight:800}
 .onz{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column}
 .onz-h{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--surface)}
 .onz-h b{flex:1;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -474,6 +502,7 @@ button.row:hover{background:var(--surface2)}
 
       <!-- GENEL BAKIŞ -->
       <section class="page" id="p-dashboard">
+        <div id="sy-banner" hidden></div>
         <div class="hero">
           <svg class="bolt" style="color:#fff"><use href="#i-bolt"/></svg>
           <small id="hero-date"></small>
@@ -577,7 +606,8 @@ button.row:hover{background:var(--surface2)}
         <div id="sy-detay" hidden>
           <div class="ph"><div><button class="link-btn" id="sy-geri" style="margin-bottom:4px">← Sayımlar</button><h1 id="sy-baslik"></h1><p id="sy-alt"></p></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="sy-dia" style="background:var(--green);color:#fff"><svg class="i"><use href="#i-down"/></svg>DİA dosyası</button><button class="btn btn-s btn-sm" id="sy-kapat">Sayımı tamamla</button><button class="btn btn-s btn-sm" id="sy-ac" hidden>Yeniden aç</button></div></div>
-          <div class="card sy-giris" id="sy-giris"><div class="card-b fg">
+          <button class="sy-ban sy-ban-b" id="sy-basla"><span>📱</span><div><b>Saymaya başla</b><small>Telefon için büyük ekran sayım modu</small></div><em>→</em></button>
+          <div class="card sy-giris" id="sy-giris"><div class="card-b fg"><div class="vu-h" style="padding:0">Hızlı giriş (bilgisayar)</div>
             <div class="f" style="position:relative"><label for="sy-kod">Ürün kodu ya da adı</label><div style="display:flex;gap:8px"><input class="inp" id="sy-kod" autocomplete="off" autocapitalize="characters" placeholder="ör. MTH10-1080B ya da sigorta 80A" enterkeyhint="next" style="flex:1;min-width:0"><button class="btn btn-s" id="sy-yok" type="button" style="white-space:nowrap;flex-shrink:0">+ Listede yok</button></div>
               <div class="sy-oneri card" id="sy-oneri" hidden></div><div class="s" id="sy-secili" style="font-size:12px;color:var(--fg3);margin-top:4px"></div></div>
             <div class="fg2" id="sy-yeni" hidden><div class="f"><label for="sy-aciklama">Açıklama</label><input class="inp" id="sy-aciklama"></div><div class="f"><label for="sy-marka">Marka</label><input class="inp" id="sy-marka"></div></div>
@@ -773,12 +803,12 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.11.1"></script>
-<script src="teklif-cikti.js?v=1.11.1"></script>
-<script src="app.js?v=1.11.1"></script>
-<script src="hizli-teklif.js?v=1.11.1"></script>
-<script src="siparis.js?v=1.11.1"></script>
-<script src="sayim.js?v=1.11.1"></script>
-<script src="onizle.js?v=1.11.1"></script>
+<script src="config.js?v=1.12.0"></script>
+<script src="teklif-cikti.js?v=1.12.0"></script>
+<script src="app.js?v=1.12.0"></script>
+<script src="hizli-teklif.js?v=1.12.0"></script>
+<script src="siparis.js?v=1.12.0"></script>
+<script src="sayim.js?v=1.12.0"></script>
+<script src="onizle.js?v=1.12.0"></script>
 </body>
 </html>
