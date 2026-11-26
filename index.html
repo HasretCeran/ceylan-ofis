@@ -292,6 +292,8 @@ button.row:hover{background:var(--surface2)}
 .drop b{display:block;font-size:14px}
 .drop span{font-size:12.5px;color:var(--fg2)}
 
+.sy-oneri{position:absolute;left:0;right:0;top:100%;z-index:20;max-height:320px;overflow:auto;margin-top:4px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.sy-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
 .sp-adim{display:flex;gap:4px;margin:0 0 8px;overflow-x:auto;padding-bottom:4px}
 .sp-a{flex:1;min-width:64px;border:0;background:none;padding:0;text-align:center;font:inherit;cursor:pointer}
 .sp-a i{display:block;height:5px;border-radius:4px;background:var(--line2);margin-bottom:6px}
@@ -438,6 +440,7 @@ button.row:hover{background:var(--surface2)}
     <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-box"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
+    <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-db"/></svg>Stok Sayımı</button>
     <div class="sb-label">Yönetim</div>
     <button class="sb-item owner-only" data-go="entegrasyon" hidden><svg class="i"><use href="#i-plug"/></svg>Entegrasyonlar<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item owner-only" data-go="finans" hidden><svg class="i"><use href="#i-chart"/></svg>Finans Raporu<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
@@ -556,6 +559,29 @@ button.row:hover{background:var(--surface2)}
       </section>
 
       <!-- TEKLİF GEÇMİŞİ -->
+      <section class="page" id="p-sayim">
+        <div id="sy-liste">
+          <div class="ph"><div><h1>Stok sayımı</h1><p>Ekip telefondan sayar, sonuç DİA'ya aktarılmak üzere Excel olarak alınır</p></div><button class="btn btn-p btn-sm" id="sy-yeni-btn"><svg class="i"><use href="#i-plus"/></svg>Yeni sayım</button></div>
+          <div class="card"><div class="rows" id="sy-list"></div></div>
+        </div>
+        <div id="sy-detay" hidden>
+          <div class="ph"><div><button class="link-btn" id="sy-geri" style="margin-bottom:4px">← Sayımlar</button><h1 id="sy-baslik"></h1><p id="sy-alt"></p></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="sy-dia" style="background:var(--green);color:#fff"><svg class="i"><use href="#i-down"/></svg>DİA dosyası</button><button class="btn btn-s btn-sm" id="sy-kapat">Sayımı tamamla</button><button class="btn btn-s btn-sm" id="sy-ac" hidden>Yeniden aç</button></div></div>
+          <div class="card sy-giris" id="sy-giris"><div class="card-b fg">
+            <div class="f" style="position:relative"><label for="sy-kod">Ürün kodu ya da adı</label><input class="inp" id="sy-kod" autocomplete="off" autocapitalize="characters" placeholder="ör. MTH10-1080B ya da sigorta 80A" enterkeyhint="next">
+              <div class="sy-oneri card" id="sy-oneri" hidden></div><div class="s" id="sy-secili" style="font-size:12px;color:var(--fg3);margin-top:4px"></div></div>
+            <div class="fg2" id="sy-yeni" hidden><div class="f"><label for="sy-aciklama">Açıklama</label><input class="inp" id="sy-aciklama"></div><div class="f"><label for="sy-marka">Marka</label><input class="inp" id="sy-marka"></div></div>
+            <div class="sy-row"><div class="f"><label for="sy-miktar">Sayılan miktar</label><input class="inp num" id="sy-miktar" inputmode="decimal" placeholder="0" enterkeyhint="done"></div>
+              <div class="f"><label for="sy-birim">Birim</label><select class="sel" id="sy-birim"><option>Adet</option><option>Mt</option><option>Kg</option><option>Paket</option><option>Kutu</option><option>Takım</option><option>Rulo</option></select></div>
+              <div class="f"><label for="sy-konum">Raf / konum</label><input class="inp" id="sy-konum" placeholder="ör. A-3"></div></div>
+            <button class="btn btn-p btn-block" id="sy-ekle"><svg class="i"><use href="#i-plus"/></svg>Sayıma ekle</button>
+            <div id="sy-son"></div>
+          </div></div>
+          <div style="display:flex;gap:8px;margin:12px 0"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sy-ara" placeholder="Sayılanlarda ara (kod, ad, raf)"></div></div>
+          <div class="card"><div class="card-h"><h3>Sayılan ürünler</h3></div><div class="rows" id="sy-toplam"></div></div>
+        </div>
+      </section>
+
       <section class="page" id="p-siparisler">
         <div class="ph"><div><h1>Siparişler</h1><p id="sp-ozet">Gelen siparişlerin takibi</p></div><button class="btn btn-p btn-sm" id="sp-yeni"><svg class="i"><use href="#i-plus"/></svg>Sipariş</button></div>
         <div style="display:flex;gap:8px;margin-bottom:12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sp-ara" placeholder="Müşteri, sipariş no, PO ara"></div></div>
@@ -737,10 +763,11 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.9.1"></script>
-<script src="teklif-cikti.js?v=1.9.1"></script>
-<script src="app.js?v=1.9.1"></script>
-<script src="hizli-teklif.js?v=1.9.1"></script>
-<script src="siparis.js?v=1.9.1"></script>
+<script src="config.js?v=1.10.0"></script>
+<script src="teklif-cikti.js?v=1.10.0"></script>
+<script src="app.js?v=1.10.0"></script>
+<script src="hizli-teklif.js?v=1.10.0"></script>
+<script src="siparis.js?v=1.10.0"></script>
+<script src="sayim.js?v=1.10.0"></script>
 </body>
 </html>

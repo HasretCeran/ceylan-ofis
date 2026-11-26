@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.10.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -34,8 +34,8 @@ const bas = ad => (ad || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), ms); }
 
 // ═══ DURUM ═══
-const COLS = ['stok', 'musteri', 'bakiye', 'hareket', 'gorevler', 'teklifler', 'siparisler'];
-const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], siparisler: []};
+const COLS = ['stok', 'musteri', 'bakiye', 'hareket', 'gorevler', 'teklifler', 'siparisler', 'sayimlar', 'sayim_kalem'];
+const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], siparisler: [], sayimlar: [], sayim_kalem: []};
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
@@ -158,6 +158,7 @@ function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTi
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
   if (cols.includes('siparisler') && typeof siparislerCiz === 'function') siparislerCiz();
+  if ((cols.includes('sayimlar') || cols.includes('sayim_kalem')) && typeof sayimCiz === 'function') sayimCiz();
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
   if (cols.includes('stok')) stokCiz();
@@ -168,7 +169,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', sayim: 'Stok Sayımı', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
