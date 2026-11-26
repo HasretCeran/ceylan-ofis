@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.9.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -34,8 +34,8 @@ const bas = ad => (ad || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), ms); }
 
 // ═══ DURUM ═══
-const COLS = ['stok', 'musteri', 'bakiye', 'hareket', 'gorevler', 'teklifler'];
-const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: []};
+const COLS = ['stok', 'musteri', 'bakiye', 'hareket', 'gorevler', 'teklifler', 'siparisler'];
+const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], siparisler: []};
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
@@ -157,6 +157,7 @@ const kirli = new Set();
 function degisti(col) { kirli.add(col); clearTimeout(cizZaman); cizZaman = setTimeout(() => { const k = [...kirli]; kirli.clear(); ciz(k); }, 30); }
 function ciz(cols) {
   if (cols.includes('teklifler')) { tekliflerCiz(); }
+  if (cols.includes('siparisler') && typeof siparislerCiz === 'function') siparislerCiz();
   if (cols.includes('musteri') || cols.includes('bakiye')) cariKirli = true;
   if (cols.includes('musteri') || cols.includes('hareket') || cols.includes('bakiye')) { musteriCiz(); if (cols.includes('musteri')) firmaListesi(); }
   if (cols.includes('stok')) stokCiz();
@@ -167,7 +168,7 @@ function ciz(cols) {
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', musteri: 'Cariler & Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
@@ -544,6 +545,7 @@ function teklifDetay(id) {
     ${IS_OWNER ? `<button class="btn btn-d btn-sm" id="td-sil" style="margin-top:14px">${ikon('trash')}Teklifi sil</button>` : ''}`,
     [
       ...(kal ? [{label: 'Düzenle', onClick: () => tfAc(id)}] : []),
+      ...(S.siparisler.some(x => x.teklifId === id) ? [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(S.siparisler.find(x => x.teklifId === id).id), 0); }}] : [{label: 'Siparişe dönüştür', onClick: () => { setTimeout(() => siparisForm({}, t), 0); }}]),
       {label: 'Kaydet', cls: 'btn-p', onClick: async ov => { const d = v(ov, 'td-durum'); if (d === t.durum) return; const ok = await kaydet('teklifler', {...t, durum: d}); if (ok) toast('✅ Durum güncellendi'); return ok; }},
     ]);
   sh.el.querySelectorAll('[data-td]').forEach(b => b.onclick = () => cikti(b.dataset.td, tamTeklif(t), false));
@@ -559,7 +561,15 @@ async function teklifIceAl(dosyalar) {
   toast(liste.length + ' dosya okunuyor…');
   const sonuc = [];
   for (const f of liste) {
-    try { sonuc.push({f, t: await TC.sablonOku(f)}); } catch (e) { sonuc.push({f, hata: e.message || 'Okunamadı'}); }
+    try { sonuc.push({f, t: await TC.sablonOku(f)}); } catch (e) {
+      // Ceylan şablonu değilse: başlıklı her Excel'i satır satır al (kodsuz kalemler dahil)
+      let g = [];
+      try { if (window.hzExcelKalemler) g = await hzExcelKalemler(f); } catch (e2) { g = []; }
+      if (!g.length) { sonuc.push({f, hata: e.message || 'Okunamadı'}); continue; }
+      const kal = g.map(r => r.u ? {ref: r.u.ref, aciklama: r.aciklama || r.u.aciklama, marka: r.marka || r.u.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: r.u.fiyat || '', para: r.u.para || '€', iskonto: 0} : {ref: r.ref || '', aciklama: r.aciklama || '', marka: r.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: '', para: '€', iskonto: 0});
+      const mus = f.name.replace(/\.xlsx?$/i, '').replace(/^teklif[_\s-]*/i, '').split(/[_\s-]+/).filter(x => x && !/^\d+$/.test(x)).slice(0, 3).join(' ');
+      sonuc.push({f, t: {musteri: mus || 'Müşteri', musteriTahmin: true, no: '', konu: f.name.replace(/\.xlsx?$/i, ''), tarih: bugun(), kalemler: kal, kalemSayisi: kal.length, kaynakDosya: f.name}});
+    }
   }
   const ayni = t => S.teklifler.find(x => x.kaynakDosya && x.kaynakDosya === t.kaynakDosya) || (t.no && S.teklifler.find(x => x.no === t.no && (x.musteri || '').toLocaleLowerCase('tr-TR') === (t.musteri || '').toLocaleLowerCase('tr-TR')));
   const okSay = sonuc.filter(x => x.t).length;

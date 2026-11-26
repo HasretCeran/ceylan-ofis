@@ -203,5 +203,6 @@
     sh.el.querySelector('#hz-dosya').onchange = e => { const fl = [...e.target.files]; if (!fl.length) return; sh.kapat(); hizliTeklif(fl); };
   }
   window.hizliTeklif = hizliTeklif;
+  window.hzExcelKalemler = async f => { dizin(); return excelKalemler(f); };
   document.querySelectorAll('[data-act="hizli-teklif"]').forEach(b => b.onclick = ac);
 })();

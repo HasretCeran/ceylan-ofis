@@ -292,6 +292,11 @@ button.row:hover{background:var(--surface2)}
 .drop b{display:block;font-size:14px}
 .drop span{font-size:12.5px;color:var(--fg2)}
 
+.sp-adim{display:flex;gap:4px;margin:0 0 8px;overflow-x:auto;padding-bottom:4px}
+.sp-a{flex:1;min-width:64px;border:0;background:none;padding:0;text-align:center;font:inherit;cursor:pointer}
+.sp-a i{display:block;height:5px;border-radius:4px;background:var(--line2);margin-bottom:6px}
+.sp-a span{font-size:10.5px;font-weight:600;color:var(--fg3);white-space:nowrap}
+.sp-a.ok i,.sp-a.on i{background:var(--brand)}.sp-a.on span{color:var(--fg)}
 .hz-btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px dashed var(--brand);background:var(--brand-soft);color:var(--fg);border-radius:14px;padding:12px 14px;margin-bottom:12px;cursor:pointer;font:inherit}
 .hz-btn>svg:first-child{color:var(--brand);width:22px;height:22px}.hz-btn span{flex:1;font-size:12.5px;color:var(--fg2)}.hz-btn b{display:block;font-size:14px;color:var(--fg)}
 .hz-row{cursor:pointer;align-items:center}.hz-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;accent-color:var(--brand)}
@@ -430,6 +435,7 @@ button.row:hover{background:var(--surface2)}
     <div class="sb-label">Ticaret</div>
     <button class="sb-item" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Teklif Oluştur</button>
     <button class="sb-item" data-go="teklifler"><svg class="i"><use href="#i-doc"/></svg>Teklif Geçmişi<span class="cnt" data-acik hidden></span></button>
+    <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-box"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
     <div class="sb-label">Yönetim</div>
@@ -550,6 +556,13 @@ button.row:hover{background:var(--surface2)}
       </section>
 
       <!-- TEKLİF GEÇMİŞİ -->
+      <section class="page" id="p-siparisler">
+        <div class="ph"><div><h1>Siparişler</h1><p id="sp-ozet">Gelen siparişlerin takibi</p></div><button class="btn btn-p btn-sm" id="sp-yeni"><svg class="i"><use href="#i-plus"/></svg>Sipariş</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px"><div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="sp-ara" placeholder="Müşteri, sipariş no, PO ara"></div></div>
+        <div class="chips" id="sp-chips"></div>
+        <div class="card"><div class="rows" id="sp-list"></div></div>
+      </section>
+
       <section class="page" id="p-teklifler">
         <div class="ph"><div><h1>Teklif geçmişi</h1><p>Ekibin hazırladığı tüm teklifler</p></div><button class="btn btn-p btn-sm" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
         <label class="drop" id="tk-drop"><input type="file" id="tk-dosya" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
@@ -724,9 +737,10 @@ button.row:hover{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.8.1"></script>
-<script src="teklif-cikti.js?v=1.8.1"></script>
-<script src="app.js?v=1.8.1"></script>
-<script src="hizli-teklif.js?v=1.8.1"></script>
+<script src="config.js?v=1.9.0"></script>
+<script src="teklif-cikti.js?v=1.9.0"></script>
+<script src="app.js?v=1.9.0"></script>
+<script src="hizli-teklif.js?v=1.9.0"></script>
+<script src="siparis.js?v=1.9.0"></script>
 </body>
 </html>
