@@ -44,8 +44,8 @@ async function saYukle() {
 function saCiz() {
   const body = $('#sa-body'); if (!body) return;
   const talepAcik = S.sa_talepler.filter(t => t.durum !== 'kapandi').length, sipAcik = S.sa_siparisler.filter(s => SA_ACIK.includes(s.durum || 'verildi')).length;
-  const tabs = [['talepler', 'Talepler' + (talepAcik ? ' · ' + talepAcik : '')], ['analiz', 'Fiyat analizi · ' + S.sa_teklifler.length], ['siparisler', 'Satın alma' + (sipAcik ? ' · ' + sipAcik : '')], ['tedarikciler', 'Tedarikçiler · ' + S.tedarikciler.length]];
-  $('#sa-tabs').innerHTML = tabs.map(([k, l]) => `<button class="chip${saTab === k ? ' on' : ''}" data-satab="${k}">${l}</button>`).join('');
+  const tabs = [['talepler', 'Talepler', talepAcik], ['analiz', 'Fiyatlar', 0], ['siparisler', 'Alımlar', sipAcik], ['tedarikciler', 'Firmalar', 0]];
+  $('#sa-tabs').innerHTML = tabs.map(([k, l, n]) => `<button class="seg-b${saTab === k ? ' on' : ''}" data-satab="${k}">${l}${n ? `<em>${n}</em>` : ''}</button>`).join('');
   const btn = {talepler: ['+ Yeni talep', 'sa-yeni-talep'], analiz: ['+ Teklif ekle', 'sa-yeni-teklif'], siparisler: ['+ Sipariş', 'sa-yeni-sip'], tedarikciler: ['+ Tedarikçi', 'sa-yeni-ted']}[saTab];
   $('#sa-act').innerHTML = `${saTab === 'siparisler' ? '<button class="btn btn-s btn-sm" id="sa-rapor">Rapor</button>' : ''}${saTab === 'analiz' ? '<button class="btn btn-s btn-sm" id="sa-excel">Excel</button>' : ''}<button class="btn btn-p btn-sm" id="${btn[1]}">${btn[0]}</button>`;
   ({talepler: saTaleplerCiz, analiz: saAnalizCiz, siparisler: saSiparislerCiz, tedarikciler: saTedarikcilerCiz})[saTab](body);
@@ -54,7 +54,7 @@ function saCiz() {
 // ═══ TEDARİKÇİLER ═══
 function saTedarikcilerCiz(body) {
   const l = S.tedarikciler.slice().sort((a, b) => (a.ad || '').localeCompare(b.ad || '', 'tr'));
-  body.innerHTML = `<div class="card"><div class="rows">${l.length ? l.map(t => `<button class="row" data-sated="${esc(t.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(t.ad))}</div><div class="mid"><div class="t">${esc(t.ad)}</div><div class="s">${esc([t.eposta, t.telefon, t.markalar].filter(Boolean).join(' · ') || 'iletişim bilgisi yok')}</div></div><div class="end"><span class="s">${S.sa_teklifler.filter(x => x.tedarikciId === t.id).length} teklif</span></div></button>`).join('') : '<div class="empty">Henüz tedarikçi yok — "+ Tedarikçi" ile ekle</div>'}</div></div>`;
+  body.innerHTML = `<div class="card"><div class="rows">${l.length ? l.map(t => `<button class="row" data-sated="${esc(t.id)}">${avatar(t.ad)}<div class="mid"><div class="t">${esc(t.ad)}</div><div class="s">${esc([t.eposta, t.telefon, t.markalar].filter(Boolean).join(' · ') || 'iletişim bilgisi yok')}</div></div><div class="end"><span class="s">${S.sa_teklifler.filter(x => x.tedarikciId === t.id).length} teklif</span></div></button>`).join('') : '<div class="empty">Henüz tedarikçi yok — "+ Tedarikçi" ile ekle</div>'}</div></div>`;
 }
 function saTedForm(id) {
   const t = id ? saTed(id) : {}; if (id && !t) return;
@@ -75,7 +75,7 @@ function saTedForm(id) {
 // ═══ TALEPLER (fiyat / stok sorma) ═══
 function saTaleplerCiz(body) {
   const l = S.sa_talepler.slice().sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.no || '').localeCompare(a.no || ''));
-  body.innerHTML = `<p class="note" style="margin-bottom:12px">Ürünleri ve tedarikçileri seç; mail metni otomatik hazırlanır. Satınalma mailinden göndermek için her tedarikçide <b>✉ Mail uygulamasında aç</b>'a bas. Satınalma posta kutusu bağlanınca <b>Gönderilecek</b> talepler kendiliğinden gider, yanıtlardaki fiyatlar <b>Fiyat analizi</b>'ne düşer.</p>
+  body.innerHTML = (lsGet('sa_not_kapali', false) ? '' : `<div class="note nt-kapat"><span>Ürünleri ve tedarikçileri seç; mail metni hazırlanır, <b>Mail uygulamasında aç</b> ile satınalma mailinden gönder. Gelen fiyatları <b>Fiyatlar</b> sekmesine gir.</span><button class="link-btn" data-sanot>Anladım</button></div>`) + `
   <div class="card"><div class="rows">${l.length ? l.map(t => {
     const [dl, dc] = SA_TALEP[t.durum] || SA_TALEP.taslak, tl = (t.tedarikciler || []).length, yan = new Set(S.sa_teklifler.filter(x => x.talepId === t.id).map(x => x.tedarikciId)).size;
     return `<button class="row" data-satalep="${esc(t.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon('send')}</div><div class="mid"><div class="t">${esc(t.konu || (t.kalemler[0] && (t.kalemler[0].ref || t.kalemler[0].aciklama)) || t.no)}</div><div class="s">${esc([t.no, trT(t.tarih), (t.kalemler || []).length + ' kalem', tl + ' tedarikçi', yan ? yan + ' yanıt' : ''].filter(Boolean).join(' · '))}</div></div><div class="end"><span class="pill ${dc}">${dl}</span></div></button>`;
@@ -250,7 +250,7 @@ function saSiparislerCiz(body) {
     <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Bu ay verilen</div><div class="val num" style="font-size:${Object.keys(buAy).length > 1 ? 15 : 20}px">${Object.entries(buAy).map(([p, n]) => saTL(n) + ' ' + p).join('<br>') || '—'}</div><div class="hint">sipariş tutarı</div></div></div>
   <div class="chips">${chips.map(([k, lb]) => `<button class="chip${saSipFiltre === k ? ' on' : ''}" data-sasf="${k}">${lb}</button>`).join('')}</div>
   <div class="card"><div class="rows">${l.length ? l.map(s => { const [dl, dc] = saSipGec(s) ? ['Termin geçti', 'p-red'] : (SA_SIP[s.durum] || SA_SIP.verildi), tut = saTutarYazi(s.kalemler || []);
-    return `<button class="row" data-sasip-d="${esc(s.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${esc(bas(s.tedarikci))}</div><div class="mid"><div class="t">${esc(s.tedarikci || '—')}</div><div class="s">${esc([s.no, trT(s.tarih), s.termin ? 'Termin ' + trT(s.termin) : '', (s.kalemler || []).length + ' kalem'].filter(Boolean).join(' · '))}</div></div><div class="end">${tut ? `<b class="num" style="font-size:12.5px">${esc(tut)}</b>` : ''}<span class="pill ${dc}" style="margin-top:4px">${dl}</span></div></button>`; }).join('') : '<div class="empty">Sipariş yok</div>'}</div></div>`;
+    return `<button class="row" data-sasip-d="${esc(s.id)}">${avatar(s.tedarikci)}<div class="mid"><div class="t">${esc(s.tedarikci || '—')}</div><div class="s">${esc([s.no, trT(s.tarih), s.termin ? 'Termin ' + trT(s.termin) : '', (s.kalemler || []).length + ' kalem'].filter(Boolean).join(' · '))}</div></div><div class="end">${tut ? `<b class="num" style="font-size:12.5px">${esc(tut)}</b>` : ''}<span class="pill ${dc}" style="margin-top:4px">${dl}</span></div></button>`; }).join('') : '<div class="empty">Sipariş yok</div>'}</div></div>`;
 }
 function saSipForm(on) {   // on: {tedarikciId, kalemler:[{ref,aciklama,marka,miktar,birim,fiyat,para}], teklifId}
   on = on || {}; const teds = S.tedarikciler.slice().sort((a, b) => (a.ad || '').localeCompare(b.ad || '', 'tr'));
@@ -304,7 +304,8 @@ function saRapor() {
 
 // ═══ OLAYLAR ═══
 document.addEventListener('click', e => {
-  const t = e.target.closest('#p-satinalma [data-satab], #sa-yeni-talep, #sa-yeni-teklif, #sa-yeni-sip, #sa-yeni-ted, #sa-rapor, #sa-excel, [data-sated], [data-satalep], [data-sasip], [data-satsil], [data-sasip-d], [data-sasf]'); if (!t) return;
+  const t = e.target.closest('#p-satinalma [data-satab], #sa-yeni-talep, #sa-yeni-teklif, #sa-yeni-sip, #sa-yeni-ted, #sa-rapor, #sa-excel, [data-sated], [data-satalep], [data-sasip], [data-satsil], [data-sasip-d], [data-sasf], [data-sanot]'); if (!t) return;
+  if (t.dataset.sanot !== undefined) { lsSet('sa_not_kapali', true); saCiz(); return; }
   if (t.dataset.satab) { saTab = t.dataset.satab; lsSet('sa_tab', saTab); saCiz(); }
   else if (t.id === 'sa-yeni-talep') saTalepForm(); else if (t.id === 'sa-yeni-teklif') saTeklifForm(); else if (t.id === 'sa-yeni-sip') saSipForm(); else if (t.id === 'sa-yeni-ted') saTedForm();
   else if (t.id === 'sa-rapor') saRapor(); else if (t.id === 'sa-excel') saExcel().catch(er => toast('⚠ ' + er.message));

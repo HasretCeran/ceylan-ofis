@@ -42,6 +42,7 @@ function sakOku(wb) {
       else if (kol.marka == null && /^(marka|uretici)$/.test(b)) kol.marka = i;
       else if (kol.fiyat == null && /^(listefiyati|fiyat|birimfiyati|birimfiyat|listefiyat|price)$/.test(b)) kol.fiyat = i;
       else if (kol.para == null && /^(parabirimi|para|doviz|dovizcinsi|birim)$/.test(b)) kol.para = i;
+      else if (kol.birim == null && /^(olcubirimi|olcubirim|birimturu)$/.test(b)) kol.birim = i;
     });
     if (kol.ref == null) { uyar.push(`"${ad}" sayfasında kod sütunu bulunamadı`); continue; }
     for (const r of rows.slice(h + 1)) {
@@ -49,7 +50,7 @@ function sakOku(wb) {
       const f = kol.fiyat != null ? sakSayi(r[kol.fiyat]) : null;
       let para = kol.para != null ? sakPara(r[kol.para]) : '';
       if (!para && kol.fiyat != null) para = sakPara(String(r[kol.fiyat]).replace(/[\d.,\s-]/g, ''));
-      out.push({ref, aciklama: kol.ac != null ? String(r[kol.ac] ?? '').trim() : '', marka: kol.marka != null ? String(r[kol.marka] ?? '').trim() : '', fiyat: f, para: para || '€'});
+      out.push({birim: kol.birim != null ? String(r[kol.birim] ?? '').trim() : '', ref, aciklama: kol.ac != null ? String(r[kol.ac] ?? '').trim() : '', marka: kol.marka != null ? String(r[kol.marka] ?? '').trim() : '', fiyat: f, para: para || '€'});
     }
   }
   return {out, uyar};
@@ -75,6 +76,7 @@ function stokAktarForm() {
       const key = nrmTR(mk) + '|' + kodAnahtar(x.ref); if (gor.has(key)) continue; gor.set(key, 1);
       const var_ = idx.get(key);
       const veri = {ref: x.ref, aciklama: x.aciklama, marka: mk, fiyat: x.fiyat, para: x.para, kaynak};
+      if (x.birim) veri.birim = x.birim;
       if (x.fiyat == null) { veri.fiyat = null; veri.fiyatSorunuz = true; }
       if (var_) {
         if (Number(var_.fiyat) === Number(x.fiyat) && var_.para === x.para && (var_.aciklama || '') === (x.aciklama || var_.aciklama || '')) { ayni++; continue; }

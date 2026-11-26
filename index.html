@@ -477,7 +477,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
   .ph{margin-bottom:14px}
   .ph p{font-size:12.5px}
   .card-h{padding:13px 14px}.row{padding:12px 14px}
-  .chips{margin-left:calc(-1 * max(16px,var(--safe-l)));margin-right:calc(-1 * max(16px,var(--safe-r)));padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r))}
+  .page>.chips{margin-left:calc(-1 * max(16px,var(--safe-l)));margin-right:calc(-1 * max(16px,var(--safe-r)));padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r))}
 }
 
 /* sayım: öneri işareti, fark etiketi */
@@ -490,6 +490,46 @@ td.empty{display:table-cell}td.empty::before{display:none}
 .tile.gizli #m-ortal-h,.tile.gizli #m-ortbo-h{visibility:hidden}
 .sy-fark{display:block;font-size:11px;font-weight:700;margin-top:3px;white-space:nowrap}
 .sy-fark.eks{color:var(--red)}.sy-fark.art{color:var(--amber)}
+
+/* ── v1.22 görsel düzenleme ── */
+#app{background:radial-gradient(900px 360px at 75% -140px,color-mix(in srgb,var(--brand) 10%,transparent),transparent 70%)}
+.card,.tile{border-radius:18px;border-color:color-mix(in srgb,var(--line) 75%,transparent);box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
+.row{padding:13px 16px;transition:background .12s}
+button.row:active{background:var(--surface2)}
+.ico.av{border-radius:50%;background:hsl(var(--h) 85% 93%);color:hsl(var(--h) 60% 32%);font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ico.av{background:hsl(var(--h) 35% 22%);color:hsl(var(--h) 85% 80%)}}
+:root[data-theme="dark"] .ico.av{background:hsl(var(--h) 35% 22%);color:hsl(var(--h) 85% 80%)}
+.bir{color:var(--fg3);font-weight:500;font-size:11.5px}
+.lk{width:13px;height:13px;margin-left:6px;vertical-align:middle;position:relative;top:-1px;color:var(--fg3)}
+.yon{display:flex;align-items:center}.yon .lk{margin:0 6px 0 0}
+.menu-grp{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--fg3);padding:12px 4px 2px}
+.menu-grp:first-child{padding-top:0}
+.grid1{display:grid;grid-template-columns:minmax(0,1fr);max-width:720px}
+.banner{border:0;box-shadow:inset 3px 0 0 currentColor}
+/* hero */
+.hero{border-radius:26px;padding:22px 20px 18px;background:linear-gradient(135deg,#3070f2 0%,#1c52cc 55%,#14398f 100%);box-shadow:0 16px 36px rgba(26,86,219,.30)}
+.hero::before{content:"";position:absolute;left:-70px;bottom:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.13),transparent 65%)}
+.hero h1{font-size:26px;margin:2px 0 14px}
+.hero-ara{position:relative;z-index:1;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.97);border-radius:15px;padding:0 14px;height:48px;margin-bottom:14px;box-shadow:0 8px 22px rgba(8,25,80,.28)}
+.hero-ara svg{width:18px;height:18px;color:#6b7280;flex-shrink:0}
+.hero-ara input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:15px;color:#111827;height:100%}
+.hero-ara input::placeholder{color:#8a93a5}
+.hero-ara:focus-within{box-shadow:0 0 0 3px rgba(255,255,255,.35),0 8px 22px rgba(8,25,80,.28)}
+.hero-chip{font:inherit;color:#fff;text-align:left;cursor:pointer;transition:background .12s,transform .08s}
+.hero-chip:hover{background:rgba(255,255,255,.2)}.hero-chip:active{transform:scale(.98)}
+/* segment (Satınalma sekmeleri) */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:3px;margin-bottom:12px}
+.seg-b{border:0;background:transparent;border-radius:11px;height:36px;font-weight:600;font-size:13px;color:var(--fg2);display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.seg-b.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 5px rgba(16,24,40,.14)}
+.seg-b em{font-style:normal;font-size:10.5px;font-weight:700;background:var(--brand);color:#fff;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center}
+.nt-kapat{display:flex;align-items:center;gap:12px;margin-bottom:12px}.nt-kapat span{flex:1}
+@media (max-width:760px){
+  .ph h1{font-size:23px}
+  .bn{gap:2px}
+  .bn span{position:relative;z-index:1}.bn svg{position:relative;z-index:1}
+  .bn.active::before{top:3px;left:50%;transform:translateX(-50%);width:54px;height:30px;border-radius:15px;background:var(--brand-soft);z-index:0}
+  .bn.active{font-weight:700}
+}
 </style>
 </head>
 <body>
@@ -580,34 +620,29 @@ td.empty{display:table-cell}td.empty::before{display:none}
     </header>
 
     <main class="content">
-      <div class="banner demo" id="demo-banner" hidden>⚠️ <span><b>Demo modu</b> — veritabanı bağlı değil, kayıtlar sadece bu cihazda tutuluyor.</span></div>
-      <div class="banner upd" id="kur-banner" hidden>📲 <span style="flex:1"><b>Ceylan Ofis'i telefona kur</b> — ana ekrandan uygulama gibi açılır.</span><button class="btn btn-p btn-sm" id="kur-banner-btn">Yükle</button></div>
-      <div class="banner upd" id="upd-banner" hidden>✨ <span style="flex:1">Yeni sürüm hazır.</span><button class="btn btn-p btn-sm" id="upd-btn">Şimdi yenile</button></div>
+      <div class="banner demo" id="demo-banner" hidden><span><b>Demo modu</b> — veritabanı bağlı değil, kayıtlar sadece bu cihazda tutuluyor.</span></div>
+      <div class="banner upd" id="kur-banner" hidden><span style="flex:1"><b>Ceylan Ofis'i telefona kur</b> — ana ekrandan uygulama gibi açılır.</span><button class="btn btn-p btn-sm" id="kur-banner-btn">Yükle</button></div>
+      <div class="banner upd" id="upd-banner" hidden><span style="flex:1">Yeni sürüm hazır.</span><button class="btn btn-p btn-sm" id="upd-btn">Şimdi yenile</button></div>
 
       <!-- GENEL BAKIŞ -->
       <section class="page" id="p-dashboard">
         <div id="sy-banner" hidden></div>
-        <div id="d-sip" hidden></div>
         <div class="hero">
           <svg class="bolt" style="color:#fff"><use href="#i-bolt"/></svg>
           <small id="hero-date"></small>
-          <h1 id="hero-hi">Merhaba 👋</h1>
+          <h1 id="hero-hi">Merhaba</h1>
+          <form class="hero-ara" id="hero-form" autocomplete="off"><svg class="i"><use href="#i-search"/></svg><input id="hero-ara" type="search" placeholder="Ürün kodu ya da adı ara…" enterkeyhint="search" aria-label="Ürün ara"></form>
           <div class="hero-row">
-            <div class="hero-chip"><span>Açık teklif</span><b data-acik-val>0</b></div>
-            <div class="hero-chip"><span>Bugün görev</span><b id="hero-gorev">0</b></div>
+            <button class="hero-chip" data-go="teklifler"><span>Açık teklif</span><b data-acik-val>0</b></button>
+            <button class="hero-chip" data-go="takvim"><span>Bugün görev</span><b id="hero-gorev">0</b></button>
           </div>
         </div>
+        <div id="d-sip" hidden></div>
         <div class="tiles">
           <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="d-alacak">—</div><div class="hint">açık hesaplar</div></div>
           <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--red)"></i>Vadesi geçen</div><div class="val num" style="color:var(--red)" id="d-gecmis">—</div><div class="hint">takip gerekli</div></div>
           <div class="tile owner-fin" hidden><div class="lbl"><i style="background:var(--brand)"></i>Bu ay tahsilat</div><div class="val num" id="d-tahsil">—</div><div class="hint">kayıtlı hareket</div></div>
           <div class="tile"><div class="lbl"><i style="background:var(--amber)"></i>Kritik stok</div><div class="val num" id="d-kritik">0</div><div class="hint">yenileme gerekli</div></div>
-        </div>
-        <div class="quick">
-          <button class="qa" data-go="teklif"><div class="ic" style="background:var(--brand-soft);color:var(--brand)"><svg class="i"><use href="#i-plus"/></svg></div><b>Yeni teklif</b><span>3 adımda hazırla</span></button>
-          <button class="qa fin-only" data-act="hareket-ekle" hidden><div class="ic" style="background:var(--green-soft);color:var(--green)"><svg class="i"><use href="#i-wallet"/></svg></div><b>Tahsilat / borç</b><span>Hareket gir</span></button>
-          <button class="qa" data-act="gorev-ekle"><div class="ic" style="background:var(--orange-soft);color:var(--orange)"><svg class="i"><use href="#i-clock"/></svg></div><b>Hatırlatıcı</b><span>Görev planla</span></button>
-          <button class="qa" data-go="stok"><div class="ic" style="background:var(--amber-soft);color:var(--amber)"><svg class="i"><use href="#i-box"/></svg></div><b>Stok ara</b><span>Ürün ve fiyat</span></button>
         </div>
         <div class="grid2">
           <div class="card"><div class="card-h"><h3>Bugün</h3><button class="link-btn" data-go="takvim">Takvim →</button></div><div id="d-gorevler"></div></div>
@@ -618,7 +653,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- TEKLİF OLUŞTUR -->
       <section class="page" id="p-teklif">
-        <div class="ph"><div><h1>Teklif oluştur</h1><p id="tf-durum">Yeni teklif</p></div><button class="btn btn-s btn-sm" id="tf-yeni"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
+        <div class="ph"><div><h1>Teklif Oluştur</h1><p id="tf-durum">Yeni teklif</p></div><button class="btn btn-s btn-sm" id="tf-yeni"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
         <div class="stepper">
           <button class="step on" data-step="1"><div class="bar"></div><small>Adım 1</small><b>Müşteri</b></button>
           <button class="step" data-step="2"><div class="bar"></div><small>Adım 2</small><b>Kalemler</b></button>
@@ -685,7 +720,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
       <!-- TEKLİF GEÇMİŞİ -->
       <section class="page" id="p-sayim">
         <div id="sy-liste">
-          <div class="ph"><div><h1>Stok sayımı</h1><p>Ekip telefondan sayar, sonuç DİA'ya aktarılmak üzere Excel olarak alınır</p></div><button class="btn btn-p btn-sm" id="sy-yeni-btn"><svg class="i"><use href="#i-plus"/></svg>Yeni sayım</button></div>
+          <div class="ph"><div><h1>Stok Sayımı</h1><p>Ekip telefondan sayar, sonuç DİA'ya aktarılmak üzere Excel olarak alınır</p></div><button class="btn btn-p btn-sm" id="sy-yeni-btn"><svg class="i"><use href="#i-plus"/></svg>Yeni sayım</button></div>
           <div class="card"><div class="rows" id="sy-list"></div></div>
         </div>
         <div id="sy-detay" hidden>
@@ -711,8 +746,8 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- SATINALMA -->
       <section class="page" id="p-satinalma">
-        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet">🔒 Sadece yönetici · tedarikçilere fiyat ve stok sor, teklifleri karşılaştır, alımları takip et</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
-        <div class="chips" id="sa-tabs"></div>
+        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet" class="yon"><svg class="i lk"><use href="#i-lock"/></svg>Tedarikçi fiyat talebi, analiz ve alım takibi</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+        <div class="seg" id="sa-tabs"></div>
         <div id="sa-body"></div>
       </section>
 
@@ -724,7 +759,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
       </section>
 
       <section class="page" id="p-teklifler">
-        <div class="ph"><div><h1>Teklif geçmişi</h1><p>Ekibin hazırladığı tüm teklifler</p></div><button class="btn btn-p btn-sm" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
+        <div class="ph"><div><h1>Teklif Geçmişi</h1><p>Ekibin hazırladığı tüm teklifler</p></div><button class="btn btn-p btn-sm" data-go="teklif"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></div>
         <label class="drop" id="tk-drop"><input type="file" id="tk-dosya" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
           <div class="ic"><svg class="i"><use href="#i-down"/></svg></div>
           <div><b>Excel tekliflerini buraya sürükle</b><span>ya da dokunup dosya seç · Ceylan şablonundaki .xlsx teklifler geçmişe kaydedilir</span></div></label>
@@ -735,7 +770,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- MÜŞTERİ / BORÇ -->
       <section class="page" id="p-musteri">
-        <div class="ph"><div><h1>Cariler & borç</h1><p>DİA cari kartları, alacak ve borç takibi</p></div>
+        <div class="ph"><div><h1>Cariler / Borç</h1><p>DİA cari kartları, alacak ve borç takibi</p></div>
           <div style="display:flex;gap:8px"><button class="btn btn-s btn-sm fin-only" data-act="hareket-ekle" hidden>+ Hareket</button><button class="btn btn-p btn-sm" data-act="firma-ekle">+ Firma</button></div></div>
         <div class="tiles t6 owner-fin" hidden>
           <div class="tile"><div class="lbl"><i style="background:var(--green)"></i>Toplam alacak</div><div class="val num" id="m-alacak">₺0</div></div>
@@ -756,18 +791,18 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- STOK -->
       <section class="page" id="p-stok">
-        <div class="ph"><div><h1>Stok & ürünler</h1><p id="s-ozet">—</p></div><div style="display:flex;gap:8px"><button class="btn btn-s btn-sm owner-only" data-act="stok-aktar" hidden><svg class="i"><use href="#i-down"/></svg>Excel'den aktar</button><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div></div>
+        <div class="ph"><div><h1>Stok / Ürünler</h1><p id="s-ozet">—</p></div><div style="display:flex;gap:8px"><button class="btn btn-s btn-sm owner-only" data-act="stok-aktar" hidden><svg class="i"><use href="#i-down"/></svg>Excel'den aktar</button><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div></div>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <div class="search"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="s-ara" placeholder="Referans, açıklama, marka"></div>
+          <select class="sel" id="s-marka" style="width:auto;min-width:130px"><option value="">Tüm markalar</option></select>
           <select class="sel" id="s-durum" style="width:auto;min-width:140px"><option value="">Tüm durumlar</option><option value="yeterli">Yeterli</option><option value="kritik">Kritik</option><option value="yok">Stok yok</option></select>
         </div>
-        <div class="chips" id="s-chips"></div>
-        <div class="card"><div class="rows" id="s-list"></div></div>
+                <div class="card"><div class="rows" id="s-list"></div></div>
       </section>
 
       <!-- TAKVİM -->
       <section class="page" id="p-takvim">
-        <div class="ph"><div><h1>Takvim & planlayıcı</h1><p>Ekibin ortak görevleri ve hatırlatıcıları</p></div><button class="btn btn-p btn-sm" data-act="gorev-ekle">+ Görev</button></div>
+        <div class="ph"><div><h1>Takvim</h1><p>Ekibin görevleri ve hatırlatıcıları</p></div><button class="btn btn-p btn-sm" data-act="gorev-ekle">+ Görev</button></div>
         <div class="grid2">
           <div class="card">
             <div class="cal-head"><button class="icon-btn" id="cal-prev"><svg class="i"><use href="#i-left"/></svg></button><b id="cal-ay"></b><button class="icon-btn" id="cal-next"><svg class="i"><use href="#i-right"/></svg></button></div>
@@ -780,7 +815,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
 
       <!-- FİNANS -->
       <section class="page" id="p-finans">
-        <div class="ph"><div><h1>Finans raporu</h1><p>🔒 Sadece yönetici görür</p></div></div>
+        <div class="ph"><div><h1>Finans Raporu</h1><p class="yon"><svg class="i lk"><use href="#i-lock"/></svg>Sadece yönetici görür</p></div></div>
         <div class="hero" style="margin-bottom:14px">
           <small>Toplam açık alacak</small>
           <h1 class="num" id="f-alacak" style="font-size:30px;margin-bottom:6px">₺0</h1>
@@ -797,19 +832,12 @@ td.empty{display:table-cell}td.empty::before{display:none}
           <div class="card"><div class="card-h"><h3>Alacak dağılımı</h3></div><div class="card-b" id="f-dagilim"></div></div>
           <div class="card"><div class="card-h"><h3>Çalışan bazlı teklif</h3></div><div class="card-b" id="f-calisan"></div></div>
         </div>
-        <div class="card"><div class="card-h"><h3>💡 Kullanım önerileri</h3></div><div class="card-b">
-          <div class="tip" style="border-color:var(--green)"><b>Vade takibi</b>Firma eklerken vade tarihini gir; vadesi geçenler ana ekranda kırmızı görünür. Vade günü için Takvim'e "Ödeme / Tahsilat" görevi ekle.</div>
-          <div class="tip"><b>Teklif durumu</b>Teklif Geçmişi'nde durumu (Gönderildi / Onaylandı / Reddedildi) güncel tutun; dönüşüm oranı buradan hesaplanır.</div>
-          <div class="tip" style="border-color:var(--amber)"><b>Stok fiyat listesi</b>Marka fiyat listelerini Claude'a gönder, ürünleri toplu ekleyebilirsin. Fiyat ve adet girildikçe stok değeri hesaplanır.</div>
-          <div class="tip" style="border-color:var(--orange)"><b>DİA ERP ekstresi</b>DİA'dan cari ekstreyi Claude'a yapıştırıp "borç tablosuna dök" de; firma ve alacaklar hazır gelir.</div>
-          <div class="tip" style="border-color:var(--fg3)"><b>Aylık özet</b>Ay sonunda Claude'a "bu ayki teklifleri, alacakları ve stok durumunu özetle" de.</div>
-        </div></div>
       </section>
 
       <!-- ENTEGRASYONLAR -->
       <section class="page" id="p-entegrasyon">
-        <div class="ph"><div><h1>Entegrasyonlar</h1><p>🔒 Sadece yönetici görür ve düzenler</p></div></div>
-        <div class="grid2">
+        <div class="ph"><div><h1>Entegrasyonlar</h1><p class="yon"><svg class="i lk"><use href="#i-lock"/></svg>Sadece yönetici görür ve düzenler</p></div></div>
+        <div class="grid1">
           <div class="card" id="ayar-mail">
             <div class="card-h"><div class="integ-h"><div class="ic" style="background:var(--brand-soft);color:var(--brand)"><svg class="i"><use href="#i-mail"/></svg></div><div><h3>E-posta</h3><span class="pill p-green" style="margin-top:4px">Aktif · telefonun mail uygulamasıyla</span></div></div></div>
             <div class="card-b fg">
@@ -818,26 +846,6 @@ td.empty{display:table-cell}td.empty::before{display:none}
               <div class="f"><label for="m-govde">Mail metni</label><textarea class="inp" id="m-govde" data-a="govde" rows="7"></textarea></div>
               <p style="font-size:11.5px;color:var(--fg3)">Kullanılabilir alanlar: {musteri} {ilgili} {no} {konu} {hazirlayan}</p>
               <button class="btn btn-p" data-kaydet>Kaydet</button>
-              <div class="note"><b style="color:var(--fg)">Sonraki adım (hazır yer):</b> Mailin uygulamadan, şirket adresinden (info@ceylanotomasyon.com.tr) otomatik gitmesi. Bunun için mail sağlayıcınızın (Gmail / Outlook / hosting) SMTP bilgileri sunucu tarafına güvenli şekilde eklenecek. Hazır olduğunda Claude'a "otomatik mail gönderimini aç" de.</div>
-            </div>
-          </div>
-          <div class="card" id="ayar-dia">
-            <div class="card-h"><div class="integ-h"><div class="ic" style="background:var(--orange-soft);color:var(--orange)"><svg class="i"><use href="#i-db"/></svg></div><div><h3>DİA ERP</h3><span class="pill p-gray" id="dia-durum" style="margin-top:4px">Henüz ayarlanmadı</span></div></div></div>
-            <div class="card-b fg">
-              <div class="note">DİA'daki cari hesapları, stok kartlarını ve tahsilatları bu uygulamaya otomatik aktarmak için hazırlanan alan. DİA'nın <b>Web Servis (WS)</b> erişimi gerekir; DİA bayinizden "web servis API anahtarı" ve sunucu adresini isteyin.</div>
-              <div class="f"><label for="d-sunucu">DİA sunucu adresi</label><input class="inp" id="d-sunucu" data-a="sunucu" autocapitalize="none" placeholder="ör. firmakodu.ws.dia.com.tr"></div>
-              <div class="fg2">
-                <div class="f"><label for="d-firma">Firma kodu</label><input class="inp" id="d-firma" data-a="firmaKodu" inputmode="numeric"></div>
-                <div class="f"><label for="d-donem">Dönem kodu</label><input class="inp" id="d-donem" data-a="donemKodu" inputmode="numeric"></div>
-              </div>
-              <div class="f"><label for="d-kul">DİA kullanıcı adı</label><input class="inp" id="d-kul" data-a="kullanici" autocapitalize="none"></div>
-              <div class="f"><label>Aktarılacaklar</label>
-                <label class="chk"><input type="checkbox" data-a="aktar.cari"> Cari hesaplar → Müşteri / Borç</label>
-                <label class="chk"><input type="checkbox" data-a="aktar.stok"> Stok kartları ve fiyatlar → Stok</label>
-                <label class="chk"><input type="checkbox" data-a="aktar.hareket"> Fatura ve tahsilatlar → Hareketler</label>
-              </div>
-              <button class="btn btn-p" data-kaydet>Kaydet</button>
-              <div class="note">🔒 DİA <b>şifresi ve API anahtarı buraya yazılmaz</b>; bağlantı kurulurken sunucu tarafında gizli olarak saklanacak. Bilgiler hazır olunca Claude'a "DİA bağlantısını kur" de.</div>
             </div>
           </div>
         </div>
@@ -862,7 +870,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
           <label class="chk" id="indir-masa" hidden><input type="checkbox" id="indir-masa-cb"> PDF / Excel'i Masaüstü'ne kaydet (kaydetme penceresi Masaüstü'nde açılır)</label>
           <p class="note" id="indir-not">Dosyalar tarayıcının indirme klasörüne iner. Klasörü değiştirmek için Chrome / Edge: Ayarlar → İndirilenler → Konum.</p>
         </div></div>
-        <div class="card owner-only" id="ayar-teklif" hidden><div class="card-h"><h3>Teklif şablonu varsayılanları</h3><span class="pill p-gray">🔒 Yönetici</span></div><div class="card-b fg">
+        <div class="card owner-only" id="ayar-teklif" hidden><div class="card-h"><h3>Teklif şablonu varsayılanları</h3><span class="pill p-gray"><svg class="i lk"><use href="#i-lock"/></svg>Yönetici</span></div><div class="card-b fg">
           <div class="fg2">
             <div class="f"><label for="at-odeme">Ödeme şekli</label><input class="inp" id="at-odeme" data-a="odeme" placeholder="ör. Peşin / 30 gün"></div>
             <div class="f"><label for="at-gecerli">Opsiyon</label><select class="sel" id="at-gecerli" data-a="gecerli"><option>1 gün</option><option>2 gün</option><option>3 gün</option><option>4 gün</option><option>5 gün</option><option>7 gün</option><option>15 gün</option></select></div>
@@ -877,7 +885,7 @@ td.empty{display:table-cell}td.empty::before{display:none}
         <div class="card owner-only" hidden><div class="card-h"><h3>Ekip</h3><button class="btn btn-p btn-sm" id="uye-ekle"><svg class="i"><use href="#i-plus"/></svg>Çalışan ekle</button></div><div class="rows" id="ekip-list"></div>
           <div class="card-b" style="font-size:12.5px;color:var(--fg2);line-height:1.6;border-top:1px solid var(--line)">Çalışan uygulamaya sadece kullanıcı adı ve şifreyle girer. Ayrılan birinin erişimini kişiye dokunup "Erişimi durdur" ile kapatabilirsin; geçmiş kayıtları silinmez.</div>
         </div>
-        <div class="card"><div class="card-h"><h3>Telefona kur</h3></div><div class="card-b" style="font-size:13px;color:var(--fg2);line-height:1.6">
+        <div class="card" id="kur-kart"><div class="card-h"><h3>Telefona kur</h3></div><div class="card-b" style="font-size:13px;color:var(--fg2);line-height:1.6">
           <p><b style="color:var(--fg)">iPhone (Safari):</b> Paylaş ⬆ → Ana Ekrana Ekle</p>
           <p><b style="color:var(--fg)">Android (Chrome):</b> ⋮ → Uygulamayı yükle / Ana ekrana ekle</p>
           <button class="btn btn-p btn-block" id="kur-btn" style="margin-top:10px" hidden><svg class="i"><use href="#i-down"/></svg>Uygulamayı yükle</button>
@@ -888,11 +896,11 @@ td.empty{display:table-cell}td.empty::before{display:none}
   </div>
 
   <nav class="bnav">
-    <button class="bn" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg>Özet</button>
-    <button class="bn" data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Borç</button>
+    <button class="bn" data-go="dashboard"><svg class="i"><use href="#i-home"/></svg><span>Özet</span></button>
+    <button class="bn" data-go="teklifler"><svg class="i"><use href="#i-doc"/></svg><span>Teklifler</span></button>
     <div class="bn-fab"><button data-go="teklif" aria-label="Yeni teklif"><svg class="i"><use href="#i-plus"/></svg></button></div>
-    <button class="bn" data-go="takvim"><svg class="i"><use href="#i-cal"/></svg>Takvim</button>
-    <button class="bn" data-act="menu"><svg class="i"><use href="#i-menu"/></svg>Menü</button>
+    <button class="bn" data-go="stok"><svg class="i"><use href="#i-box"/></svg><span>Stok</span></button>
+    <button class="bn" data-act="menu" id="bn-menu"><svg class="i"><use href="#i-menu"/></svg><span>Menü</span></button>
   </nav>
 </div>
 
@@ -901,14 +909,14 @@ td.empty{display:table-cell}td.empty::before{display:none}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.21.1"></script>
-<script src="teklif-cikti.js?v=1.21.1"></script>
-<script src="app.js?v=1.21.1"></script>
-<script src="hizli-teklif.js?v=1.21.1"></script>
-<script src="siparis.js?v=1.21.1"></script>
-<script src="sayim.js?v=1.21.1"></script>
-<script src="stok-aktar.js?v=1.21.1"></script>
-<script src="satinalma.js?v=1.21.1"></script>
-<script src="onizle.js?v=1.21.1"></script>
+<script src="config.js?v=1.22.0"></script>
+<script src="teklif-cikti.js?v=1.22.0"></script>
+<script src="app.js?v=1.22.0"></script>
+<script src="hizli-teklif.js?v=1.22.0"></script>
+<script src="siparis.js?v=1.22.0"></script>
+<script src="sayim.js?v=1.22.0"></script>
+<script src="stok-aktar.js?v=1.22.0"></script>
+<script src="satinalma.js?v=1.22.0"></script>
+<script src="onizle.js?v=1.22.0"></script>
 </body>
 </html>
