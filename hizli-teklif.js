@@ -172,6 +172,23 @@
     return {sonuc, hatalar, sablon};
   }
 
+  // Stoktan ürün seç: yazdıkça ürün koduna, marka ya da açıklamaya göre sonuç çıkar; dokununca onSec(u) çağrılır
+  function urunSec(onSec, baslik = 'Ürün seç', coklu = false) {
+    const sh = sheet(baslik, `<div class="search" style="margin-bottom:10px"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="us-ara" placeholder="Ürün kodu ya da açıklama yaz" autocomplete="off" autocapitalize="characters"></div><div class="rows picker" id="us-list"></div>`);
+    const ara = sh.el.querySelector('#us-ara'), list = sh.el.querySelector('#us-list');
+    const ciz = () => {
+      const q = ara.value.trim(); if (!q) { list.innerHTML = '<div class="empty" style="padding:14px">Yazdıkça ürünler çıkar</div>'; return; }
+      const l = urunAra(q, 30);
+      list.innerHTML = l.length ? '' : '<div class="empty" style="padding:14px">Stokta bulunamadı</div>';
+      l.forEach(u => { const b = document.createElement('button'); b.type = 'button'; b.className = 'row';
+        b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(u.marka)}</span></div><div class="s">${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span style="margin-top:4px">${typeof stokRozet === 'function' ? stokRozet(u) : ''}</span></div>`;
+        b.onclick = () => { onSec(u); if (coklu) { toast('✅ ' + (u.ref || 'Ürün') + ' eklendi'); ara.value = ''; ciz(); ara.focus(); } else sh.kapat(); };
+        list.appendChild(b); });
+    };
+    ara.oninput = ciz; ciz(); setTimeout(() => ara.focus(), 50);
+    return sh;
+  }
+
   async function hizliTeklif(dosyalar, metin) {
     if (!S.stok.length) { toast('Ürün listesi henüz yüklenmedi, birkaç saniye sonra tekrar dene'); return; }
     dizin();
@@ -199,11 +216,18 @@
     durum(liste.length ? `${liste.length} kalem okundu · ${eslesen} tanesi fiyat listesinde${eslesmeyen.length ? ` · ${eslesmeyen.length} tanesi listede yok/kodsuz (fiyatsız eklenir)` : ''}. İstemediklerinin işaretini kaldır.` : 'Okunabilen kalem bulunamadı');
     const g = sh.el.querySelector('#hz-govde');
     const fy = u => u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : 'fiyat sorunuz';
-    g.innerHTML = (hatalar.length ? `<div class="note" style="color:var(--red)">${hatalar.map(esc).join('<br>')}</div>` : '') +
-      (liste.length ? '<div class="rows">' + liste.slice(0, 200).map((r, i) => r.u
-        ? `<label class="row hz-row"><input type="checkbox" data-hz="${i}" checked><div class="mid"><div class="t">${esc(r.u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(r.u.marka)}</span></div><div class="s">${esc(r.u.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">${fy(r.u)}</span></div></label>`
-        : `<label class="row hz-row"><input type="checkbox" data-hz="${i}" checked><div class="mid"><div class="t">${esc(r.ref || 'Kodsuz')} <span class="pill p-amber" style="margin-left:4px">listede yok</span></div><div class="s">${esc(r.aciklama)}</div></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">fiyatı sen gir</span></div></label>`).join('') + '</div>' : '');
-    if (!liste.length) { g.insertAdjacentHTML('beforeend', '<div class="empty">Dosyadan okunabilen ürün satırı çıkmadı. Daha net bir fotoğraf ya da Excel/PDF dene.</div>'); }
+    const esitle = () => sh.el.querySelectorAll('[data-hz]').forEach(cb => { const r = liste[+cb.dataset.hz]; if (!r) return; r.kapali = !cb.checked; const m = sh.el.querySelector(`[data-hzm="${cb.dataset.hz}"]`); if (m) r.miktar = Number(m.value) || r.miktar; });
+    const ciz = () => {
+      g.innerHTML = (hatalar.length ? `<div class="note" style="color:var(--red)">${hatalar.map(esc).join('<br>')}</div>` : '') +
+        (liste.length ? '<div class="rows">' + liste.slice(0, 200).map((r, i) => r.u
+          ? `<label class="row hz-row"><input type="checkbox" data-hz="${i}"${r.kapali ? '' : ' checked'}><div class="mid"><div class="t">${esc(r.u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(r.u.marka)}</span></div><div class="s">${esc(r.u.aciklama)}</div><button type="button" class="link-btn" data-hzdeg="${i}" style="padding:2px 0;font-size:12px">Başka ürün seç</button></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">${fy(r.u)}</span></div></label>`
+          : `<label class="row hz-row"><input type="checkbox" data-hz="${i}"${r.kapali ? '' : ' checked'}><div class="mid"><div class="t">${esc(r.ref || 'Kodsuz')} <span class="pill p-amber" style="margin-left:4px">listede yok</span></div><div class="s">${esc(r.aciklama)}</div><button type="button" class="btn btn-s btn-sm" data-hzdeg="${i}" style="margin-top:6px">Stoktan seç</button></div><div class="end"><input class="inp num hz-m" data-hzm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><span class="s">fiyatı sen gir</span></div></label>`).join('') + '</div>' : '') +
+        `<button type="button" class="btn btn-s btn-block" id="hz-ekle" style="margin-top:10px">${ikon('plus')}Ürün ekle (koddan / açıklamadan ara)</button>` +
+        (!liste.length ? '<div class="empty">Dosyadan okunabilen ürün satırı çıkmadı. Daha net bir fotoğraf ya da Excel/PDF dene; ya da yukarıdaki düğmeyle ürünü kendin seç.</div>' : '');
+      g.querySelectorAll('[data-hzdeg]').forEach(bt => bt.onclick = e => { e.preventDefault(); e.stopPropagation(); esitle(); const i = +bt.dataset.hzdeg; urunSec(u => { liste[i].u = u; liste[i].kapali = false; ciz(); }, 'Ürünü stoktan seç'); });
+      g.querySelector('#hz-ekle').onclick = () => { esitle(); urunSec(u => { liste.push({u, ref: u.ref, aciklama: u.aciklama, marka: u.marka, miktar: 1, birim: 'Adet'}); ciz(); }, 'Ürün ekle', true); };
+    };
+    ciz();
     const f = document.createElement('div'); f.className = 'sheet-f';
     f.innerHTML = '<button class="btn btn-s">Vazgeç</button><button class="btn btn-p">Teklife ekle</button>';
     sh.el.querySelector('.sheet').appendChild(f);
@@ -225,12 +249,46 @@
   }
 
   // ── Arayüz
+  // Yazarak ürün seç: aradıkça çıkan ürünlere dokunup listeye ekle, miktarı yaz, tek seferde teklife ekle
+  function hizliSec() {
+    dizin(); const sec = [];
+    const sh = sheet('Ürün seç', `<div class="search" style="margin-bottom:10px"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="hs-ara" placeholder="Ürün kodu ya da açıklama yaz" autocomplete="off" autocapitalize="characters"></div>
+      <div class="rows picker" id="hs-list" style="max-height:34vh;overflow:auto"></div>
+      <div class="vu-h" style="padding-left:0;margin-top:12px">Seçilenler <span id="hs-say">0</span></div><div class="rows" id="hs-sec"></div>`);
+    const ara = sh.el.querySelector('#hs-ara'), list = sh.el.querySelector('#hs-list'), box = sh.el.querySelector('#hs-sec');
+    const secCiz = () => {
+      sh.el.querySelector('#hs-say').textContent = sec.length;
+      box.innerHTML = sec.length ? sec.map((r, i) => `<div class="row hz-row"><div class="mid"><div class="t">${esc(r.u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(r.u.marka)}</span></div><div class="s">${esc(r.u.aciklama)}</div></div><div class="end" style="flex-direction:row;gap:6px;align-items:center"><input class="inp num hz-m" data-hsm="${i}" type="number" min="0" step="any" value="${esc(r.miktar)}" aria-label="Miktar"><button type="button" class="icon-btn" data-hsx="${i}" aria-label="Çıkar">${ikon('x')}</button></div></div>`).join('') : '<div class="empty" style="padding:12px">Henüz ürün seçmedin</div>';
+      box.querySelectorAll('[data-hsm]').forEach(inp => inp.oninput = () => { sec[+inp.dataset.hsm].miktar = Number(inp.value) || 1; });
+      box.querySelectorAll('[data-hsx]').forEach(b => b.onclick = () => { sec.splice(+b.dataset.hsx, 1); secCiz(); });
+    };
+    const ciz = () => {
+      const q = ara.value.trim(); if (!q) { list.innerHTML = '<div class="empty" style="padding:14px">Yazdıkça ürünler çıkar; dokunarak ekle</div>'; return; }
+      const l = urunAra(q, 30); list.innerHTML = l.length ? '' : '<div class="empty" style="padding:14px">Stokta bulunamadı</div>';
+      l.forEach(u => { const b = document.createElement('button'); b.type = 'button'; b.className = 'row';
+        b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(u.marka)}</span></div><div class="s">${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span style="margin-top:4px">${typeof stokRozet === 'function' ? stokRozet(u) : ''}</span></div>`;
+        b.onclick = () => { const var_ = sec.find(r => r.u.id === u.id); if (var_) var_.miktar++; else sec.push({u, miktar: 1}); secCiz(); ara.select(); };
+        list.appendChild(b); });
+    };
+    ara.oninput = ciz; ciz(); secCiz(); setTimeout(() => ara.focus(), 50);
+    const f = document.createElement('div'); f.className = 'sheet-f'; f.innerHTML = '<button class="btn btn-s">Vazgeç</button><button class="btn btn-p">Teklife ekle</button>';
+    sh.el.querySelector('.sheet').appendChild(f);
+    f.firstChild.onclick = () => sh.kapat();
+    f.lastChild.onclick = () => {
+      if (!sec.length) { toast('Önce ürün seç'); return; }
+      sec.forEach(r => kalemler.push({ref: r.u.ref || '', aciklama: r.u.aciklama || '', marka: r.u.marka || '', miktar: r.miktar, birim: r.u.birim || 'Adet', fiyat: r.u.fiyat || '', para: r.u.para || '€', iskonto: 0}));
+      sh.kapat(); kalemlerCiz(); toast('✅ ' + sec.length + ' kalem teklife eklendi');
+      if (!$('#tf-musteri').value.trim()) { adim(1); toast('Kalemler eklendi — müşteri adını yazıp devam et', 3500); $('#tf-musteri').focus(); } else adim(2);
+    };
+  }
   function ac() {
     const sh = sheet('Hızlı teklif', `<div class="fg">
       <p class="note">Müşterinin gönderdiği <b>fotoğraf, ekran görüntüsü, PDF, Excel</b> ya da <b>WhatsApp/mail metni</b>nden ürün kodlarını okuyup fiyat listesindeki ürünlerle eşleştirir. Teklif yine Ceylan şablonunda çıkar.</p>
-      <label class="btn btn-p btn-block" style="cursor:pointer"><svg class="i"><use href="#i-bolt"/></svg>Dosya / fotoğraf seç<input type="file" id="hz-dosya" multiple accept="image/*,.pdf,.xlsx,.xls,.csv,.txt" hidden></label>
+      <button type="button" class="btn btn-p btn-block" id="hz-ara-btn">${ikon('search')}Ürün kodu / açıklama yazarak seç</button>
+      <label class="btn btn-s btn-block" style="cursor:pointer"><svg class="i"><use href="#i-bolt"/></svg>Dosya / fotoğraf seç<input type="file" id="hz-dosya" multiple accept="image/*,.pdf,.xlsx,.xls,.csv,.txt" hidden></label>
       <div class="f"><label for="hz-metin">…ya da metni yapıştır</label><textarea class="inp" id="hz-metin" rows="5" placeholder="ör.&#10;MTH10-1080B 12 adet&#10;001 046 078080 00 17 x 50"></textarea></div>
     </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Metinden çıkar', cls: 'btn-p', onClick: ov => { const t = ov.querySelector('#hz-metin').value.trim(); if (!t) { toast('Metin boş'); return false; } setTimeout(() => hizliTeklif([], t), 0); }}]);
+    sh.el.querySelector('#hz-ara-btn').onclick = () => { sh.kapat(); setTimeout(() => hizliSec(), 0); };
     sh.el.querySelector('#hz-dosya').onchange = e => { const fl = [...e.target.files]; if (!fl.length) return; sh.kapat(); hizliTeklif(fl); };
   }
   window.hizliTeklif = hizliTeklif;
