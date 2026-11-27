@@ -91,6 +91,29 @@ function spCariEsle(ad) {   // kısaltmalı adı ("ÇÖZÜM END.SOĞ.SİST.İNŞ
   return es >= Math.min(2, a.length) ? en : null;
 }
 
+// Müşteri sipariş numarasını bul: firmalar "Sipariş No", "Sip.No", "Satınalma No", "P.O.", "PO No", "Order No"… diye yazıyor
+const SP_PO_ETIKET = [
+  /sat[ıi]n\s*al(?:ma|m[ae])(?:\s*sipari[şs])?\s*(?:no|numaras[ıi]|n[o°]|nr)(?![a-z0-9])/i,
+  /sipari[şs]\s*(?:no|numaras[ıi]|n[o°]|nr)(?![a-z0-9])/i,
+  /s[iı]p\.?\s*(?:no|nr|numaras[ıi])(?![a-z0-9])/i,
+  /\bp\.?\s?o\.?\s*(?:no|number|numaras[ıi]|nr|#)?(?=\s*[:#.\-]?\s*[A-Z0-9])/i,
+  /\bs\.?\s?a\.?\s*(?:no|nr)(?![a-z0-9])/i,
+  /purchase\s*order(?:\s*(?:no|number|nr))?/i,
+  /\border\s*(?:no|number|nr|#)/i,
+  /(?:belge|fi[şs]|talep\s*sipari[şs])\s*(?:no|numaras[ıi])(?![a-z0-9])/i,
+];
+function spPoBul(satir) {
+  const deger = s => { const m = /^[\s:#.\-–|]*([A-Z0-9][A-Z0-9\-\/.]{2,24})/i.exec(s || ''); if (!m) return ''; const d = m[1].replace(/[.,\-\/]+$/, '');
+    return /\d/.test(d) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(d) ? d : ''; };
+  for (const re of SP_PO_ETIKET) for (let i = 0; i < satir.length; i++) {
+    const kucuk = nrmTR(satir[i]);   // İ/I harf farkı için küçük harfle ara (SİP.NO)
+    const m = kucuk.length === satir[i].length ? re.exec(kucuk) : re.exec(satir[i]); if (!m) continue;
+    const d = deger(satir[i].slice(m.index + m[0].length)) || (/^[\s:#.\-–|]*$/.test(satir[i].slice(m.index + m[0].length)) ? deger(satir[i + 1]) : '');
+    if (d) return d;
+  }
+  return '';
+}
+
 // ── Sipariş belgesini oku: PO no, tarih, termin, tutar, müşteri, kalemler
 const TRAY = {ocak: 1, şubat: 2, subat: 2, mart: 3, nisan: 4, mayıs: 5, mayis: 5, haziran: 6, temmuz: 7, ağustos: 8, agustos: 8, eylül: 9, eylul: 9, ekim: 10, kasım: 11, kasim: 11, aralık: 12, aralik: 12};
 function spTarih(t) {
@@ -105,9 +128,8 @@ async function spBelgeOku(files, durum = () => {}) {
   for (const f of files) { try { durum(f.name + ' okunuyor…'); satir.push(...(await hzMetin(f, durum))); } catch (e) { durum('⚠ ' + f.name + ': ' + e.message); } }
   satir = satir.map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   const tum = satir.join('\n'), o = {};
-  let m = /(?:sipari[şs]\s*(?:no|numaras[ıi]|n[o°])|s[iı]p\.?\s*no|po\s*(?:no|number|#)|purchase\s*order(?:\s*no)?|order\s*(?:no|number)|belge\s*no|fi[şs]\s*no)\s*[:#.]?\s*([A-Z0-9][A-Z0-9\-\/.]{2,24})/i.exec(tum);
-  if (m) o.po = m[1].replace(/[.,]$/, '');
-  else if ((m = /\b(45\d{8})\b/.exec(tum))) o.po = m[1];
+  const po = spPoBul(satir); if (po) o.po = po;
+  else { const m = /\b(45\d{8})\b/.exec(tum); if (m) o.po = m[1]; }
   for (const l of satir) {
     if (!o.termin && /termin|tes\.?\s*tarih|teslim\s*tarih|teslimat\s*tarih|delivery\s*date|istenen\s*teslim|sevk\s*tarih/i.test(l)) o.termin = spTarih(l.split(/termin|teslim\s*tarihi?|teslimat\s*tarihi?|delivery\s*date|istenen\s*teslim|sevk\s*tarihi?/i).pop()) || spTarih(l);
     if (!o.tarih && /sipari[şs]\s*tarih|belge\s*tarih|order\s*date|po\s*date|^tarih|\btarih\s*[:.]/i.test(l)) o.tarih = spTarih(l);
