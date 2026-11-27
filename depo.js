@@ -42,9 +42,10 @@ function dpSenkron(s) {
   if (nd !== d) { yeni.durum = nd; yeni.gecmis = [...(s.gecmis || []), {t: new Date().toISOString(), d: nd, k: ME, n: 'Depo'}]; }
   return yeni;
 }
-const dpGorunur = s => !['iptal', 'teslim', 'fatura'].includes(s.durum || 'alindi') && Array.isArray(s.kalemler) && s.kalemler.length > 0;
+const dpGorunur = s => !['iptal', 'teslim', 'fatura'].includes(s.durum || 'alindi');   // kalemi girilmemiş siparişler de görünür (taranmış belge vb.)
 function dpAsama(s) {   // satırda gösterilecek baskın aşama
   const o = dpOzet(s);
+  if (!o.top) return ['Kalem girilmedi', 'p-red'];
   if (o.tamSevk) return ['Tamamı sevk edildi', 'p-green'];
   if (o.faturali) return [DP.faturali[0] + (o.faturali > 1 ? ' ×' + o.faturali : ''), 'p-blue'];
   if (o.onayli) return [DP.onayli[0], 'p-blue'];
@@ -114,12 +115,14 @@ function dpDetay(id) {
     <div class="s" style="margin-bottom:8px;font-size:12.5px;color:var(--fg2)">${s.termin ? 'Termin <b>' + trT(s.termin) + '</b> · ' : ''}${o.pk}/${o.top} adet paketlendi · ${o.sv} adet sevk edildi${s.musteriSipNo ? ' · PO ' + esc(s.musteriSipNo) : ''}</div>
     <div class="s" style="margin-bottom:10px;font-size:12.5px;color:var(--fg2)">👁 Gören: ${(s.gorenler || []).length ? (s.gorenler || []).map(g => `<b>${esc(adi(g.k))}</b> (${esc(dpZaman(g.t))})`).join(', ') : '<span style="color:var(--red)">henüz kimse görmedi</span>'}</div>
     <div class="tscroll"><table class="kmat" style="width:100%"><thead><tr><th>Ürün</th><th class="r">Sipariş</th><th class="r">Paket</th><th class="r">Sevk</th><th class="r">Kalan</th></tr></thead><tbody>${kal.map(kalemSatir).join('')}</tbody></table></div>
+    ${yetki ? `<button class="btn btn-s btn-block" id="dp-kalem" style="margin:${kal.length ? '0 0 4px' : '12px 0 4px'}">${ikon('plus')}Kalem ekle${kal.length ? '' : ' (siparişte henüz kalem yok)'}</button>` : ''}
     ${yetki && o.kalan > 0 ? `<button class="btn btn-p btn-block" id="dp-yeni" style="margin:12px 0 4px">${ikon('plus')}Yeni paket hazırla (kısmi sevk)</button>` : ''}
     ${!yetki ? '<p class="note" style="margin-top:10px">Bu siparişi görüntülüyorsun. Paket hazırlama, onay ve sevk için depo yetkisi gerekir (yönetici verir).</p>' : ''}
     <div class="vu-h" style="padding-left:0;margin-top:12px">Paketler <span>${ps.filter(p => p.durum !== 'iptal').length}</span></div>
     ${ps.length ? ps.map(paketKart).join('') : '<div class="empty" style="padding:14px">Henüz paket yok</div>'}`,
     [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(id), 0); }}, {label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
   const yenile = () => { sh.kapat(); setTimeout(() => dpDetay(id), 0); };
+  const kb = sh.el.querySelector('#dp-kalem'); if (kb) kb.onclick = () => { sh.kapat(); dpKalemForm(id); };
   const yeni = sh.el.querySelector('#dp-yeni'); if (yeni) yeni.onclick = () => { sh.kapat(); dpPaketForm(id); };
   sh.el.querySelectorAll('[data-dpadim]').forEach(b => b.onclick = async () => {
     const c = guncel(), p = (c.paketler || []).find(x => x.id === b.dataset.dpadim); if (!p) return;
@@ -138,6 +141,24 @@ function dpDetay(id) {
       const c = guncel(); await dpKaydet({...c, paketler: (c.paketler || []).map(x => x.id === b.dataset.dpiptal ? dpLog({...x, durum: 'iptal'}, 'iptal') : x)}); toast('Paket iptal edildi'); setTimeout(() => dpDetay(id), 0);
     });
   });
+}
+
+// Taranmış / okunamayan sipariş belgeleri için elle kalem ekleme
+function dpKalemForm(id) {
+  const s = S.siparisler.find(x => x.id === id); if (!s) return;
+  sheet('Kalem ekle · ' + (s.no || ''), `<div class="fg">
+    <div class="f"><label for="dk-ac">Ürün açıklaması *</label><input class="inp" id="dk-ac" placeholder="ör. Florasan ampul 36W"></div>
+    <div class="f"><label for="dk-ref">Ürün kodu (varsa)</label><input class="inp" id="dk-ref"></div>
+    <div class="fg2"><div class="f"><label for="dk-mik">Miktar *</label><input class="inp num" id="dk-mik" type="number" inputmode="decimal" min="0" step="any" value="1"></div>
+      <div class="f"><label for="dk-bir">Birim</label><input class="inp" id="dk-bir" value="Adet"></div></div>
+    <div class="fg2"><div class="f"><label for="dk-fiyat">Birim fiyat</label><input class="inp num" id="dk-fiyat" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="f"><label for="dk-para">Para</label><select class="sel" id="dk-para"><option>₺</option><option>€</option><option>$</option></select></div></div></div>`,
+    [{label: 'Vazgeç', onClick: () => { setTimeout(() => dpDetay(id), 0); }}, {label: 'Ekle', cls: 'btn-p', onClick: async ov => {
+      const ac = v(ov, 'dk-ac'), mik = dpSay(v(ov, 'dk-mik')); if (!ac || mik <= 0) { toast('Açıklama ve miktar gerekli'); return false; }
+      const c = S.siparisler.find(x => x.id === id) || s, f = v(ov, 'dk-fiyat');
+      const k = {ref: v(ov, 'dk-ref'), aciklama: ac, marka: '', miktar: mik, birim: v(ov, 'dk-bir') || 'Adet', fiyat: f === '' ? '' : Number(f), para: ov.querySelector('#dk-para').value, iskonto: 0, geldi: false};
+      if (await dpKaydet({...c, kalemler: [...(c.kalemler || []), k]})) { toast('✅ Kalem eklendi'); setTimeout(() => dpDetay(id), 0); } else return false;
+    }}]);
 }
 
 function dpPaketForm(id) {
