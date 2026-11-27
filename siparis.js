@@ -130,14 +130,17 @@ function spKalemTablo(satir) {
   const hi = satir.findIndex(l => /miktar/i.test(l) && /(fiyat|tutar|birim)/i.test(l));
   const para = hi >= 0 && /\(\s*eur|€/i.test(satir.slice(hi, hi + 3).join(' ')) ? '€' : hi >= 0 && /\(\s*usd|\$/i.test(satir.slice(hi, hi + 3).join(' ')) ? '$' : '₺';
   const re = new RegExp('^\\s*(?:(\\d{1,3})\\s+)?(\\S*\\d\\S*)\\s+(.+?)\\s+(?:(\\d{1,2}[./]\\d{1,2}[./]20\\d{2})\\s+)?(?:[—–|_\\-]\\s+)?(\\d+(?:[.,]\\d+)?)\\s+(' + SP_BIRIM + ')\\s+([\\d.,]+)\\s+([\\d.,]+)\\s*(?:TL|TRY|EUR|USD|€|\\$)?\\s*$', 'i');
-  const out = [];
+  const out = [], kullan = new Set();   // açıklamaya katılan satırlar (iki kalemde tekrar kullanılmasın)
   for (let i = hi >= 0 ? hi + 1 : 0; i < satir.length; i++) {
     const l = satir[i]; if (hi >= 0 && /^(?:\s*(?:kdv|br[üu]t|net|toplam|genel)\b|.*toplam\s*(?:tutar|miktar))/i.test(l) && out.length) continue;
     const m = re.exec(l); if (!m) continue;
     const fiyat = spTR(m[7]), tutar = spTR(m[8]); let mik = spTR(m[5]);
     if (!(fiyat > 0) || !(mik > 0)) continue;
     for (const b of [1, 10, 100]) { if (tutar > 0 && Math.abs(mik / b * fiyat - tutar) <= Math.max(0.05, tutar * 0.005)) { mik = mik / b; break; } }
-    out.push({ref: m[2].replace(/[.,]+$/, ''), aciklama: m[3].replace(/\s+/g, ' ').trim(), marka: '', miktar: mik, birim: /^m(tr?)?$/i.test(m[6]) ? 'Mt' : /^kg$/i.test(m[6]) ? 'Kg' : 'Adet', fiyat, para, iskonto: 0, teslim: m[4] ? m[4].replace(/\//g, '.') : '', geldi: false});
+    const devam = s => s && (s.match(/[A-Za-zÇĞİÖŞÜçğıöşü]/g) || []).length >= 3 && !re.test(s) && !/(miktar|tutar|\(tl\)|\(eur\)|s[ıi]ra\b|toplam|kdv|br[üu]t|^\s*not\b|[sş]artlar|[öo]deme|ay[ıi]rma)/i.test(s) && (s.match(/\d/g) || []).length <= 6 && !/\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\s*$/.test(s);
+    const once = devam(satir[i - 1]) && i - 1 > hi && !kullan.has(i - 1) ? satir[i - 1].trim() : '', sonra = devam(satir[i + 1]) && (/^\s*[(\[]/.test(satir[i + 1]) || (!/\d/.test(satir[i + 1]) && satir[i + 1].trim().length <= 40 && !/[a-zçğıöşü]/.test(satir[i + 1]))) ? satir[i + 1].trim() : '';
+    if (once) kullan.add(i - 1); if (sonra) kullan.add(i + 1);
+    out.push({ref: m[2].replace(/[.,]+$/, ''), aciklama: [once, m[3], sonra].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim(), marka: '', miktar: mik, birim: /^m(tr?)?$/i.test(m[6]) ? 'Mt' : /^kg$/i.test(m[6]) ? 'Kg' : 'Adet', fiyat, para, iskonto: 0, teslim: m[4] ? m[4].replace(/\//g, '.') : '', geldi: false});
   }
   const son = new Map(); out.forEach(k => son.set(k.ref, k));   // iki okuma geçişinde aynı satır tekrarlanır; sonraki (büyütülmüş) geçiş kazanır
   return [...son.values()];
