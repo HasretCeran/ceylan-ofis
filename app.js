@@ -437,6 +437,14 @@ let tfId = lsGet('co_tf_id', null);
 { const m = lsGet('co_tf_meta', {}); TF.forEach(a => { if (m[a]) $('#tf-' + a).value = m[a]; }); }
 TF.forEach(a => $('#tf-' + a).addEventListener('input', () => lsSet('co_tf_meta', Object.fromEntries(TF.map(x => [x, $('#tf-' + x).value])))));
 
+// Teklif: firma seçilince "Ödeme şekli" boşsa firmanın kayıtlı vadesi (yoksa 90 gün) önerilir
+$('#tf-musteri').addEventListener('change', () => {
+  const od = $('#tf-odeme'); if (!od || od.value.trim()) return;
+  const ad = nrmTR($('#tf-musteri').value.trim()), m = ad && cariler().find(x => nrmTR(x.firma || '') === ad); if (!m) return;
+  const v = vadeGunu(m); od.value = v.gun === 0 ? 'Peşin' : v.gun + ' gün vadeli'; od.dispatchEvent(new Event('input'));
+  toast(`Ödeme şekli: ${od.value}${v.kayitli ? '' : ' (firmada vade kayıtlı değil, 90 gün varsayıldı)'}`, 3500);
+});
+
 function adim(n) {
   if (n >= 2 && !$('#tf-musteri').value.trim()) { toast('Önce müşteri adını yaz'); $('#tf-musteri').focus(); n = 1; }
   if (n === 3) { onizle(); pdfOnHazirla(); }
@@ -725,6 +733,11 @@ function cariler() {
   return CARI;
 }
 const TUR = {musteri: 'Müşteri', tedarikci: 'Tedarikçi', diger: 'Diğer'};
+// Firmanın kayıtlı ödeme vadesi (gün): 0 = peşin, 30 / 60 / 90 …; kayıtlı değilse 90 gün kabul edilir
+const VADE_VARSAYILAN = 90;
+const VADE_SECENEK = [0, 15, 30, 45, 60, 75, 90, 105, 120, 150, 180];
+function vadeGunu(m) { const v = m && m.vadeGun; return v === '' || v == null || !isFinite(Number(v)) ? {gun: VADE_VARSAYILAN, kayitli: false} : {gun: Number(v), kayitli: true}; }
+const vadeYaz = (m, uzun) => { const v = vadeGunu(m); return (v.gun === 0 ? 'peşin' : v.gun + ' gün') + (v.kayitli ? '' : uzun ? ' (kayıtlı değil, varsayılan)' : '*'); };
 let mFiltre = 'bakiyeli', mLimit = 100;
 function firmaSatir(m) {
   const al = Number(m.alacak || 0), gec = vadeGecti(m), borc = al < 0;
@@ -738,7 +751,7 @@ function firmaSatir(m) {
   else [l, c] = [TUR[m.tur] || 'Firma', 'p-gray'];
   const renk = gec ? ['var(--red-soft)', 'var(--red)'] : borc ? ['var(--orange-soft)', 'var(--orange)'] : ['var(--green-soft)', 'var(--green)'];
   const ov = IS_FIN && (mFiltre === 'ortAlacak' || mFiltre === 'ortVerecek') ? ortVade(m) : null;
-  const alt = ov ? ['Ort. vade ' + trT(ov.tarih), gunYazi(ov.tarih), m.kod].filter(Boolean).join(' · ') : [m.kod, m.sehir, IS_FIN && gec ? 'Gecikmiş ' + kisa(gecTutar(m)) : '', IS_FIN && yakVade(m) ? 'Vade ' + trT(yakVade(m)) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
+  const alt = ov ? ['Ort. vade ' + trT(ov.tarih), gunYazi(ov.tarih), m.kod].filter(Boolean).join(' · ') : [m.kod, 'Vade ' + vadeYaz(m), m.sehir, IS_FIN && gec ? 'Gecikmiş ' + kisa(gecTutar(m)) : '', IS_FIN && yakVade(m) ? 'Vade ' + trT(yakVade(m)) : '', !m.kod && m.ilgili ? m.ilgili : ''].filter(Boolean).join(' · ') || 'Cari kart';
   return `<button class="row" data-firma="${esc(m.id)}"><div class="ico" style="background:${renk[0]};color:${renk[1]}">${esc(bas(m.firma))}</div>
     <div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(alt)}</div></div>
     <div class="end">${IS_FIN ? `<b class="num" style="color:${borc ? 'var(--orange)' : al > 0 ? 'var(--fg)' : 'var(--fg3)'}">${tl(Math.abs(al))}</b>` : ''}<span class="pill ${c}" style="margin-top:4px">${esc(l)}</span></div></button>`;
@@ -803,7 +816,7 @@ document.addEventListener('pointerdown', e => {
   if (!e.target.closest('.fsug')) document.querySelectorAll('.fsug').forEach(x => x.remove());
 }, true);
 document.addEventListener('focusout', e => { if (e.target.dataset && e.target.dataset.fsug) setTimeout(() => { const k = e.target.parentNode && e.target.parentNode.querySelector('.fsug'); if (k && document.activeElement !== e.target) k.remove(); }, 150); });
-const KART_ALAN = ['firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
+const KART_ALAN = ['vadeGun', 'firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
 async function bakiyeYaz(id, patch) {
   const eski = S.bakiye.find(b => b.id === id) || {};
   const ok = await BE.yaz('bakiye', {...eski, ...patch, id});
@@ -820,6 +833,7 @@ function firmaForm(id) {
     <div class="f"><label for="ff-tel">Telefon</label><input class="inp" id="ff-tel" type="tel" value="${esc(m.tel)}"></div></div>
     <div class="fg2"><div class="f"><label for="ff-eposta">E-posta</label><input class="inp" id="ff-eposta" type="email" autocapitalize="none" value="${esc(m.eposta)}" placeholder="satinalma@firma.com"></div>
     <div class="f"><label for="ff-tur">Tür</label><select class="sel" id="ff-tur">${Object.entries(TUR).map(([k, l]) => `<option value="${k}"${(m.tur || 'musteri') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+    <div class="f"><label for="ff-vgun">Ödeme vadesi (gün)</label><select class="sel" id="ff-vgun"><option value="">Kayıtlı değil — ${VADE_VARSAYILAN} gün kabul edilir</option>${VADE_SECENEK.map(g => `<option value="${g}"${m.vadeGun !== '' && m.vadeGun != null && Number(m.vadeGun) === g ? ' selected' : ''}>${g === 0 ? 'Peşin' : g + ' gün'}</option>`).join('')}</select></div>
     ${IS_FIN ? `<div class="fg2"><div class="f"><label for="ff-alacak">${al < 0 ? 'Borcumuz (₺)' : 'Alacak (₺)'}</label><input class="inp num" id="ff-alacak" type="number" inputmode="decimal" step="0.01" value="${m.alacak != null ? esc(Math.abs(al)) : ''}"></div>
     <div class="f"><label for="ff-vade">Vade</label><input class="inp" id="ff-vade" type="date" value="${esc(m.vade)}"></div></div>
     <div class="fg2"><div class="f"><label for="ff-yon">Yön</label><select class="sel" id="ff-yon"><option value="B"${al >= 0 ? ' selected' : ''}>Bize borçlu (alacak)</option><option value="A"${al < 0 ? ' selected' : ''}>Biz borçluyuz</option></select></div>
@@ -831,7 +845,7 @@ function firmaForm(id) {
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
     const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
-    Object.assign(kart, {firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), tur: v(ov, 'ff-tur'), not: v(ov, 'ff-not')});
+    Object.assign(kart, {firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), tur: v(ov, 'ff-tur'), not: v(ov, 'ff-not'), vadeGun: v(ov, 'ff-vgun') === '' ? '' : Number(v(ov, 'ff-vgun'))});
     const kid = id || newId();
     let ok = await kaydet('musteri', {...kart, id: kid, by: m.by, at: m.at});
     if (ok && IS_FIN) {
