@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.28.0';
+const APP_VERSION = '1.28.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -437,7 +437,7 @@ TF.forEach(a => $('#tf-' + a).addEventListener('input', () => lsSet('co_tf_meta'
 
 function adim(n) {
   if (n >= 2 && !$('#tf-musteri').value.trim()) { toast('Önce müşteri adını yaz'); $('#tf-musteri').focus(); n = 1; }
-  if (n === 3) { onizle(); pdfOnHazirla(); }
+  if (n === 3) { onizle(); pdfOnHazirla(); if (kalemler.length && $('#tf-musteri').value.trim()) tfKaydet(true, true); }   // önizlemeye gelen teklif Teklif Geçmişi'ne otomatik kaydolur
   $$('.wp').forEach((w, i) => w.classList.toggle('active', i === n - 1));
   $$('.step').forEach((s, i) => { s.classList.toggle('on', i === n - 1); s.classList.toggle('done', i < n - 1); });
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -525,15 +525,23 @@ function onizle() {
   tfSakla();
   $('#tf-durum').textContent = tfId ? 'Kayıtlı teklifi düzenliyorsun' : 'Yeni teklif';
 }
-async function tfKaydet(sessiz) {
-  if (!kalemler.length) { toast('Önce kalem ekle'); return false; }
+// Kayıtlar sırayla yapılır: önizleme, PDF ve gönder aynı anda tetiklense de tek teklif oluşur
+let tfKayitIs = Promise.resolve();
+function tfKaydet(sessiz, oto) { const is = tfKayitIs.then(() => tfKaydetTek(sessiz, oto)); tfKayitIs = is.catch(() => false); return is; }
+async function tfKaydetTek(sessiz, oto) {
+  if (!kalemler.length) { if (!oto) toast('Önce kalem ekle'); return false; }
   const m = tfMeta();
   const eski = tfId && S.teklifler.find(t => t.id === tfId);
   // Aynı numara başka bir teklifte varsa (aynı anda iki kişi hazırladıysa) sıradakini ver
   if (!m.no || S.teklifler.some(t => t.id !== tfId && String(t.no) === String(m.no))) { m.no = otoNo(); $('#tf-no').value = m.no; }
-  const obj = {...(eski || {}), ...m, id: tfId || newId(), kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
+  const id = tfId || newId(), yeni = !eski;
+  tfId = id; lsSet('co_tf_id', id);   // kayıt sürerken gelen ikinci istek aynı teklifi günceller, kopya açmaz
+  const obj = {...(eski || {}), ...m, id, kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
+  // Değişiklik yoksa tekrar yazma (geçmişteki sırası bozulmasın)
+  if (eski && oto) { const ayni = (a, b) => JSON.stringify(a) === JSON.stringify(b); if (TF.every(k => (eski[k] || '') === (obj[k] || '')) && ayni(eski.kalemler, obj.kalemler)) return true; }
   const ok = await kaydet('teklifler', obj);
-  if (ok) { tfId = obj.id; lsSet('co_tf_id', tfId); $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz) toast('✅ Teklif geçmişe kaydedildi'); }
+  if (ok) { $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz || (oto && yeni)) toast('✅ Teklif ' + obj.no + ' geçmişe kaydedildi'); }
+  else if (yeni) { tfId = null; lsSet('co_tf_id', null); }
   return ok;
 }
 function tfYeni() {
@@ -586,6 +594,7 @@ async function pdfAl(t, tf) {
 async function cikti(tur, t, tf) {
   if (!t.kalemler || !t.kalemler.length) { toast('Önce kalem ekle'); return; }
   const ad = TC.dosyaAdi(t, tur === 'excel' ? 'xlsx' : 'pdf');
+  if (tf) tfKaydet(true, true);   // önce kaydet: paylaşım iptal edilse ya da hata verse de teklif geçmişte kalır
   try {
     if (tur === 'excel') { toast('Excel hazırlanıyor…'); TC.indir(await TC.excelUret(t, A.teklif), ad); toast('⬇ ' + ad, 3200); }
     else if (tur === 'pdf') { toast('PDF hazırlanıyor…'); TC.indir(await pdfAl(t, tf), ad); toast('⬇ ' + ad, 3200); }
@@ -594,7 +603,6 @@ async function cikti(tur, t, tf) {
       const r = await TC.paylas(blob, ad, t, A.mail);
       if (r === 'mailto') toast('PDF indirildi, mail açılıyor — PDF\'i eke ekle', 4500);
     }
-    if (tf) tfKaydet(true);
   } catch (e) {
     if (e && e.name === 'AbortError') return;
     if (e && e.name === 'NotAllowedError') { toast('Paylaşım hazır — bir kez daha bas', 3500); return; }

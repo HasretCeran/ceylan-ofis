@@ -308,5 +308,9 @@
     return r;
   };
   window.hzExcelKalemler = async f => { dizin(); return excelKalemler(f); };
-  document.querySelectorAll('[data-act="hizli-teklif"]').forEach(b => b.onclick = ac);
+  // 1. adımdaki "Hızlı teklif" yeni teklif içindir: ekranda kayıtlı bir teklif açıksa üzerine yazmamak için temiz başla
+  document.querySelectorAll('[data-act="hizli-teklif"]').forEach(b => b.onclick = () => {
+    if (b.classList.contains('hz-btn') && tfId && S.teklifler.some(t => t.id === tfId)) { tfYeni(); toast('Önceki teklif kayıtlı — yeni teklif başlatıldı', 3000); }
+    ac();
+  });
 })();
