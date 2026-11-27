@@ -100,8 +100,8 @@ function sayimCiz() {
       <div class="s">${esc(x.aciklama || '')}${x.konumlar.size ? ' · 📍' + esc([...x.konumlar].join(', ')) : ''}</div></div>
       <div class="end"><b class="num" style="font-size:16px">${fmtM(x.toplam)}</b><span class="s">${esc(x.birim)}${x.girisler.length > 1 ? ' · ' + x.girisler.length + ' giriş' : ''}</span>${x.fark ? `<span class="sy-fark ${x.fark > 0 ? 'art' : 'eks'}">kayıtlı ${fmtM(x.kayitli)} · ${x.fark > 0 ? '+' : ''}${fmtM(x.fark)}</span>` : ''}</div></button>`).join('') : `<div class="empty">${g.length ? 'Bu filtrede ürün yok' : 'Henüz sayılan ürün yok'}</div>`;
   }
-  const benim = syKalemler(s.id).filter(k => k.by === ME).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 5);
-  $('#sy-son').innerHTML = benim.length ? '<div class="vu-h" style="padding-left:0">Son girişlerin</div>' + benim.map(k => `<div class="row" style="padding:6px 0"><div class="mid"><div class="t">${esc(k.ref || k.aciklama)}${k._q ? ' <span class="pill p-gray">⏳ bekliyor</span>' : ''}</div><div class="s">${esc(k.konum || '')}</div></div><div class="end"><b class="num">${fmtM(k.miktar)} ${esc(k.birim || '')}</b>${kapali ? '' : `<div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end"><button class="btn btn-s btn-sm" data-syduz="${esc(k.id)}">✎ Düzelt</button><button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}">Geri al</button></div>`}</div></div>`).join('') : '';
+  const benim = syKalemler(s.id).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 8);   // ortak liste: ekibin tüm girişleri
+  $('#sy-son').innerHTML = benim.length ? '<div class="vu-h" style="padding-left:0">Ekibin son girişleri <span>herkesin girişi burada ortak</span></div>' + benim.map(k => `<div class="row" style="padding:6px 0"><div class="mid"><div class="t">${esc(k.ref || k.aciklama)}${k._q ? ' <span class="pill p-gray">⏳ bekliyor</span>' : ''}</div><div class="s">👤 ${esc(k.by === ME ? 'Sen' : (k.sayan || adi(k.by)).split(' ')[0])}${k.konum ? ' · 📍' + esc(k.konum) : ''}${k.duzeltildi ? ' · ✎ düzeltildi' : ''}</div></div><div class="end"><b class="num">${fmtM(k.miktar)} ${esc(k.birim || '')}</b>${kapali ? '' : `<div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end"><button class="btn btn-s btn-sm" data-syduz="${esc(k.id)}">✎ Düzelt</button>${k.by === ME || IS_OWNER ? `<button class="btn btn-s btn-sm" data-sysil="${esc(k.id)}">Geri al</button>` : ''}</div>`}</div></div>`).join('') : '';
 }
 let syGor = '';
 // Kayıtlı stok: sayım kapanınca ürün kartındaki stok sayılanla değişir, o yüzden önceki değer saklanır
@@ -127,7 +127,6 @@ function syDuzeltForm(id) {
   const k = [...S.sayim_kalem, ...syKuyruk].find(x => x.id === id); if (!k) { toast('Giriş bulunamadı'); return; }
   const s = S.sayimlar.find(x => x.id === k.sayimId);
   if (!s || s.durum === 'kapali') { toast('Tamamlanmış sayım düzeltilemez — önce "Yeniden aç"'); return; }
-  if (!(k.by === ME || IS_OWNER)) { toast('⛔ Sadece kendi girişini düzeltebilirsin'); return; }
   const birimler = [...new Set([k.birim || 'Adet', 'Adet', 'Mt', 'Kg', 'Paket', 'Kutu', 'Takım', 'Rulo'])];
   const zaman = k.zaman ? new Date(k.zaman).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
   sheet('Girişi düzelt', `<div class="fg">
@@ -363,8 +362,8 @@ function smAra(q = '') {
 }
 function smSon() {
   const box = sm.el.querySelector('#smo-son'); if (!box) return;
-  const l = syKalemler(sm.id).filter(k => k.by === ME).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 4);
-  box.innerHTML = l.length ? '<div class="smod-alt">Son girişlerin</div>' + l.map(k => `<div class="smod-son"><div><b>${esc(k.ref || k.aciklama)}</b><small>${esc(k.konum || '')}${k._q ? ' · ⏳ gönderilecek' : ''}</small></div><b>${fmtM(k.miktar)} ${esc(k.birim || '')}</b><button class="btn btn-s btn-sm" data-duz="${esc(k.id)}">✎ Düzelt</button><button class="btn btn-s btn-sm" data-geri="${esc(k.id)}">Geri al</button></div>`).join('') : '';
+  const l = syKalemler(sm.id).sort((a, b) => (b.zaman || '').localeCompare(a.zaman || '')).slice(0, 6);   // ortak: herkesin son girişleri
+  box.innerHTML = l.length ? '<div class="smod-alt">Ekibin son girişleri</div>' + l.map(k => `<div class="smod-son"><div><b>${esc(k.ref || k.aciklama)}</b><small>👤 ${esc(k.by === ME ? 'Sen' : (k.sayan || adi(k.by)).split(' ')[0])}${k.konum ? ' · ' + esc(k.konum) : ''}${k._q ? ' · ⏳ gönderilecek' : ''}${k.duzeltildi ? ' · ✎' : ''}</small></div><b>${fmtM(k.miktar)} ${esc(k.birim || '')}</b><button class="btn btn-s btn-sm" data-duz="${esc(k.id)}">✎ Düzelt</button>${k.by === ME || IS_OWNER ? `<button class="btn btn-s btn-sm" data-geri="${esc(k.id)}">Geri al</button>` : ''}</div>`).join('') : '';
   box.querySelectorAll('[data-duz]').forEach(x => x.onclick = () => syDuzeltForm(x.dataset.duz));
   box.querySelectorAll('[data-geri]').forEach(x => x.onclick = async () => { await sySil(x.dataset.geri); toast('Giriş geri alındı'); });
 }
