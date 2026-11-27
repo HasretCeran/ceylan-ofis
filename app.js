@@ -112,14 +112,14 @@ const BE = DEMO ? {
       for (let i = 0; i < sayfa; i += 6) {   // 6'şar sayfa paralel
         const parca = await Promise.all(Array.from({length: Math.min(6, sayfa - i)}, (_, k) => sb.from(c).select('*').order('id').range((i + k) * 1000, (i + k) * 1000 + 999)));
         for (const {data, error} of parca) { if (error) throw error; out.push(...data); }
-        if (ilerle) ilerle(out, count || 0);   // büyük liste parça parça gelir; her parçada kullanılabilir hale getirilir
+        if (typeof ilerle === 'function') ilerle(out, count || 0);   // büyük liste parça parça gelir; her parçada kullanılabilir hale getirilir
       }
       return out;
     };
     this._hepsi = hepsi;
     // Ürün listesi büyük: uygulamayı bekletmeden arkadan yüklenir
     const ana = COLS.filter(c => c !== 'stok');
-    const sonuc = await Promise.all(ana.map(hepsi));
+    const sonuc = await Promise.all(ana.map(c => hepsi(c)));   // map(hepsi) ikinci parametre olarak indeks geçirirdi
     sonuc.forEach((rows, i) => { S[ana[i]] = rows.map(rowToObj); });
     STOK_DURUM.bitti = false;
     hepsi('stok', (rows, toplam) => { S.stok = rows.map(rowToObj); STOK_DURUM.toplam = toplam; window.dispatchEvent(new Event('stok-ilerleme')); })
