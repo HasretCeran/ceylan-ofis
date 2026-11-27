@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.24.9';
+const APP_VERSION = '1.24.10';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -1156,7 +1156,7 @@ async function surumKontrol() {
       // Uygulama yeni açıldıysa sessizce yenile; kullanım ortasındaysa sor
       // Her yeni sürüm için en fazla bir kez otomatik yenile (döngüye girmesin)
       let denendi = false; try { denendi = sessionStorage.getItem('co_yenile_' + j.v) === '1'; sessionStorage.setItem('co_yenile_' + j.v, '1'); } catch (e) { denendi = true; }
-      if (!denendi && performance.now() < 8000 && !$('.overlay')) location.reload();
+      if (!denendi && !$('.overlay') && !document.activeElement.matches('input,textarea,select')) location.reload();   // açık form / yazı yazılırken değilse sessizce yeni sürüme geç
       else $('#upd-banner').hidden = false;
     }
   } catch (e) {}
