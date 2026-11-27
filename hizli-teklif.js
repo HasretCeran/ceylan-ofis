@@ -94,7 +94,7 @@
     await script(LIB.tesseract);
     const oku = async (f, etiket) => (await Tesseract.recognize(f, 'tur+eng', {logger: m => { if (m.status === 'recognizing text') ilerle('Fotoğraf okunuyor' + etiket + '… %' + Math.round(m.progress * 100)); }})).data.text.split('\n');
     let satir = await oku(file, '');
-    if (cift) { try { const b = await guclendir(file); if (b) satir = satir.concat(await oku(b, ' (ayrıntı)')); } catch (e) { /* büyütme olmazsa ilk okuma yeter */ } }
+    if (cift) { try { const b = await guclendir(file); if (b) satir = satir.concat(['\u0001'], await oku(b, ' (ayrıntı)')); } catch (e) { /* büyütme olmazsa ilk okuma yeter */ } }
     return satir;
   }
   // Excel'de başlık satırı (Kod / Açıklama / Miktar…) varsa her dolu satır bir kalem olur — kodsuzlar dahil
