@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.24.8';
+const APP_VERSION = '1.24.9';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -76,7 +76,7 @@ const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], sipa
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
-let IS_DEPO = false; // depo / sevkiyat yetkisi: yönetici + depo yetkisi verilenler
+let IS_DEPO = false; // depo / sevkiyat: giriş yapan her kullanıcıya açık
 let IS_FIN = false; // bakiye görme yetkisi: yönetici + finans yetkisi verilenler
 let sb = null;
 // Ayarlar (yönetici düzenler): teklif varsayılanları, mail şablonu, DİA bilgileri
@@ -1012,7 +1012,7 @@ function rolUygula() {
   const p = P[ME] || {};
   IS_OWNER = DEMO || p.rol === 'sahip';
   IS_FIN = IS_OWNER || !!p.finans;
-  IS_DEPO = IS_OWNER || !!p.depo;
+  IS_DEPO = true;
   $$('.depo-only').forEach(e => e.hidden = !IS_DEPO);
   $$('.fin-only').forEach(e => e.hidden = !IS_FIN);
   $$('.owner-fin').forEach(e => e.hidden = !IS_OWNER);   // alacak / vadesi geçen / tahsilat toplamları: sadece yönetici
@@ -1061,7 +1061,7 @@ function ekipCiz() {
   const box = $('#ekip-list');
   if (DEMO) { box.innerHTML = '<div class="empty">Demo modunda ekip yok</div>'; return; }
   box.innerHTML = Object.entries(P).sort((a, b) => (a[1].ad || '').localeCompare(b[1].ad || '', 'tr')).map(([id, p]) => {
-    const alt = [p.kullanici ? '@' + p.kullanici : '', p.rol === 'sahip' ? 'Yönetici' : [p.finans && 'bakiye yetkili', p.depo && 'depo yetkili'].filter(Boolean).join(', ') ? 'Çalışan · ' + [p.finans && 'bakiye yetkili', p.depo && 'depo yetkili'].filter(Boolean).join(', ') : 'Çalışan'].filter(Boolean).join(' · ');
+    const alt = [p.kullanici ? '@' + p.kullanici : '', p.rol === 'sahip' ? 'Yönetici' : p.finans ? 'Çalışan · bakiye yetkili' : 'Çalışan'].filter(Boolean).join(' · ');
     return `<button class="row" data-uye="${esc(id)}"><div class="avatar" style="${p.aktif === false ? 'background:var(--fg3)' : ''}">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${esc(alt)}</div></div>${p.aktif === false ? '<span class="pill p-red">Erişim durduruldu</span>' : ikon('right')}</button>`;
   }).join('');
 }
@@ -1115,12 +1115,11 @@ $('#ekip-list').onclick = e => {
     <div class="f"><label for="ue-ad">Görünen ad</label><input class="inp" id="ue-ad" value="${esc(p.ad)}"></div>
     <div class="f"><label for="ue-rol">Rol</label><select class="sel" id="ue-rol"${ben ? ' disabled' : ''}><option value="calisan"${p.rol !== 'sahip' ? ' selected' : ''}>Çalışan</option><option value="sahip"${p.rol === 'sahip' ? ' selected' : ''}>Yönetici (Finans görür, silebilir)</option></select></div>
     <label class="chk"><input type="checkbox" id="ue-fin"${p.finans || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Cari bakiyeleri ve tahsilatları görebilir</label>
-    <label class="chk"><input type="checkbox" id="ue-depo"${p.depo || p.rol === 'sahip' ? ' checked' : ''}${p.rol === 'sahip' ? ' disabled' : ''}> Depo / sevkiyat: paket hazırlama, onay, fatura ve sevk adımlarını yapabilir</label>
     ${ben ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
       <button class="btn btn-s btn-sm" id="ue-sifre">Şifre sıfırla</button>
       ${p.aktif === false ? '<button class="btn btn-s btn-sm" id="ue-ac">Erişimi tekrar aç</button>' : '<button class="btn btn-d btn-sm" id="ue-durdur">Erişimi durdur</button>'}</div>`}</div>`,
     [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
-      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: ben ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked, depo: ov.querySelector('#ue-depo').checked}).eq('id', id);
+      const {error} = await sb.from('profiles').update({ad: v(ov, 'ue-ad'), rol: ben ? p.rol : v(ov, 'ue-rol'), finans: ov.querySelector('#ue-fin').checked}).eq('id', id);
       if (error) { hata(error); return false; } await profilYukle(); rolUygula(); hepsiniCiz(); toast('✅ Güncellendi');
     }}]);
   const sf = sh.el.querySelector('#ue-sifre');

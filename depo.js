@@ -117,7 +117,6 @@ function dpDetay(id) {
     <div class="tscroll"><table class="kmat" style="width:100%"><thead><tr><th>Ürün</th><th class="r">Sipariş</th><th class="r">Paket</th><th class="r">Sevk</th><th class="r">Kalan</th></tr></thead><tbody>${kal.map(kalemSatir).join('')}</tbody></table></div>
     ${yetki ? `<button class="btn btn-s btn-block" id="dp-kalem" style="margin:${kal.length ? '0 0 4px' : '12px 0 4px'}">${ikon('plus')}Kalem ekle${kal.length ? '' : ' (siparişte henüz kalem yok)'}</button>` : ''}
     ${yetki && o.kalan > 0 ? `<button class="btn btn-p btn-block" id="dp-yeni" style="margin:12px 0 4px">${ikon('plus')}Yeni paket hazırla (kısmi sevk)</button>` : ''}
-    ${!yetki ? '<p class="note" style="margin-top:10px">Bu siparişi görüntülüyorsun. Paket hazırlama, onay ve sevk için depo yetkisi gerekir (yönetici verir).</p>' : ''}
     <div class="vu-h" style="padding-left:0;margin-top:12px">Paketler <span>${ps.filter(p => p.durum !== 'iptal').length}</span></div>
     ${ps.length ? ps.map(paketKart).join('') : '<div class="empty" style="padding:14px">Henüz paket yok</div>'}`,
     [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(id), 0); }}, {label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
