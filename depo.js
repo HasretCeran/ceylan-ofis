@@ -100,7 +100,7 @@ function dpDetay(id) {
   const guncel = () => S.siparisler.find(x => x.id === id) || s;
   s = guncel();
   const kal = s.kalemler || [], h = dpHesap(s), o = dpOzet(s), ps = (s.paketler || []);
-  const kalemSatir = (k, i) => `<tr><td><b>${esc(k.ref || k.aciklama || '—')}</b>${k.ref && k.aciklama ? `<small>${esc(k.aciklama)}</small>` : ''}</td><td class="r">${h[i].siparis}</td><td class="r">${h[i].paket}</td><td class="r">${h[i].sevk}</td><td class="r"${h[i].kalan ? ' style="color:var(--orange);font-weight:700"' : ''}>${h[i].kalan}</td></tr>`;
+  const kalemSatir = (k, i) => `<tr${yetki ? ` data-dpk="${i}" style="cursor:pointer"` : ''}><td><b>${esc(k.ref || k.aciklama || '—')}</b>${k.ref && k.aciklama ? `<small>${esc(k.aciklama)}</small>` : ''}</td><td class="r">${h[i].siparis}</td><td class="r">${h[i].paket}</td><td class="r">${h[i].sevk}</td><td class="r"${h[i].kalan ? ' style="color:var(--orange);font-weight:700"' : ''}>${h[i].kalan}</td></tr>`;
   const paketKart = p => {
     const [l, c] = DP[p.durum] || DP.hazirlaniyor, son = p.durum !== 'iptal' && p.durum !== 'sevk';
     const ek = [p.faturaNo && 'Fatura ' + p.faturaNo, p.irsaliyeNo && 'İrsaliye ' + p.irsaliyeNo, p.kargo].filter(Boolean).join(' · ');
@@ -122,6 +122,7 @@ function dpDetay(id) {
     ${ps.length ? ps.map(paketKart).join('') : '<div class="empty" style="padding:14px">Henüz paket yok</div>'}`,
     [{label: 'Siparişi aç', onClick: () => { setTimeout(() => siparisDetay(id), 0); }}, {label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
   const yenile = () => { sh.kapat(); setTimeout(() => dpDetay(id), 0); };
+  sh.el.querySelectorAll('[data-dpk]').forEach(tr => tr.onclick = () => { sh.kapat(); dpKalemForm(id, +tr.dataset.dpk); });
   const kb = sh.el.querySelector('#dp-kalem'); if (kb) kb.onclick = () => { sh.kapat(); dpKalemForm(id); };
   const yeni = sh.el.querySelector('#dp-yeni'); if (yeni) yeni.onclick = () => { sh.kapat(); dpPaketForm(id); };
   sh.el.querySelectorAll('[data-dpadim]').forEach(b => b.onclick = async () => {
@@ -144,21 +145,30 @@ function dpDetay(id) {
 }
 
 // Taranmış / okunamayan sipariş belgeleri için elle kalem ekleme
-function dpKalemForm(id) {
+function dpKalemForm(id, idx) {
   const s = S.siparisler.find(x => x.id === id); if (!s) return;
-  sheet('Kalem ekle · ' + (s.no || ''), `<div class="fg">
-    <div class="f"><label for="dk-ac">Ürün açıklaması *</label><input class="inp" id="dk-ac" placeholder="ör. Florasan ampul 36W"></div>
-    <div class="f"><label for="dk-ref">Ürün kodu (varsa)</label><input class="inp" id="dk-ref"></div>
-    <div class="fg2"><div class="f"><label for="dk-mik">Miktar *</label><input class="inp num" id="dk-mik" type="number" inputmode="decimal" min="0" step="any" value="1"></div>
-      <div class="f"><label for="dk-bir">Birim</label><input class="inp" id="dk-bir" value="Adet"></div></div>
-    <div class="fg2"><div class="f"><label for="dk-fiyat">Birim fiyat</label><input class="inp num" id="dk-fiyat" type="number" inputmode="decimal" min="0" step="any"></div>
-      <div class="f"><label for="dk-para">Para</label><select class="sel" id="dk-para"><option>₺</option><option>€</option><option>$</option></select></div></div></div>`,
-    [{label: 'Vazgeç', onClick: () => { setTimeout(() => dpDetay(id), 0); }}, {label: 'Ekle', cls: 'btn-p', onClick: async ov => {
+  const k0 = idx != null ? (s.kalemler || [])[idx] : null, d = k0 || {birim: 'Adet', para: '₺', miktar: 1};
+  const sh = sheet((k0 ? 'Kalemi düzenle · ' : 'Kalem ekle · ') + (s.no || ''), `<div class="fg">
+    <div class="f"><label for="dk-ac">Ürün açıklaması *</label><input class="inp" id="dk-ac" value="${esc(d.aciklama || '')}" placeholder="ör. Florasan ampul 36W"></div>
+    <div class="f"><label for="dk-ref">Ürün kodu (varsa)</label><input class="inp" id="dk-ref" value="${esc(d.ref || '')}"></div>
+    <div class="fg2"><div class="f"><label for="dk-mik">Miktar *</label><input class="inp num" id="dk-mik" type="number" inputmode="decimal" min="0" step="any" value="${esc(d.miktar)}"></div>
+      <div class="f"><label for="dk-bir">Birim</label><input class="inp" id="dk-bir" value="${esc(d.birim || 'Adet')}"></div></div>
+    <div class="fg2"><div class="f"><label for="dk-fiyat">Birim fiyat</label><input class="inp num" id="dk-fiyat" type="number" inputmode="decimal" min="0" step="any" value="${esc(d.fiyat ?? '')}"></div>
+      <div class="f"><label for="dk-para">Para</label><select class="sel" id="dk-para">${['₺', '€', '$'].map(p => `<option${p === (d.para || '₺') ? ' selected' : ''}>${p}</option>`).join('')}</select></div></div>
+    ${k0 ? '<button class="btn btn-d btn-sm" id="dk-sil" style="justify-self:start">Kalemi sil</button>' : ''}</div>`,
+    [{label: 'Vazgeç', onClick: () => { setTimeout(() => dpDetay(id), 0); }}, {label: k0 ? 'Kaydet' : 'Ekle', cls: 'btn-p', onClick: async ov => {
       const ac = v(ov, 'dk-ac'), mik = dpSay(v(ov, 'dk-mik')); if (!ac || mik <= 0) { toast('Açıklama ve miktar gerekli'); return false; }
       const c = S.siparisler.find(x => x.id === id) || s, f = v(ov, 'dk-fiyat');
-      const k = {ref: v(ov, 'dk-ref'), aciklama: ac, marka: '', miktar: mik, birim: v(ov, 'dk-bir') || 'Adet', fiyat: f === '' ? '' : Number(f), para: ov.querySelector('#dk-para').value, iskonto: 0, geldi: false};
-      if (await dpKaydet({...c, kalemler: [...(c.kalemler || []), k]})) { toast('✅ Kalem eklendi'); setTimeout(() => dpDetay(id), 0); } else return false;
+      const k = {...(k0 || {}), ref: v(ov, 'dk-ref'), aciklama: ac, marka: (k0 || {}).marka || '', miktar: mik, birim: v(ov, 'dk-bir') || 'Adet', fiyat: f === '' ? '' : Number(f), para: ov.querySelector('#dk-para').value, iskonto: (k0 || {}).iskonto || 0, geldi: !!(k0 || {}).geldi};
+      const kal = k0 ? (c.kalemler || []).map((x, i) => i === idx ? k : x) : [...(c.kalemler || []), k];
+      if (await dpKaydet({...c, kalemler: kal})) { toast(k0 ? '✅ Kalem güncellendi' : '✅ Kalem eklendi'); setTimeout(() => dpDetay(id), 0); } else return false;
     }}]);
+  const sil = sh.el.querySelector('#dk-sil');
+  if (sil) sil.onclick = () => {
+    const c = S.siparisler.find(x => x.id === id) || s;
+    if (dpPaketler(c).length) { toast('Paketi olan siparişte kalem silinemez; önce paketleri iptal et'); return; }
+    sh.kapat(); confirmSheet('Kalem silinsin mi?', (k0.aciklama || k0.ref || '') + ' siparişten çıkarılır.', async () => { await dpKaydet({...c, kalemler: (c.kalemler || []).filter((x, i) => i !== idx)}); toast('Kalem silindi'); setTimeout(() => dpDetay(id), 0); });
+  };
 }
 
 function dpPaketForm(id) {

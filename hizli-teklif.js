@@ -83,10 +83,19 @@
     if (out.join('').trim().length < 20) throw new Error('Bu PDF taranmış (resim) görünüyor — sayfanın fotoğrafını ya da ekran görüntüsünü yükle');
     return out;
   }
-  async function resimSatirlar(file, ilerle) {
+  // Küçük / düşük çözünürlüklü fotoğraflarda yazı küçük kalır: 2. geçişte büyütülmüş + kontrastı artırılmış kopya da okunur (cift=true)
+  async function guclendir(file) {
+    const bmp = await createImageBitmap(file); if (bmp.width >= 1800) return null;
+    const k = Math.min(3, 2200 / bmp.width), cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    const cx = cv.getContext('2d'); cx.filter = 'grayscale(1) contrast(1.5)'; cx.drawImage(bmp, 0, 0, cv.width, cv.height);
+    return new Promise(ok => cv.toBlob(b => ok(b), 'image/png'));
+  }
+  async function resimSatirlar(file, ilerle, cift) {
     await script(LIB.tesseract);
-    const r = await Tesseract.recognize(file, 'tur+eng', {logger: m => { if (m.status === 'recognizing text') ilerle('Fotoğraf okunuyor… %' + Math.round(m.progress * 100)); }});
-    return r.data.text.split('\n');
+    const oku = async (f, etiket) => (await Tesseract.recognize(f, 'tur+eng', {logger: m => { if (m.status === 'recognizing text') ilerle('Fotoğraf okunuyor' + etiket + '… %' + Math.round(m.progress * 100)); }})).data.text.split('\n');
+    let satir = await oku(file, '');
+    if (cift) { try { const b = await guclendir(file); if (b) satir = satir.concat(await oku(b, ' (ayrıntı)')); } catch (e) { /* büyütme olmazsa ilk okuma yeter */ } }
+    return satir;
   }
   // Excel'de başlık satırı (Kod / Açıklama / Miktar…) varsa her dolu satır bir kalem olur — kodsuzlar dahil
   async function excelKalemler(file) {
@@ -212,12 +221,12 @@
   }
   window.hizliTeklif = hizliTeklif;
   // Bir dosyanın düz metin satırları (sipariş formu okuma için)
-  window.hzMetin = async (f, durum = () => {}) => {
+  window.hzMetin = async (f, durum = () => {}, cift = false) => {
     const ad = (f.name || '').toLowerCase(), tur = (f.type || '') + ' ' + ad;
     if (/\.xlsx?$|\.xlsm$|spreadsheet|excel/.test(tur)) return excelSatirlar(f);
     if (/\.csv$|\.txt$|text\//.test(tur)) return (await f.text()).split(/\r?\n/);
     if (/\.pdf$|pdf/.test(tur)) return pdfSatirlar(f);
-    if (/image\/|\.(jpe?g|png|webp|heic|bmp)$/.test(tur)) return resimSatirlar(f, durum);
+    if (/image\/|\.(jpe?g|png|webp|heic|bmp)$/.test(tur)) return resimSatirlar(f, durum, cift);
     return [];
   };
   // Sayım için: şablon Excel'i de kalem listesine çevirir
