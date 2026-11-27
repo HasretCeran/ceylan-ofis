@@ -76,6 +76,7 @@ const S = {stok: [], musteri: [], hareket: [], gorevler: [], teklifler: [], sipa
 let P = {};            // profiller: id → {ad, rol}
 let ME = null;         // giriş yapan kullanıcı id
 let IS_OWNER = false;
+const STOK_DURUM = {bitti: true, toplam: 0};   // ürün listesi arkadan yüklenir; bitmeden arama sonuçları eksik olabilir
 let IS_DEPO = false; // depo / sevkiyat: giriş yapan her kullanıcıya açık
 let IS_FIN = false; // bakiye görme yetkisi: yönetici + finans yetkisi verilenler
 let sb = null;
@@ -104,13 +105,14 @@ const BE = DEMO ? {
 } : {
   async yukle() {
     // Supabase her istekte en fazla 1000 satır verir: sayfa sayfa hepsini çek
-    const hepsi = async c => {
+    const hepsi = async (c, ilerle) => {
       const {count, error: e0} = await sb.from(c).select('id', {count: 'exact', head: true});
       if (e0) throw e0;
       const sayfa = Math.max(1, Math.ceil((count || 0) / 1000) + 1), out = [];
       for (let i = 0; i < sayfa; i += 6) {   // 6'şar sayfa paralel
         const parca = await Promise.all(Array.from({length: Math.min(6, sayfa - i)}, (_, k) => sb.from(c).select('*').order('id').range((i + k) * 1000, (i + k) * 1000 + 999)));
         for (const {data, error} of parca) { if (error) throw error; out.push(...data); }
+        if (ilerle) ilerle(out, count || 0);   // büyük liste parça parça gelir; her parçada kullanılabilir hale getirilir
       }
       return out;
     };
@@ -119,7 +121,10 @@ const BE = DEMO ? {
     const ana = COLS.filter(c => c !== 'stok');
     const sonuc = await Promise.all(ana.map(hepsi));
     sonuc.forEach((rows, i) => { S[ana[i]] = rows.map(rowToObj); });
-    hepsi('stok').then(rows => { S.stok = rows.map(rowToObj); degisti('stok'); }).catch(e => console.warn('stok', e));
+    STOK_DURUM.bitti = false;
+    hepsi('stok', (rows, toplam) => { S.stok = rows.map(rowToObj); STOK_DURUM.toplam = toplam; window.dispatchEvent(new Event('stok-ilerleme')); })
+      .then(rows => { S.stok = rows.map(rowToObj); STOK_DURUM.bitti = true; STOK_DURUM.toplam = S.stok.length; degisti('stok'); window.dispatchEvent(new Event('stok-ilerleme')); })
+      .catch(e => { console.warn('stok', e); STOK_DURUM.bitti = true; window.dispatchEvent(new Event('stok-ilerleme')); });
     await profilYukle();
     await ayarYukle();
   },

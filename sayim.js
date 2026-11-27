@@ -152,14 +152,23 @@ function syDuzeltForm(id) {
   }}]);
 }
 
+// Ürün listesi (35 bin ürün) arkadan yüklenir; bitmeden arama eksik sonuç verir → kullanıcıya göster
+const syYukleniyor = () => !STOK_DURUM.bitti ? `<div class="smod-ipucu" style="color:var(--orange)">⏳ Ürün listesi yükleniyor… ${S.stok.length.toLocaleString('tr-TR')}${STOK_DURUM.toplam ? ' / ' + STOK_DURUM.toplam.toLocaleString('tr-TR') : ''} ürün hazır. Aradığın ürün çıkmazsa birkaç saniye bekle.</div>` : '';
+window.addEventListener('stok-ilerleme', () => {   // liste geldikçe açık aramayı yenile
+  try {
+    const q1 = $('#sy-kod'); if (q1 && q1.value.trim().length >= 2 && document.activeElement === q1) syOneri();
+    const q2 = sm && sm.el && sm.el.querySelector('#smo-q'); if (q2) q2.dispatchEvent(new Event('input'));
+  } catch (e) {}
+});
+
 // ── Giriş: ürün seç, miktar yaz, Enter
 let syUrun = null;
 function syOneri() {
   const q = $('#sy-kod').value.trim(); syUrun = null; $('#sy-yeni').hidden = true;
   const box = $('#sy-oneri');
   if (q.length < 2) { box.hidden = true; return; }
-  const l = urunAra(q, 8);
-  box.innerHTML = l.map(u => `<button class="row" data-syu="${esc(u.id)}" style="padding:8px 10px"><div class="mid"><div class="t">${esc(u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(u.marka || '')}</span></div><div class="s">${esc(u.aciklama || '')}</div></div>${u.stok !== '' && u.stok != null ? `<div class="end"><span class="s">kayıtlı: ${fmtM(u.stok)}</span></div>` : ''}</button>`).join('') + `<button class="row" data-syu="" style="padding:8px 10px"><div class="mid"><div class="t">➕ "${esc(q)}" listede yok — yeni olarak say</div></div></button>`;
+  const l = urunAra(q, 12);
+  box.innerHTML = l.map(u => `<button class="row" data-syu="${esc(u.id)}" style="padding:8px 10px"><div class="mid"><div class="t">${esc(u.ref)} <span style="color:var(--fg3);font-weight:500">· ${esc(u.marka || '')}</span></div><div class="s">${esc(u.aciklama || '')}</div></div>${u.stok !== '' && u.stok != null ? `<div class="end"><span class="s">kayıtlı: ${fmtM(u.stok)}</span></div>` : ''}</button>`).join('') + `<button class="row" data-syu="" style="padding:8px 10px"><div class="mid"><div class="t">➕ "${esc(q)}" listede yok — liste dışı ürün olarak say</div></div></button>` + (STOK_DURUM.bitti ? '' : `<div class="s" style="padding:8px 10px;color:var(--orange)">⏳ Ürün listesi yükleniyor (${S.stok.length.toLocaleString('tr-TR')} ürün hazır)…</div>`);
   box.hidden = false; syIsaret = 0; syIsaretCiz();
 }
 let syIsaret = 0;
@@ -337,12 +346,12 @@ function smAra(q = '') {
   const inp = b.querySelector('#smo-q');
   const ciz = () => {
     const t = inp.value.trim(), box = b.querySelector('#smo-sonuc');
-    if (t.length < 2) { box.innerHTML = '<div class="smod-ipucu">Ürün kodunun bir kısmını ya da adını yaz.<br>Bulamazsan <b>+ Listede yok</b>.</div>'; return; }
-    const l = urunAra(t, 12);
-    box.innerHTML = l.map(u => { const g = syGrupla(sm.id).find(x => syKey(x.ref) === syKey(u.ref));
+    if (t.length < 2) { box.innerHTML = syYukleniyor() + '<div class="smod-ipucu">Ürün kodunun bir kısmını ya da adını yaz; yazdıkça ürünler çıkar.<br>Listede olmayan ürün için <b>+ Listede yok</b>.</div>'; return; }
+    const l = urunAra(t, 25), yok = `<button class="smod-u smod-hrc" id="smo-yok3" style="border-style:dashed"><b>➕ Listede yok</b><small>"${esc(t)}" kodu / adıyla liste dışı ürün olarak say</small></button>`;
+    box.innerHTML = syYukleniyor() + l.map(u => { const g = syGrupla(sm.id).find(x => syKey(x.ref) === syKey(u.ref));
       return `<button class="smod-u" data-u="${esc(u.id)}"><b>${esc(u.ref)}</b><span>${esc(u.marka || '')}</span><small>${esc(u.aciklama || '')}</small>${g ? `<em>✓ sayıldı: ${fmtM(g.toplam)} ${esc(g.birim)}</em>` : ''}</button>`; }).join('')
-      || `<div class="smod-ipucu">"${esc(t)}" listede yok.<br><button class="btn btn-p" id="smo-yok2" style="margin-top:10px">Listede yok — yine de say</button></div>`;
-    const y2 = box.querySelector('#smo-yok2'); if (y2) y2.onclick = () => smMiktar(null, inp.value.trim());
+      + (l.length ? '' : `<div class="smod-ipucu">"${esc(t)}" stok listesinde bulunamadı.</div>`) + yok;
+    const y3 = box.querySelector('#smo-yok3'); if (y3) y3.onclick = () => smMiktar(null, inp.value.trim());
   };
   inp.oninput = ciz;
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const f = b.querySelector('[data-u]'); if (f) smMiktar(S.stok.find(u => u.id === f.dataset.u)); } };
