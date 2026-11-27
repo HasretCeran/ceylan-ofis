@@ -100,7 +100,7 @@ function dpDetay(id) {
   const guncel = () => S.siparisler.find(x => x.id === id) || s;
   s = guncel();
   const kal = s.kalemler || [], h = dpHesap(s), o = dpOzet(s), ps = (s.paketler || []);
-  const kalemSatir = (k, i) => `<tr${yetki ? ` data-dpk="${i}" style="cursor:pointer"` : ''}><td><b>${esc(k.ref || k.aciklama || '—')}</b>${k.ref && k.aciklama ? `<small>${esc(k.aciklama)}</small>` : ''}</td><td class="r">${h[i].siparis}</td><td class="r">${h[i].paket}</td><td class="r">${h[i].sevk}</td><td class="r"${h[i].kalan ? ' style="color:var(--orange);font-weight:700"' : ''}>${h[i].kalan}</td></tr>`;
+  const kalemSatir = (k, i) => `<tr${yetki ? ` data-dpk="${i}" style="cursor:pointer"` : ''}><td><b>${esc(k.ref || k.aciklama || '—')}</b>${k.ref && k.aciklama ? `<small>${esc(k.aciklama)}</small>` : ''}${k.musteriKod || k.musteriAciklama ? `<small style="color:var(--fg3)">Müşteri yazımı: ${esc([k.musteriKod, k.musteriAciklama].filter(Boolean).join(' · '))}</small>` : ''}</td><td class="r">${h[i].siparis}</td><td class="r">${h[i].paket}</td><td class="r">${h[i].sevk}</td><td class="r"${h[i].kalan ? ' style="color:var(--orange);font-weight:700"' : ''}>${h[i].kalan}</td></tr>`;
   const paketKart = p => {
     const [l, c] = DP[p.durum] || DP.hazirlaniyor, son = p.durum !== 'iptal' && p.durum !== 'sevk';
     const ek = [p.faturaNo && 'Fatura ' + p.faturaNo, p.irsaliyeNo && 'İrsaliye ' + p.irsaliyeNo, p.kargo].filter(Boolean).join(' · ');
