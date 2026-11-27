@@ -65,6 +65,32 @@ async function spDosyaAc(f) {
   belgeOnizle({url: data.signedUrl, tip}, f.ad, [{label: 'İndir / aç', cls: 'btn-p', onClick: () => window.open(data.signedUrl, '_blank')}]);
 }
 
+// Belgedeki "Satın alan / Alıcı / Müşteri" etiketinden firma adını çıkar (satıcı = biz olduğu için Ceylan atlanır)
+const SP_YASAL = new Set(['san', 'tic', 've', 'ltd', 'şti', 'sti', 'aş', 'as', 'a', 'ş', 'anonim', 'limited', 'şirketi', 'sirketi', 'sanayi', 'ticaret', 'sanayii', 'ith', 'ihr', 'paz', 'ins', 'inş', 'tic.', 'ltd.']);
+function spAliciAdi(satir) {
+  const etiket = /(?:sat[ıi]n\s*al[aâ]n(?:\s*firma)?|al[ıi]c[ıi](?:\s*firma)?|m[üu][şs]teri\s*(?:[üu]nvan[ıi]|unvan[ıi]|ad[ıi])?|sipari[şs]\s*veren\s*firma)\s*[:;\-–]\s*/i;
+  for (let i = 0; i < satir.length; i++) {
+    const m = etiket.exec(satir[i]); if (!m) continue;
+    let ad = satir[i].slice(m.index + m[0].length).trim();
+    if (!ad && satir[i + 1]) ad = satir[i + 1].trim();
+    ad = ad.split(/\s+(?:tel|fax|faks|adres|vergi|v\.?d)\b/i)[0].replace(/[:;|_]+$/g, '').trim();
+    if (ad.length >= 5 && /[a-zçğıöşü]{3}/i.test(ad) && !/ceylan/i.test(ad)) return ad;
+  }
+  return '';
+}
+function spCariEsle(ad) {   // kısaltmalı adı ("ÇÖZÜM END.SOĞ.SİST.İNŞ.SAN.VE TİC.A.Ş.") cari listesindeki firmayla eşleştir
+  const parca = s => nrmTR(s).replace(/[.,\/\-_()]+/g, ' ').split(/\s+/).filter(x => x.length >= 3 && !SP_YASAL.has(x));
+  const a = parca(ad); if (!a.length) return null;
+  let en = null, es = 0;
+  for (const c of S.musteri) {
+    const b = parca(c.firma || ''); if (!b.length || /ceylan/.test(nrmTR(c.firma))) continue;
+    if (!(b[0].startsWith(a[0]) || a[0].startsWith(b[0]))) continue;   // ilk sözcük tutmalı
+    const skor = a.filter(x => b.some(y => y.startsWith(x) || x.startsWith(y))).length;
+    if (skor > es || (skor === es && en && (c.firma || '').length < (en.firma || '').length)) { en = c; es = skor; }
+  }
+  return es >= Math.min(2, a.length) ? en : null;
+}
+
 // ── Sipariş belgesini oku: PO no, tarih, termin, tutar, müşteri, kalemler
 const TRAY = {ocak: 1, şubat: 2, subat: 2, mart: 3, nisan: 4, mayıs: 5, mayis: 5, haziran: 6, temmuz: 7, ağustos: 8, agustos: 8, eylül: 9, eylul: 9, ekim: 10, kasım: 11, kasim: 11, aralık: 12, aralik: 12};
 function spTarih(t) {
@@ -83,7 +109,7 @@ async function spBelgeOku(files, durum = () => {}) {
   if (m) o.po = m[1].replace(/[.,]$/, '');
   else if ((m = /\b(45\d{8})\b/.exec(tum))) o.po = m[1];
   for (const l of satir) {
-    if (!o.termin && /termin|teslim\s*tarih|teslimat\s*tarih|delivery\s*date|istenen\s*teslim|sevk\s*tarih/i.test(l)) o.termin = spTarih(l.split(/termin|teslim\s*tarihi?|teslimat\s*tarihi?|delivery\s*date|istenen\s*teslim|sevk\s*tarihi?/i).pop()) || spTarih(l);
+    if (!o.termin && /termin|tes\.?\s*tarih|teslim\s*tarih|teslimat\s*tarih|delivery\s*date|istenen\s*teslim|sevk\s*tarih/i.test(l)) o.termin = spTarih(l.split(/termin|teslim\s*tarihi?|teslimat\s*tarihi?|delivery\s*date|istenen\s*teslim|sevk\s*tarihi?/i).pop()) || spTarih(l);
     if (!o.tarih && /sipari[şs]\s*tarih|belge\s*tarih|order\s*date|po\s*date|^tarih|\btarih\s*[:.]/i.test(l)) o.tarih = spTarih(l);
   }
   if (!o.tarih) { const t = spTarih(tum); if (t) o.tarih = t; }
@@ -99,7 +125,9 @@ async function spBelgeOku(files, durum = () => {}) {
     const parca = ad.replace(/\b(san|tic|ve|ltd|şti|aş|anonim|limited|şirketi|sanayi|ticaret|sanayii|ith|ihr|paz|ins)\b\.?/g, ' ').replace(/[^a-zçğıöşü0-9 ]/g, ' ').trim().split(/\s+/).filter(w => w.length > 1).slice(0, 2).join(' ');
     if (parca.length >= 4 && nt.includes(parca) && parca.length > enL) { en = c; enL = parca.length; }
   }
-  if (en) o.musteri = en.firma;
+  const alici = spAliciAdi(satir);
+  if (alici) { const c = spCariEsle(alici); o.musteri = c ? c.firma : alici; o.musteriYeni = !c; }
+  else if (en) o.musteri = en.firma;
   try { const r = await hzOku(files, '', durum); o.kalemler = r.sonuc.filter(x => x.u || x.ref).map(x => ({ref: x.u ? x.u.ref : x.ref || '', aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '', miktar: Number(x.miktar) || 1, birim: x.birim || 'Adet', fiyat: x.u ? x.u.fiyat || '' : '', para: x.u ? x.u.para || '€' : '€', geldi: false})); } catch (e) { o.kalemler = []; }
   if (o.musteri) {
     const kod = new Set((o.kalemler || []).map(k => refN(k.ref)).filter(Boolean)), ilk = nrmTR(o.musteri).split(' ')[0];
@@ -176,7 +204,7 @@ function siparisForm(s = {}, teklif = null) {
     const sel = el.querySelector('#sp-teklif');
     if (d.teklif && !sel.value) { if (![...sel.options].some(o => o.value === d.teklif.id)) sel.insertAdjacentHTML('beforeend', `<option value="${esc(d.teklif.id)}">${esc((d.teklif.no || '') + ' · ' + (d.teklif.musteri || '') + ' · ' + trT(d.teklif.tarih))}</option>`); sel.value = d.teklif.id; sel.classList.add('okundu'); }
     okunan = d.kalemler || []; kalCiz();
-    const bul = [d.musteri && 'müşteri', d.po && 'sipariş no', d.tarih && 'tarih', d.termin && 'termin', d.tutar && 'tutar', d.teklif && 'teklif', okunan.length && okunan.length + ' kalem'].filter(Boolean);
+    const bul = [d.musteri && (d.musteriYeni ? 'müşteri (cari listesinde yok, eklemeyi unutma)' : 'müşteri'), d.po && 'sipariş no', d.tarih && 'tarih', d.termin && 'termin', d.tutar && 'tutar', d.teklif && 'teklif', okunan.length && okunan.length + ' kalem'].filter(Boolean);
     ou.querySelector('#sp-okd').innerHTML = bul.length ? `✓ Okundu: <b>${bul.join(', ')}</b> — yeşil alanları kontrol et` : 'Belgeden bilgi okunamadı, alanları elle doldur. Belge yine de siparişe eklenecek.';
   };
   return sh;
