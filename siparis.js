@@ -67,13 +67,21 @@ async function spDosyaAc(f) {
 
 // Belgedeki "Satın alan / Alıcı / Müşteri" etiketinden firma adını çıkar (satıcı = biz olduğu için Ceylan atlanır)
 const SP_YASAL = new Set(['san', 'tic', 've', 'ltd', 'şti', 'sti', 'aş', 'as', 'a', 'ş', 'anonim', 'limited', 'şirketi', 'sirketi', 'sanayi', 'ticaret', 'sanayii', 'ith', 'ihr', 'paz', 'ins', 'inş', 'tic.', 'ltd.']);
+// "Satıcı" ve "Satın alan" sütunları OCR'da tek satıra birleşebilir: "CEYLAN ENDÜSTRİYEL VE OTOM.TİC ÇÖZÜM END.SOĞ..." → Ceylan bölümünü çıkar
+function spCeylanAyikla(ad) {
+  const k = ad.split(/\s+/), bit = /(?:t[iİıI]c\.?|ltd\.?|[sş]t[iİıI]\.?|a\.?[sş]\.?)$/i, ek = /^(?:ltd\.?|[sş]t[iİıI]\.?|ltd\.[sş]t[iİıI]\.?)$/i;
+  const i = k.findIndex(x => /ceylan/i.test(x)); if (i < 0) return ad;
+  let j = i; while (j < k.length - 1 && !bit.test(k[j])) j++;
+  while (j + 1 < k.length && ek.test(k[j + 1])) j++;
+  return k.slice(0, i).concat(k.slice(j + 1)).join(' ').trim();
+}
 function spAliciAdi(satir) {
   const etiket = /(?:sat[ıi]n\s*al[aâ]n(?:\s*firma)?|al[ıi]c[ıi](?:\s*firma)?|m[üu][şs]teri\s*(?:[üu]nvan[ıi]|unvan[ıi]|ad[ıi])?|sipari[şs]\s*veren\s*firma)\s*[:;\-–]\s*/i;
   for (let i = 0; i < satir.length; i++) {
     const m = etiket.exec(satir[i]); if (!m) continue;
     let ad = satir[i].slice(m.index + m[0].length).trim();
     if (!ad && satir[i + 1]) ad = satir[i + 1].trim();
-    ad = ad.split(/\s+(?:tel|fax|faks|adres|vergi|v\.?d)\b/i)[0].replace(/[:;|_]+$/g, '').trim();
+    ad = spCeylanAyikla(ad.split(/\s+(?:tel|fax|faks|adres|vergi|v\.?d)\b/i)[0].replace(/[:;|_]+$/g, '').trim());
     if (ad.length >= 5 && /[a-zçğıöşü]{3}/i.test(ad) && !/ceylan/i.test(ad)) return ad;
   }
   return '';
@@ -114,6 +122,27 @@ function spPoBul(satir) {
   return '';
 }
 
+// Sipariş formu kalem tablosu: "Sıra  Mlz.Kodu  Tanım  [Tes.Tarihi]  Miktar  Birim  Birim Fiyat  Toplam"
+// Fotoğraf OCR'ında ondalık virgül düşebilir (4,00 → 400); miktar × fiyat = tutar kontrolüyle düzeltilir.
+const SP_BIRIM = 'AD|ADT|ADET|AD\\.|MT|MTR|M|KG|GR|LT|TOP|PK|PKT|PAKET|SET|TK|TAKIM|KUTU|RULO|M2|M3|ÇİFT|CIFT|ST';
+const spTR = s => { s = String(s); return Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : /^\d+\.\d{1,2}$/.test(s) ? s : s.replace(/\./g, '')) || 0; };   // 5.327,7000 → 5327.7
+function spKalemTablo(satir) {
+  const hi = satir.findIndex(l => /miktar/i.test(l) && /(fiyat|tutar|birim)/i.test(l));
+  const para = hi >= 0 && /\(\s*eur|€/i.test(satir.slice(hi, hi + 3).join(' ')) ? '€' : hi >= 0 && /\(\s*usd|\$/i.test(satir.slice(hi, hi + 3).join(' ')) ? '$' : '₺';
+  const re = new RegExp('^\\s*(?:(\\d{1,3})\\s+)?(\\S*\\d\\S*)\\s+(.+?)\\s+(?:(\\d{1,2}[./]\\d{1,2}[./]20\\d{2})\\s+)?(?:[—–|_\\-]\\s+)?(\\d+(?:[.,]\\d+)?)\\s+(' + SP_BIRIM + ')\\s+([\\d.,]+)\\s+([\\d.,]+)\\s*(?:TL|TRY|EUR|USD|€|\\$)?\\s*$', 'i');
+  const out = [];
+  for (let i = hi >= 0 ? hi + 1 : 0; i < satir.length; i++) {
+    const l = satir[i]; if (hi >= 0 && /^(?:\s*(?:kdv|br[üu]t|net|toplam|genel)\b|.*toplam\s*(?:tutar|miktar))/i.test(l) && out.length) continue;
+    const m = re.exec(l); if (!m) continue;
+    const fiyat = spTR(m[7]), tutar = spTR(m[8]); let mik = spTR(m[5]);
+    if (!(fiyat > 0) || !(mik > 0)) continue;
+    for (const b of [1, 10, 100]) { if (tutar > 0 && Math.abs(mik / b * fiyat - tutar) <= Math.max(0.05, tutar * 0.005)) { mik = mik / b; break; } }
+    out.push({ref: m[2].replace(/[.,]+$/, ''), aciklama: m[3].replace(/\s+/g, ' ').trim(), marka: '', miktar: mik, birim: /^m(tr?)?$/i.test(m[6]) ? 'Mt' : /^kg$/i.test(m[6]) ? 'Kg' : 'Adet', fiyat, para, iskonto: 0, teslim: m[4] ? m[4].replace(/\//g, '.') : '', geldi: false});
+  }
+  const son = new Map(); out.forEach(k => son.set(k.ref, k));   // iki okuma geçişinde aynı satır tekrarlanır; sonraki (büyütülmüş) geçiş kazanır
+  return [...son.values()];
+}
+
 // ── Sipariş belgesini oku: PO no, tarih, termin, tutar, müşteri, kalemler
 const TRAY = {ocak: 1, şubat: 2, subat: 2, mart: 3, nisan: 4, mayıs: 5, mayis: 5, haziran: 6, temmuz: 7, ağustos: 8, agustos: 8, eylül: 9, eylul: 9, ekim: 10, kasım: 11, kasim: 11, aralık: 12, aralik: 12};
 function spTarih(t) {
@@ -125,11 +154,15 @@ function spTarih(t) {
 const spSayi = x => { x = String(x).replace(/\s/g, ''); if (/,\d{1,2}$/.test(x)) x = x.replace(/\./g, '').replace(',', '.'); else if (/\.\d{1,2}$/.test(x)) x = x.replace(/,/g, ''); else x = x.replace(/[.,]/g, ''); return Number(x) || 0; };
 async function spBelgeOku(files, durum = () => {}) {
   let satir = [];
-  for (const f of files) { try { durum(f.name + ' okunuyor…'); satir.push(...(await hzMetin(f, durum))); } catch (e) { durum('⚠ ' + f.name + ': ' + e.message); } }
+  for (const f of files) { try { durum(f.name + ' okunuyor…'); satir.push(...(await hzMetin(f, durum, true))); } catch (e) { durum('⚠ ' + f.name + ': ' + e.message); } }
   satir = satir.map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   const tum = satir.join('\n'), o = {};
   const po = spPoBul(satir); if (po) o.po = po;
   else { const m = /\b(45\d{8})\b/.exec(tum); if (m) o.po = m[1]; }
+  satir.forEach((l, i) => {   // başlık satırı "Tes.Tarihi / Teslim Tarihi" ise tarih tablonun alt satırlarında olur
+    if (o.termin || !/tes\.?\s*tarih|teslim\s*tarih|termin/i.test(l) || spTarih(l)) return;
+    for (const n of satir.slice(i + 1, i + 4)) { const m = /(?<![\d.\/])(\d{1,2})[./](\d{1,2})[./](20\d{2})(?!\d)/.exec(n); if (m) { o.termin = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; break; } }
+  });
   for (const l of satir) {
     if (!o.termin && /termin|tes\.?\s*tarih|teslim\s*tarih|teslimat\s*tarih|delivery\s*date|istenen\s*teslim|sevk\s*tarih/i.test(l)) o.termin = spTarih(l.split(/termin|teslim\s*tarihi?|teslimat\s*tarihi?|delivery\s*date|istenen\s*teslim|sevk\s*tarihi?/i).pop()) || spTarih(l);
     if (!o.tarih && /sipari[şs]\s*tarih|belge\s*tarih|order\s*date|po\s*date|^tarih|\btarih\s*[:.]/i.test(l)) o.tarih = spTarih(l);
@@ -150,7 +183,9 @@ async function spBelgeOku(files, durum = () => {}) {
   const alici = spAliciAdi(satir);
   if (alici) { const c = spCariEsle(alici); o.musteri = c ? c.firma : alici; o.musteriYeni = !c; }
   else if (en) o.musteri = en.firma;
-  try { const r = await hzOku(files, '', durum); o.kalemler = r.sonuc.filter(x => x.u || x.ref).map(x => ({ref: x.u ? x.u.ref : x.ref || '', aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '', miktar: Number(x.miktar) || 1, birim: x.birim || 'Adet', fiyat: x.u ? x.u.fiyat || '' : '', para: x.u ? x.u.para || '€' : '€', geldi: false})); } catch (e) { o.kalemler = []; }
+  const tablo = spKalemTablo(satir);
+  if (tablo.length) o.kalemler = tablo;
+  else try { const r = await hzOku(files, '', durum); o.kalemler = r.sonuc.filter(x => x.u || x.ref).map(x => ({ref: x.u ? x.u.ref : x.ref || '', aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '', miktar: Number(x.miktar) || 1, birim: x.birim || 'Adet', fiyat: x.u ? x.u.fiyat || '' : '', para: x.u ? x.u.para || '€' : '€', geldi: false})); } catch (e) { o.kalemler = []; }
   if (o.musteri) {
     const kod = new Set((o.kalemler || []).map(k => refN(k.ref)).filter(Boolean)), ilk = nrmTR(o.musteri).split(' ')[0];
     let bt = null, bs = -1;
