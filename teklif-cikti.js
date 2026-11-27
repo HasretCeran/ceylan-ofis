@@ -211,6 +211,8 @@
       if (!(num(g('J' + r)) > 0)) {
         const rs = String(ref).trim(), as = String(ac).trim();
         if (/^\s*:/.test(as)) continue;
+        // Kodu, fiyatı ve miktarı olmayan satır ürün değildir (ör. şartlar tablosundaki "Peşin", "2-3 iş günü", "Firmanız")
+        if (!rs && !(num(g('H' + r)) > 0)) continue;
         if (!as && rs.length >= 25 && (/[.]$/.test(rs) || /KDV|sipariş kabul|nakliye|fatura tarih|satış kuru|ödeme|vade|geçerlilik/i.test(rs))) continue;
       }
       const pb = String(g('K' + r) || '').toUpperCase().trim();

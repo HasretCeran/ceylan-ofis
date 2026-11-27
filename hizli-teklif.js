@@ -127,6 +127,8 @@
         const kod = v(ck), ac = v(ca);
         if (!kod && !ac) continue;
         if (/toplam|genel|kdv/i.test(ac) && !kod) continue;
+        // Kodsuz ve miktarsız açıklama satırları (şart, not, adres, imza) kalem değildir
+        if (!kod && !v(cm) && (ac.length > 30 || /fiyat|kdv|teslim|ödeme|odeme|vade|geçerli|tcmb|kur|nakliye|sipariş|adres|tel|faks|e-?posta|saygı|imza|kaşe/i.test(ac))) continue;
         const u = (kod && bul(kod)) || null;
         out.push({u, ref: kod, aciklama: ac, marka: v(cr), birim: v(cb), miktar: sayi(v(cm)) || 1, kaynak: kod + ' ' + ac});
       }
