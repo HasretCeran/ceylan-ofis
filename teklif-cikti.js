@@ -207,6 +207,12 @@
     for (let r = SATIR_ILK; r <= SATIR_SON; r++) {
       const ref = g('D' + r), ac = g('E' + r);
       if (!ref && !ac) continue;
+      // Şablonun altındaki şart / not satırları ürün kalemi değildir ("Fiyatlarımızda KDV hariçtir…", "Hazırlayan : …")
+      if (!(num(g('J' + r)) > 0)) {
+        const rs = String(ref).trim(), as = String(ac).trim();
+        if (/^\s*:/.test(as)) continue;
+        if (!as && rs.length >= 25 && (/[.]$/.test(rs) || /KDV|sipariş kabul|nakliye|fatura tarih|satış kuru|ödeme|vade|geçerlilik/i.test(rs))) continue;
+      }
       const pb = String(g('K' + r) || '').toUpperCase().trim();
       const fiyat = g('J' + r);
       kalemler.push({
