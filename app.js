@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.27.1';
+const APP_VERSION = '1.28.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -773,8 +773,8 @@ function musteriCiz() {
   const d = $('#m-daha'); if (d) d.onclick = () => { mLimit += 200; musteriCiz(); };
   const h = [...S.hareket].sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.at || '').localeCompare(a.at || '')).slice(0, 25);
   $('#h-list').innerHTML = h.length ? h.map(x => {
-    const [lb, c, renk] = x.tur === 'tahsilat' ? ['Tahsilat', 'p-green', 'var(--green)'] : x.tur === 'borc' ? ['Borç / Fatura', 'p-red', 'var(--red)'] : ['Not', 'p-gray', 'var(--fg2)'];
-    return `<div class="row"><div class="mid"><div class="t">${esc(x.firma)}</div><div class="s">${trT(x.tarih)} · ${esc(x.aciklama) || lb} · ${esc(adi(x.by))}</div></div><div class="end"><b style="color:${renk}">${x.tutar ? (x.tur === 'tahsilat' ? '+' : '') + tl(x.tutar) : '—'}</b><span class="pill ${c}" style="margin-top:4px">${lb}</span></div></div>`;
+    const [lb, c, renk] = x.tur === 'tahsilat' ? ['Tahsilat', 'p-green', 'var(--green)'] : x.tur === 'odeme' ? ['Ödeme', 'p-amber', 'var(--amber)'] : x.tur === 'borc' ? ['Borç / Fatura', 'p-red', 'var(--red)'] : ['Not', 'p-gray', 'var(--fg2)'];
+    return `<div class="row"><div class="mid"><div class="t">${esc(x.firma)}</div><div class="s">${trT(x.tarih)} · ${esc(x.aciklama) || lb} · ${x.kaynak === 'DİA' ? 'DİA' : esc(adi(x.by))}</div></div><div class="end"><b style="color:${renk}">${x.tutar ? (x.tur === 'tahsilat' ? '+' : x.tur === 'odeme' ? '−' : '') + tl(x.tutar) : '—'}</b><span class="pill ${c}" style="margin-top:4px">${lb}</span></div></div>`;
   }).join('') : '<div class="empty">Hareket kaydı yok</div>';
 }
 $('#m-ara').oninput = () => { mLimit = 100; musteriCiz(); };
@@ -827,7 +827,7 @@ function firmaForm(id) {
     ${m.vkaynak ? `<div class="note"><b style="color:var(--fg)">Vade durumu</b><br>${Number(m.vgec) > 0 ? `Vadesi geçen: <b style="color:var(--red)">${tl(m.vgec)}</b>${m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : ''}<br>` : ''}${Number(m.vgel) > 0 ? `Vadesi gelmeyen: <b style="color:var(--fg)">${tl(m.vgel)}</b>${m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}<br>` : ''}${!(Number(m.vgec) > 0) && !(Number(m.vgel) > 0) ? 'Açık vade yok<br>' : ''}<span style="font-size:11.5px;color:var(--fg3)">${esc(m.vkaynak)}</span></div>` : ''}
     ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
-    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
+    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_FIN && m.kod ? '<button class="btn btn-s btn-sm" id="ff-ekstre">📄 Ekstre</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
     const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
@@ -841,7 +841,28 @@ function firmaForm(id) {
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
+  const eb = sh.el.querySelector('#ff-ekstre'); if (eb) eb.onclick = () => ekstreGoster(m);
   const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
+}
+// DİA cari hesap ekstresi: sadece açılınca indirilir (ekstre tablosu, finans yetkisi)
+async function ekstreGoster(m) {
+  const sh = sheet('Ekstre · ' + m.firma, '<div class="empty">Yükleniyor…</div>');
+  const b = sh.el.querySelector('.sheet-b');
+  if (DEMO) { b.innerHTML = '<div class="empty">Demo modunda ekstre yok</div>'; return; }
+  const {data, error} = await sb.from('ekstre').select('veri').eq('id', m.kod).maybeSingle();
+  if (error) { b.innerHTML = `<div class="empty">Ekstre alınamadı: ${esc(error.message)}</div>`; return; }
+  const e = data && data.veri;
+  if (!e || !(e.s || []).length) { b.innerHTML = '<div class="empty">Bu cari için ekstre yok</div>'; return; }
+  let bak = 0, tb = 0, ta = 0;
+  const sat = e.s.map(([t, fis, belge, tur, vade, bo, al]) => { bak = Math.round((bak + Number(bo || 0) - Number(al || 0)) * 100) / 100; tb += Number(bo || 0); ta += Number(al || 0); return {t, fis, belge, tur, vade, bo, al, bak}; });
+  const ba = x => x === 0 ? '' : x > 0 ? ' (B)' : ' (A)';
+  const odm = /havale|çek|senet|tahsilat|ödeme|kredi kart|nakit|virman/i;
+  b.innerHTML = `<div class="note">${esc(e.kaynak || 'DİA')} · ${trT(e.bas)} – ${trT(e.bit)}<br>Borç <b style="color:var(--fg)">${tl(tb)}</b> · Alacak <b style="color:var(--fg)">${tl(ta)}</b> · Bakiye <b style="color:var(--fg)">${tl(Math.abs(bak))}${ba(bak)}</b></div>
+    <div style="display:flex;gap:6px;margin:8px 0"><button class="chip on" data-ef="hepsi">Tümü (${sat.length})</button><button class="chip" data-ef="odeme">Ödeme / tahsilat</button><button class="chip" data-ef="fatura">Faturalar</button></div>
+    <div class="rows" id="ek-l"></div>`;
+  const ciz = f => { b.querySelector('#ek-l').innerHTML = [...sat].reverse().filter(x => f === 'hepsi' || (f === 'odeme' ? odm.test(x.tur) : /fatura/i.test(x.tur))).map(x => `<div class="row" style="padding:8px 4px"><div class="mid"><div class="t" style="white-space:normal">${esc(x.tur)}</div><div class="s">${trT(x.t)}${x.belge ? ' · ' + esc(x.belge) : ''}${x.vade && x.vade !== x.t ? ' · vade ' + trT(x.vade) : ''}</div></div><div class="end"><b style="color:${Number(x.al) > 0 ? 'var(--green)' : 'var(--fg)'}">${Number(x.bo) > 0 ? tl(x.bo) : '−' + tl(x.al)}</b><span style="font-size:11px;color:var(--fg3)">${tl(Math.abs(x.bak))}${ba(x.bak)}</span></div></div>`).join('') || '<div class="empty">Kayıt yok</div>'; };
+  ciz('hepsi');
+  b.onclick = ev => { const c = ev.target.closest('[data-ef]'); if (!c) return; b.querySelectorAll('[data-ef]').forEach(z => z.classList.toggle('on', z === c)); ciz(c.dataset.ef); };
 }
 function hareketForm(firma) {
   if (!IS_FIN) { toast('⛔ Bu işlem için finans yetkisi gerekli'); return; }
