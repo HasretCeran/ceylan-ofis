@@ -143,6 +143,29 @@ function spKalemTablo(satir) {
   return [...son.values()];
 }
 
+// ÜRÜN KODU BAZ ALINIR: müşterinin yazdığı açıklama yanlış olabilir. Satırdaki kod benzeri her ifade (ref ya da açıklama içinde) stoktaki
+// kod ya da model adıyla ("MPR-25S-22") eşleştirilir; bulunursa kod / açıklama / marka stoktan gelir. OCR karışıklıkları (S↔5, O↔0, I↔1) tolere edilir.
+let spKodIdx = null, spKodIdxN = -1;
+const spKodAnahtar = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/S/g, '5').replace(/I/g, '1');
+const spKodAdaylar = s => (String(s || '').toUpperCase().match(/[A-Z0-9][A-Z0-9\-\/.]{3,}[A-Z0-9]/g) || []).filter(x => /\d/.test(x) && /[A-Z]/.test(x) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(x));
+function spKodIndeks() {
+  if (spKodIdx && spKodIdxN === S.stok.length) return spKodIdx;
+  const m = new Map(), ekle = (k, u) => { if (k.length < 5) return; if (!m.has(k)) m.set(k, []); const a = m.get(k); if (a.length < 6 && !a.includes(u)) a.push(u); };
+  S.stok.forEach(u => { ekle(spKodAnahtar(u.ref), u); spKodAdaylar(u.aciklama).forEach(c => ekle(spKodAnahtar(c), u)); });
+  spKodIdx = m; spKodIdxN = S.stok.length; return m;
+}
+function spKodEsle(k) {
+  const idx = spKodIndeks(), adaylar = [...spKodAdaylar(k.ref), ...spKodAdaylar(k.aciklama)];
+  for (const c of adaylar) {
+    const u = (idx.get(spKodAnahtar(c)) || []).filter(x => x.fiyat !== null)[0] || (idx.get(spKodAnahtar(c)) || [])[0];
+    if (u) return {...k, ref: u.ref, aciklama: u.aciklama || k.aciklama, marka: u.marka || k.marka || '', birim: k.birim || u.birim || 'Adet', musteriKod: k.ref && k.ref !== u.ref ? k.ref : '', musteriAciklama: (k.aciklama || '') !== (u.aciklama || '') ? k.aciklama || '' : '', stokEsles: true};
+  }
+  // stokta yok: açıklamadaki model kodunu (MPR-25S-22) ürün kodu yap, müşterinin iç kodunu ayrı sakla
+  const kod = adaylar.find(c => /[A-Z]/.test(c) && /\d/.test(c) && /[-]/.test(c) && c !== String(k.ref || '').toUpperCase());
+  if (kod && !(String(k.ref || '').match(/[A-Za-z]/) && /-/.test(k.ref))) return {...k, ref: kod, musteriKod: k.ref || '', musteriAciklama: k.aciklama || ''};
+  return k;
+}
+
 // ── Sipariş belgesini oku: PO no, tarih, termin, tutar, müşteri, kalemler
 const TRAY = {ocak: 1, şubat: 2, subat: 2, mart: 3, nisan: 4, mayıs: 5, mayis: 5, haziran: 6, temmuz: 7, ağustos: 8, agustos: 8, eylül: 9, eylul: 9, ekim: 10, kasım: 11, kasim: 11, aralık: 12, aralik: 12};
 function spTarih(t) {
@@ -186,6 +209,7 @@ async function spBelgeOku(files, durum = () => {}) {
   const tablo = spKalemTablo(satir);
   if (tablo.length) o.kalemler = tablo;
   else try { const r = await hzOku(files, '', durum); o.kalemler = r.sonuc.filter(x => x.u || x.ref).map(x => ({ref: x.u ? x.u.ref : x.ref || '', aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '', miktar: Number(x.miktar) || 1, birim: x.birim || 'Adet', fiyat: x.u ? x.u.fiyat || '' : '', para: x.u ? x.u.para || '€' : '€', geldi: false})); } catch (e) { o.kalemler = []; }
+  if (o.kalemler && o.kalemler.length) o.kalemler = o.kalemler.map(spKodEsle);
   if (o.musteri) {
     const kod = new Set((o.kalemler || []).map(k => refN(k.ref)).filter(Boolean)), ilk = nrmTR(o.musteri).split(' ')[0];
     let bt = null, bs = -1;
