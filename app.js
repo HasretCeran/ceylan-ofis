@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.24.7';
+const APP_VERSION = '1.24.8';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -21,6 +21,40 @@ function urunAra(q, lim) {
   return lim ? l.slice(0, lim) : l;
 }
 const urunBul = ref => { const n = refN(ref); return n ? S.stok.find(u => refN(u.ref) === n) : null; };
+// Marka biliniyorsa onunla, bilinmiyorsa koda göre ürün bul (aynı kod birden fazla markada olabilir)
+function urunBulMarka(ref, marka) {
+  const n = refN(ref); if (!n) return null; const l = S.stok.filter(u => refN(u.ref) === n); if (!l.length) return null;
+  const m = nrmTR(marka || ''); return (m && l.find(u => nrmTR(u.marka || '') === m)) || l[0];
+}
+
+// ── Sayımdan canlı stok: sayım kapanmadan da sayılan miktar, teklif verirken stok olarak görünsün
+let skAnahtar = '', skHarita = null;
+function sayimStokHaritasi() {
+  const anahtar = [S.sayim_kalem.length, S.sayimlar.length, S.stok.length].join('|');
+  if (skHarita && skAnahtar === anahtar) return skHarita;
+  const sayim = new Map(S.sayimlar.map(s => [s.id, s])), idx = new Map(S.stok.map(u => [u.id, u])), per = new Map();
+  S.sayim_kalem.forEach(k => {
+    const u = (k.stokId && idx.get(k.stokId)) || urunBulMarka(k.ref, k.marka); if (!u) return;
+    if (!per.has(u.id)) per.set(u.id, new Map());
+    const m = per.get(u.id); m.set(k.sayimId, (m.get(k.sayimId) || 0) + (Number(k.miktar) || 0));
+  });
+  skHarita = new Map();
+  per.forEach((m, uid) => { let en = null; m.forEach((adet, sid) => { const s = sayim.get(sid) || {}, tarih = s.tarih || ''; if (!en || tarih >= en.tarih) en = {adet, sayimId: sid, tarih, acik: s.durum !== 'kapali'}; }); skHarita.set(uid, en); });
+  skAnahtar = anahtar; return skHarita;
+}
+// Ürünün geçerli stok bilgisi: en yeni sayım (açık olsa da) ya da ürün kartındaki stok; yoksa null
+function stokEtkin(u) {
+  const s = sayimStokHaritasi().get(u.id), kart = u.stok === '' || u.stok == null ? null : Number(u.stok);
+  if (s && (kart == null || s.sayimId !== u.sayimId) && (kart == null || s.tarih >= (u.sayimTarih || ''))) return {adet: s.adet, kaynak: 'sayim', tarih: s.tarih, acik: s.acik};
+  return kart == null ? null : {adet: kart, kaynak: 'kart', tarih: u.sayimTarih || ''};
+}
+const stokTarihYaz = t => t ? new Date(t).toLocaleDateString('tr-TR', {day: '2-digit', month: '2-digit'}) : '';
+// Küçük stok rozeti (liste / seçici): Stok 21 · yeşil, kritik sarı, yok kırmızı, bilinmiyor gri
+function stokRozet(u) {
+  const e = stokEtkin(u), d = stokDurum(u);
+  if (!e) return '<span class="pill p-gray">Stok ?</span>';
+  return `<span class="pill ${d === 'yok' ? 'p-red' : d === 'kritik' ? 'p-amber' : 'p-green'}" title="${e.kaynak === 'sayim' ? 'Sayım ' + stokTarihYaz(e.tarih) + (e.acik ? ' (sayım sürüyor)' : '') : 'Ürün kartı'}">${d === 'yok' ? 'Stok yok' : 'Stok ' + e.adet}</span>`;
+}
 const kisa = n => { n = Number(n||0); return n >= 1e6 ? '₺' + (n/1e6).toLocaleString('tr-TR',{maximumFractionDigits:1}) + 'M' : n >= 1e4 ? '₺' + Math.round(n/1000).toLocaleString('tr-TR') + 'K' : tl(n); };
 const dstr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 const bugun = () => dstr(new Date());
@@ -319,7 +353,7 @@ function alacakOzet() {
     buAy: S.hareket.filter(h => h.tur === 'tahsilat' && (h.tarih || '').slice(0, 7) === ay).reduce((s, h) => s + Number(h.tutar || 0), 0),
   };
 }
-function stokDurum(u) { if (u.stok === '' || u.stok == null) return 'bilinmiyor'; const a = Number(u.stok), m = Number(u.min) || 1; return a <= 0 ? 'yok' : a <= m ? 'kritik' : 'yeterli'; }
+function stokDurum(u) { const e = stokEtkin(u); if (!e) return 'bilinmiyor'; const a = e.adet, m = Number(u.min) || 1; return a <= 0 ? 'yok' : a <= m ? 'kritik' : 'yeterli'; }
 
 // Mailden otomatik aktarılan kayıtlar: kaynak maile bağlantı (yalnızca Gmail adresi kabul edilir)
 function mailSatir(o) {
@@ -416,7 +450,7 @@ function kalemlerCiz() {
   kalemler.forEach((k, i) => {
     const el = document.createElement('div'); el.className = 'kalem';
     const opt = (arr, val) => arr.map(x => `<option${x === val ? ' selected' : ''}>${x}</option>`).join('');
-    el.innerHTML = `<div class="kalem-h"><span class="no">#${i + 1}</span><span class="net">Net <b data-net></b></span><button class="del-x" aria-label="Kalemi sil">${ikon('trash')}</button></div>
+    el.innerHTML = `<div class="kalem-h"><span class="no">#${i + 1}</span><span class="stk" data-stk></span><span class="net">Net <b data-net></b></span><button class="del-x" aria-label="Kalemi sil">${ikon('trash')}</button></div>
       <div class="grid">
         <div class="f c3"><label>Referans / Part no</label><input class="inp" data-k="ref" value="${esc(k.ref)}" autocapitalize="characters" placeholder="6ES7214-…"></div>
         <div class="f c3"><label>Marka</label><input class="inp" data-k="marka" value="${esc(k.marka)}" list="marka-list" placeholder="Siemens"></div>
@@ -428,8 +462,15 @@ function kalemlerCiz() {
         <div class="f c2"><label>Para</label><select class="sel" data-k="para">${opt(['€', '₺', '$'], k.para || '€')}</select></div>
       </div>`;
     const netYaz = () => { const n = kalemNet(k); el.querySelector('[data-net]').textContent = n > 0 ? (k.para || '€') + ' ' + fmt(n) : '—'; };
-    netYaz();
-    el.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => { k[inp.dataset.k] = inp.value; netYaz(); tfSakla(); }));
+    const stkYaz = () => {   // ürün koduyla stoğu bul: "Stok 21 · sayım 26.11" / miktar stoktan fazlaysa uyar
+      const b = el.querySelector('[data-stk]'), u = k.ref ? urunBulMarka(k.ref, k.marka) : null; if (!u) { b.innerHTML = ''; return; }
+      const e = stokEtkin(u), m = Number(k.miktar) || 0;
+      if (!e) { b.innerHTML = '<span class="pill p-gray">Stok bilgisi yok</span>'; return; }
+      const yet = e.adet >= m;
+      b.innerHTML = `<span class="pill ${e.adet <= 0 ? 'p-red' : yet ? 'p-green' : 'p-amber'}">${e.adet <= 0 ? 'Stok yok' : (yet ? 'Stokta ' : 'Yetersiz: stokta ') + e.adet}${e.kaynak === 'sayim' ? ' · sayım ' + stokTarihYaz(e.tarih) : ''}</span>`;
+    };
+    netYaz(); stkYaz();
+    el.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => { k[inp.dataset.k] = inp.value; netYaz(); if (['ref', 'marka', 'miktar'].includes(inp.dataset.k)) stkYaz(); tfSakla(); }));
     // Kod yazılınca fiyat listesinden doldur (boş alanları)
     el.querySelector('[data-k="ref"]').addEventListener('change', () => {
       const u = urunBul(k.ref); if (!u) return;
@@ -454,7 +495,7 @@ $('#k-stok').onclick = () => {
     const l = urunAra(sh.el.querySelector('#pk-ara').value, 80);
     const box = sh.el.querySelector('#pk-list'); box.innerHTML = l.length ? '' : '<div class="empty">Sonuç yok</div>';
     l.forEach(u => { const b = document.createElement('button'); b.className = 'row';
-      b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)} · ${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '—'}</b></div>`;
+      b.innerHTML = `<div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)} · ${esc(u.aciklama)}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) : '—'}</b><span style="margin-top:4px">${stokRozet(u)}</span></div>`;
       b.onclick = () => { kalemler.push({ref: u.ref || '', aciklama: u.aciklama || '', marka: u.marka || '', miktar: 1, birim: 'Adet', fiyat: u.fiyat || '', para: u.para || '€', iskonto: 0}); kalemlerCiz(); toast('✅ ' + (u.ref || 'Ürün') + ' eklendi'); };
       box.appendChild(b); });
   };
@@ -851,7 +892,7 @@ function stokCiz() {
   $('#s-ozet').textContent = `${S.stok.length.toLocaleString('tr-TR')} ürün · ${markalar.length} marka${krit ? ' · ' + krit + ' kritik' : ''}${l.length > 300 ? ' · ilk 300 gösteriliyor, aramayla daralt' : ''}`;
   const pill = {yeterli: ['Yeterli', 'p-green'], kritik: ['Kritik', 'p-red'], yok: ['Yok', 'p-gray'], bilinmiyor: ['—', 'p-gray']};
   $('#s-list').innerHTML = l.length ? l.slice(0, 300).map(u => { const [pl, pc] = pill[stokDurum(u)];
-    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) + (u.birim && u.birim !== 'Adet' ? '<span class="bir"> / ' + esc(u.birim) + '</span>' : '') : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${u.stok !== '' && u.stok != null ? ' · ' + esc(u.stok) : ''}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
+    return `<button class="row" data-urun="${esc(u.id)}"><div class="mid"><div class="t">${esc(u.ref)}</div><div class="s">${esc(u.marka)}${u.aciklama ? ' · ' + esc(u.aciklama) : ''}</div></div><div class="end"><b>${u.fiyat ? esc(u.para || '€') + ' ' + fmtF(u.fiyat) + (u.birim && u.birim !== 'Adet' ? '<span class="bir"> / ' + esc(u.birim) + '</span>' : '') : '<span style="color:var(--fg3)">fiyat sorunuz</span>'}</b><span class="pill ${pc}" style="margin-top:4px">${pl}${(() => { const e = stokEtkin(u); return e ? ' · ' + e.adet : ''; })()}</span></div></button>`; }).join('') : `<div class="empty">${S.stok.length ? 'Sonuç yok' : 'Henüz ürün yok. Fiyat listelerini Claude\'a gönder, toplu ekleyelim.'}</div>`;
 }
 $('#s-ara').oninput = stokCiz; $('#s-durum').onchange = stokCiz;
 $('#s-marka').onchange = e => { sMarka = e.target.value; stokCiz(); };
