@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.27.0';
+const APP_VERSION = '1.28.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -204,11 +204,12 @@ function ciz(cols) {
   if (cols.includes('gorevler') || cols.includes('bakiye') || cols.includes('siparisler')) takvimCiz();
   dashboardCiz();
   if (aktifSayfa === 'finans') finansCiz();
+  if (aktifSayfa === 'ekstre' && window.ekstreCiz && (cols.includes('musteri') || cols.includes('bakiye') || cols.includes('hareket'))) ekstreCiz();
 }
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', ekstre: 'Cari Ekstre', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -223,7 +224,7 @@ function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
   if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
   if (p === 'depo' && !IS_DEPO) p = 'siparisler';
-  if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
+  if ((p === 'musteri' || p === 'ekstre') && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
@@ -233,6 +234,7 @@ function git(p) {
   if (p === 'takvim') takvimCiz();
   if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
   if (p === 'teklif') firmaListesi();
+  if (p === 'ekstre' && window.ekstreCiz) ekstreCiz();
   lsSet('co_page', p);
   window.scrollTo({top: 0});
 }
@@ -298,6 +300,7 @@ function menuAc() {
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
     ${IS_DEPO ? r('depo', 'box', 'Depo / Sevkiyat', 'Hazırla, onayla, fatura, sevk') : ''}
     ${IS_FIN ? r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç') : ''}
+    ${IS_FIN ? r('ekstre', 'search', 'Cari Ekstre', 'Firma yaz: bakiye, vade, ort. vade') : ''}
     ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
   </div>
@@ -434,7 +437,7 @@ TF.forEach(a => $('#tf-' + a).addEventListener('input', () => lsSet('co_tf_meta'
 
 function adim(n) {
   if (n >= 2 && !$('#tf-musteri').value.trim()) { toast('Önce müşteri adını yaz'); $('#tf-musteri').focus(); n = 1; }
-  if (n === 3) { onizle(); pdfOnHazirla(); }
+  if (n === 3) { onizle(); pdfOnHazirla(); if (kalemler.length && $('#tf-musteri').value.trim()) tfKaydet(true, true); }   // önizlemeye gelen teklif Teklif Geçmişi'ne otomatik kaydolur
   $$('.wp').forEach((w, i) => w.classList.toggle('active', i === n - 1));
   $$('.step').forEach((s, i) => { s.classList.toggle('on', i === n - 1); s.classList.toggle('done', i < n - 1); });
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -522,15 +525,23 @@ function onizle() {
   tfSakla();
   $('#tf-durum').textContent = tfId ? 'Kayıtlı teklifi düzenliyorsun' : 'Yeni teklif';
 }
-async function tfKaydet(sessiz) {
-  if (!kalemler.length) { toast('Önce kalem ekle'); return false; }
+// Kayıtlar sırayla yapılır: önizleme, PDF ve gönder aynı anda tetiklense de tek teklif oluşur
+let tfKayitIs = Promise.resolve();
+function tfKaydet(sessiz, oto) { const is = tfKayitIs.then(() => tfKaydetTek(sessiz, oto)); tfKayitIs = is.catch(() => false); return is; }
+async function tfKaydetTek(sessiz, oto) {
+  if (!kalemler.length) { if (!oto) toast('Önce kalem ekle'); return false; }
   const m = tfMeta();
   const eski = tfId && S.teklifler.find(t => t.id === tfId);
   // Aynı numara başka bir teklifte varsa (aynı anda iki kişi hazırladıysa) sıradakini ver
   if (!m.no || S.teklifler.some(t => t.id !== tfId && String(t.no) === String(m.no))) { m.no = otoNo(); $('#tf-no').value = m.no; }
-  const obj = {...(eski || {}), ...m, id: tfId || newId(), kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
+  const id = tfId || newId(), yeni = !eski;
+  tfId = id; lsSet('co_tf_id', id);   // kayıt sürerken gelen ikinci istek aynı teklifi günceller, kopya açmaz
+  const obj = {...(eski || {}), ...m, id, kalemler: kalemler.map(k => ({...k})), kalemSayisi: kalemler.length, tutar: toplamYazi(), tarih: (eski && eski.tarih) || bugun(), durum: (eski && eski.durum) || 'bekliyor', hazirlayan: (eski && eski.hazirlayan) || benimAdim()};
+  // Değişiklik yoksa tekrar yazma (geçmişteki sırası bozulmasın)
+  if (eski && oto) { const ayni = (a, b) => JSON.stringify(a) === JSON.stringify(b); if (TF.every(k => (eski[k] || '') === (obj[k] || '')) && ayni(eski.kalemler, obj.kalemler)) return true; }
   const ok = await kaydet('teklifler', obj);
-  if (ok) { tfId = obj.id; lsSet('co_tf_id', tfId); $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz) toast('✅ Teklif geçmişe kaydedildi'); }
+  if (ok) { $('#tf-durum').textContent = 'Kayıtlı teklifi düzenliyorsun'; if (!sessiz || (oto && yeni)) toast('✅ Teklif ' + obj.no + ' geçmişe kaydedildi'); }
+  else if (yeni) { tfId = null; lsSet('co_tf_id', null); }
   return ok;
 }
 function tfYeni() {
@@ -583,6 +594,7 @@ async function pdfAl(t, tf) {
 async function cikti(tur, t, tf) {
   if (!t.kalemler || !t.kalemler.length) { toast('Önce kalem ekle'); return; }
   const ad = TC.dosyaAdi(t, tur === 'excel' ? 'xlsx' : 'pdf');
+  if (tf) tfKaydet(true, true);   // önce kaydet: paylaşım iptal edilse ya da hata verse de teklif geçmişte kalır
   try {
     if (tur === 'excel') { toast('Excel hazırlanıyor…'); TC.indir(await TC.excelUret(t, A.teklif), ad); toast('⬇ ' + ad, 3200); }
     else if (tur === 'pdf') { toast('PDF hazırlanıyor…'); TC.indir(await pdfAl(t, tf), ad); toast('⬇ ' + ad, 3200); }
@@ -591,7 +603,6 @@ async function cikti(tur, t, tf) {
       const r = await TC.paylas(blob, ad, t, A.mail);
       if (r === 'mailto') toast('PDF indirildi, mail açılıyor — PDF\'i eke ekle', 4500);
     }
-    if (tf) tfKaydet(true);
   } catch (e) {
     if (e && e.name === 'AbortError') return;
     if (e && e.name === 'NotAllowedError') { toast('Paylaşım hazır — bir kez daha bas', 3500); return; }
@@ -714,7 +725,7 @@ let CARI = [], cariKirli = true;
 function cariler() {
   if (cariKirli) {
     const bm = new Map(S.bakiye.map(b => [b.id, b]));
-    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak, vgec: b.vgec, vgecT: b.vgecT, vgel: b.vgel, vgelT: b.vgelT, vkaynak: b.vkaynak} : m; });
+    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak, vgec: b.vgec, vgecT: b.vgecT, vgel: b.vgel, vgelT: b.vgelT, vyon: b.vyon, vkaynak: b.vkaynak} : m; });
     cariKirli = false;
   }
   return CARI;
@@ -822,7 +833,7 @@ function firmaForm(id) {
     ${m.vkaynak ? `<div class="note"><b style="color:var(--fg)">Vade durumu</b><br>${Number(m.vgec) > 0 ? `Vadesi geçen: <b style="color:var(--red)">${tl(m.vgec)}</b>${m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : ''}<br>` : ''}${Number(m.vgel) > 0 ? `Vadesi gelmeyen: <b style="color:var(--fg)">${tl(m.vgel)}</b>${m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}<br>` : ''}${!(Number(m.vgec) > 0) && !(Number(m.vgel) > 0) ? 'Açık vade yok<br>' : ''}<span style="font-size:11.5px;color:var(--fg3)">${esc(m.vkaynak)}</span></div>` : ''}
     ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
-    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
+    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button><button class="btn btn-s btn-sm" id="ff-ekstre">Ekstre</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
     const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
@@ -835,6 +846,7 @@ function firmaForm(id) {
     }
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
+  const eb = sh.el.querySelector('#ff-ekstre'); if (eb) eb.onclick = () => { sh.kapat(); if (window.ekstreAc) ekstreAc(m.id); };
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
   const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
 }
@@ -1022,7 +1034,7 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
+  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && (aktifSayfa === 'musteri' || aktifSayfa === 'ekstre'))) git('dashboard');
   if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
