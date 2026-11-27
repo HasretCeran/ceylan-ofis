@@ -224,33 +224,54 @@ function dpKalemForm(id, idx) {
   };
 }
 
-// KISAYOL: depo hazırladı → doğrudan sevkiyata ver (onay / fatura adımları beklenmeden). secimli=false: kalan her şey; true: hazır olanları elle seç (kısmi sevk)
+// Sevkiyata verilecek adetleri uygula: paketler gerekirse BÖLÜNÜR (4 adetlik kalemden 2'si gider, 2'si depoda kalır).
+// want: Map(kalemIndex → adet). Önce hazırlanmış (sevke verilmemiş) paketlerdeki adetler, sonra hiç paketlenmemiş kalan adetler kullanılır.
+function dpSevkUygula(c, want, ek, not) {
+  const kal = c.kalemler || [], paketler = (c.paketler || []).map(p => ({...p, kalem: (p.kalem || []).map(x => ({...x}))}));
+  const acik = paketler.filter(p => p.durum !== 'iptal' && !dpSevkte(p)), yeni = [];
+  want.forEach((q, i) => {
+    let rem = q;
+    acik.forEach(p => p.kalem.forEach(x => { if (x.i !== i || rem <= 0) return; const al = Math.min(x.m, rem); x.al = al; rem -= al; }));
+    if (rem > 0) yeni.push({i, m: rem});   // hiç paketlenmemiş adetten
+  });
+  let no = Math.max(0, ...paketler.map(p => +p.no || 0));
+  const sonuc = [];
+  paketler.forEach(p => {
+    if (p.durum === 'iptal' || dpSevkte(p) || !p.kalem.some(x => x.al > 0)) { p.kalem.forEach(x => delete x.al); sonuc.push(p); return; }
+    const tam = p.kalem.every(x => x.al === x.m);
+    if (tam) { p.kalem.forEach(x => delete x.al); sonuc.push(dpLog({...p, ...ek, durum: 'sevk'}, 'sevk', not)); return; }
+    // kısmi: verilen kısım yeni paket (sevk), kalan kısım eski pakette
+    const verilen = p.kalem.filter(x => x.al > 0).map(x => ({i: x.i, m: x.al})), kalan = p.kalem.map(x => ({i: x.i, m: x.m - (x.al || 0)})).filter(x => x.m > 0);
+    sonuc.push({...p, kalem: kalan});
+    no++;
+    sonuc.push(dpLog({id: newId(), no: String(no), durum: 'sevk', kalem: verilen, ...ek, log: [...(p.log || [])]}, 'sevk', not + ' · Paket ' + p.no + ' bölündü'));
+  });
+  if (yeni.length) { no++; sonuc.push(dpLog(dpLog(dpLog({id: newId(), no: String(no), durum: 'sevk', kalem: yeni, ...ek}, 'hazirlaniyor'), 'hazir'), 'sevk', not)); }
+  return sonuc;
+}
+
+// KISAYOL: depo hazırladı → doğrudan sevkiyata ver (onay / fatura adımları beklenmeden).
+// secimli=false: sevke verilmemiş her şey; true: her kalem için KAÇ ADET sevk edileceğini elle seç (kısmi sevk)
 function dpHazirSevk(id, secimli) {
   const s = S.siparisler.find(x => x.id === id); if (!s) return;
-  const kal = s.kalemler || [], h = dpHesap(s), bek = dpPaketler(s).filter(p => !dpSevkte(p));
-  const ozet = p => (p.kalem || []).map(x => `${(kal[x.i] || {}).ref || (kal[x.i] || {}).aciklama || '?'} × ${x.m}`).join(' · ');
-  const bekHtml = bek.map(p => `<label class="row hz-row" style="padding:8px 4px;gap:10px"><input type="checkbox" data-hp="${esc(p.id)}" checked><div class="mid"><div class="t" style="white-space:normal">Paket ${esc(p.no)} <span class="pill ${DP[p.durum][1]}" style="margin-left:6px">${esc(DP[p.durum][0])}</span></div><div class="s">${esc(ozet(p))}</div></div></label>`).join('');
-  const kalHtml = kal.map((k, i) => h[i].kalan > 0 ? `<div class="row hz-row" style="padding:8px 4px;gap:10px"><input type="checkbox" data-hk="${i}" checked><div class="mid"><div class="t" style="white-space:normal">${esc(k.ref || k.aciklama)}</div><div class="s">${esc(k.ref ? k.aciklama || '' : '')} · hazırlanmamış ${h[i].kalan} ${esc(k.birim || '')}</div></div><input class="inp num" data-hm="${i}" type="number" min="0" max="${h[i].kalan}" step="any" value="${h[i].kalan}" style="width:84px"></div>` : '').join('');
-  const sayi = bek.length + kal.filter((k, i) => h[i].kalan > 0).length;
+  const kal = s.kalemler || [], h = dpHesap(s);
+  const bek = i => Math.max(0, h[i].siparis - h[i].sevk), pkte = i => Math.max(0, Math.min(h[i].paket, h[i].siparis) - h[i].sevk);   // bek: sevke verilebilir toplam, pkte: bunun paketlerde hazırlanmış kısmı
+  const satirlar = kal.map((k, i) => bek(i) > 0 ? `<div class="row hz-row" style="padding:8px 4px;gap:10px"><input type="checkbox" data-hk="${i}" checked><div class="mid"><div class="t" style="white-space:normal">${esc(k.ref || k.aciklama)}</div><div class="s">${esc(k.ref ? (k.aciklama || '') + ' · ' : '')}sipariş ${h[i].siparis}${h[i].sevk ? ' · sevk edilen ' + h[i].sevk : ''}${pkte(i) ? ' · paketlerde hazır ' + pkte(i) : ''}</div></div><div style="text-align:right"><input class="inp num" data-hm="${i}" type="number" inputmode="decimal" min="0" max="${bek(i)}" step="any" value="${bek(i)}" style="width:92px"><div class="s" style="font-size:11px;margin-top:2px">/ ${bek(i)} ${esc(k.birim || '')}</div></div></div>` : '').join('');
+  const sayi = kal.filter((k, i) => bek(i) > 0).length;
   const sh = sheet('Sevkiyata ver · ' + (s.no || ''), `<div class="fg">
-    <p class="note">${secimli ? 'Hazır olan paketleri ve kalemleri işaretle; işaretsizler depoda kalır, sonra ayrıca sevke verilir.' : `Siparişte hazırlanan her şey (${sayi} satır) sevkiyata verilecek.`} Onay ve fatura adımları beklenmeden doğrudan <b>Sevke verildi</b> olur; kim, ne zaman verdiği kaydedilir.</p>
-    ${secimli ? `<div class="rows">${bekHtml}${kalHtml}</div>` : ''}
+    <p class="note">${secimli ? 'Her kalem için <b>kaç adet</b> sevkiyata verileceğini yaz (ör. 4 adetten 2). Kalan adetler depoda kalır, sonra ayrıca verilir.' : `Siparişte sevke verilmemiş her şey (${sayi} kalem, tüm adetler) sevkiyata verilecek.`} Onay ve fatura adımları beklenmeden doğrudan <b>Sevke verildi</b> olur; kim, ne zaman verdiği kaydedilir.</p>
+    ${secimli ? `<div class="rows">${satirlar}</div>` : ''}
     <div class="fg2"><div class="f"><label for="hs-irs">İrsaliye no (isteğe bağlı)</label><input class="inp" id="hs-irs"></div><div class="f"><label for="hs-kargo">Kargo / araç</label><input class="inp" id="hs-kargo"></div></div></div>`,
     [{label: 'Vazgeç', onClick: () => { setTimeout(() => dpDetay(id), 0); }}, {label: 'Sevkiyata ver', cls: 'btn-p', onClick: async ov => {
-      const c = S.siparisler.find(x => x.id === id) || s, hh = dpHesap(c), bk = dpPaketler(c).filter(p => !dpSevkte(p));
-      const secPk = new Set(secimli ? [...ov.querySelectorAll('[data-hp]')].filter(cb => cb.checked).map(cb => cb.dataset.hp) : bk.map(p => p.id));
-      const yeniKalem = [];
-      (c.kalemler || []).forEach((k, i) => { if (hh[i].kalan <= 0) return; const cb = ov.querySelector(`[data-hk="${i}"]`); if (secimli && !(cb && cb.checked)) return;
-        const m = secimli ? Math.min(dpSay(ov.querySelector(`[data-hm="${i}"]`).value), hh[i].kalan) : hh[i].kalan; if (m > 0) yeniKalem.push({i, m}); });
-      if (!secPk.size && !yeniKalem.length) { toast('Sevkiyata verilecek bir şey seç'); return false; }
+      const c = S.siparisler.find(x => x.id === id) || s, hh = dpHesap(c), want = new Map();
+      (c.kalemler || []).forEach((k, i) => { const max = Math.max(0, hh[i].siparis - hh[i].sevk); if (max <= 0) return;
+        if (!secimli) { want.set(i, max); return; }
+        const cb = ov.querySelector(`[data-hk="${i}"]`); if (!(cb && cb.checked)) return;
+        const q = Math.min(dpSay(ov.querySelector(`[data-hm="${i}"]`).value), max); if (q > 0) want.set(i, q); });
+      if (!want.size) { toast('Sevkiyata verilecek adet yaz'); return false; }
       const ek = {}; if (v(ov, 'hs-irs')) ek.irsaliyeNo = v(ov, 'hs-irs'); if (v(ov, 'hs-kargo')) ek.kargo = v(ov, 'hs-kargo');
       const not = ['hazır, doğrudan sevkiyata verildi', ek.irsaliyeNo && 'İrsaliye ' + ek.irsaliyeNo, ek.kargo].filter(Boolean).join(' · ');
-      let paketler = (c.paketler || []).map(p => secPk.has(p.id) ? dpLog({...p, ...ek, durum: 'sevk'}, 'sevk', not) : p);
-      if (yeniKalem.length) {
-        const no = String(Math.max(0, ...(c.paketler || []).map(p => +p.no || 0)) + 1);
-        paketler = [...paketler, dpLog(dpLog(dpLog({id: newId(), no, durum: 'sevk', kalem: yeniKalem, ...ek}, 'hazirlaniyor'), 'hazir'), 'sevk', not)];
-      }
-      if (await dpKaydet({...c, paketler})) { toast('✅ Sevkiyata verildi'); setTimeout(() => dpDetay(id), 0); } else return false;
+      if (await dpKaydet({...c, paketler: dpSevkUygula(c, want, ek, not)})) { toast('✅ Sevkiyata verildi'); setTimeout(() => dpDetay(id), 0); } else return false;
     }}]);
   return sh;
 }
