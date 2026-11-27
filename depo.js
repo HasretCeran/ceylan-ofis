@@ -6,11 +6,14 @@
    Veri, siparişin içinde: s.paketler = [{id, no, durum, kalem:[{i,m}], log:[{t,k,d,n}], faturaNo, irsaliyeNo, kargo}], s.gorenler = [{k,t}]. */
 const DP = {
   hazirlaniyor: ['Hazırlanıyor', 'p-amber'], hazir: ['Hazırlandı · onay bekliyor', 'p-orange'], onayli: ['Onaylandı · fatura bekliyor', 'p-blue'],
-  faturali: ['Faturalandı · sevke hazır', 'p-blue'], sevk: ['Sevk edildi', 'p-green'], iptal: ['İptal', 'p-red'],
+  faturali: ['Faturalandı · sevke hazır', 'p-blue'], sevk: ['Sevke verildi', 'p-orange'], alindi: ['Sevkiyat aldı', 'p-blue'], teslim: ['Teslim edildi', 'p-green'], tamam: ['Tamamlandı', 'p-green'], iptal: ['İptal', 'p-red'],
 };
-const DP_ISLEM = {hazirlaniyor: 'paket açtı', hazir: 'hazırladı', onayli: 'onayladı', faturali: 'fatura kesildi', sevk: 'sevke verdi', iptal: 'iptal etti'};
-const DP_SIRA = ['hazirlaniyor', 'hazir', 'onayli', 'faturali', 'sevk'];
-let dpFiltre = 'acik';
+const DP_ISLEM = {hazirlaniyor: 'paket açtı', hazir: 'hazırladı', onayli: 'onayladı', faturali: 'fatura kesildi', sevk: 'sevke verdi', alindi: 'sevkiyat olarak teslim aldı', teslim: 'müşteriye teslim etti', tamam: 'tamamladı', iptal: 'iptal etti'};
+const DP_SIRA = ['hazirlaniyor', 'hazir', 'onayli', 'faturali', 'sevk', 'alindi', 'teslim', 'tamam'];
+const DP_DUGME = {hazirlaniyor: 'Hazırlandı', hazir: 'Onayla', onayli: 'Fatura kesildi', faturali: 'Sevke ver', sevk: 'Sevkiyat aldı', alindi: 'Teslim edildi', teslim: 'Tamamla'};
+const dpSevkte = p => DP_SIRA.indexOf(p.durum) >= DP_SIRA.indexOf('sevk');   // sevke verilmiş sayılan tüm aşamalar
+const dpAdimT = (p, d) => { const g = (p.log || []).find(x => x.d === d); return g ? g : null; };
+let dpFiltre = 'acik', dpSekme = 'hazirlik', dpSvFiltre = 'sevk';
 
 const dpSay = x => Number(x) || 0;
 const dpMik = k => dpSay(k.miktar) || 1;
@@ -22,21 +25,22 @@ const dpZaman = t => new Date(t).toLocaleString('tr-TR', {day: '2-digit', month:
 function dpHesap(s) {
   const kal = Array.isArray(s.kalemler) ? s.kalemler : [];
   const r = kal.map(k => ({siparis: dpMik(k), paket: 0, sevk: 0}));
-  dpPaketler(s).forEach(p => (p.kalem || []).forEach(x => { if (!r[x.i]) return; r[x.i].paket += dpSay(x.m); if (p.durum === 'sevk') r[x.i].sevk += dpSay(x.m); }));
+  dpPaketler(s).forEach(p => (p.kalem || []).forEach(x => { if (!r[x.i]) return; r[x.i].paket += dpSay(x.m); if (dpSevkte(p)) r[x.i].sevk += dpSay(x.m); }));
   r.forEach(x => { x.kalan = Math.max(0, x.siparis - x.paket); });
   return r;
 }
 function dpOzet(s) {
   const h = dpHesap(s), top = h.reduce((a, x) => a + x.siparis, 0), pk = h.reduce((a, x) => a + Math.min(x.paket, x.siparis), 0), sv = h.reduce((a, x) => a + Math.min(x.sevk, x.siparis), 0);
   const ps = dpPaketler(s), n = d => ps.filter(p => p.durum === d).length;
-  return {top, pk, sv, kalan: top - pk, tamSevk: top > 0 && sv >= top, hazirlaniyor: n('hazirlaniyor'), hazir: n('hazir'), onayli: n('onayli'), faturali: n('faturali'), sevk: n('sevk')};
+  return {top, pk, sv, kalan: top - pk, tamSevk: top > 0 && sv >= top, hazirlaniyor: n('hazirlaniyor'), hazir: n('hazir'), onayli: n('onayli'), faturali: n('faturali'), sevk: ps.filter(dpSevkte).length, teslimTum: ps.length > 0 && ps.every(p => ['teslim', 'tamam'].includes(p.durum))};
 }
 // Sipariş durumunu paketlerle uyumlu tut (kısmi sevk / tam sevk / hazır)
 function dpSenkron(s) {
   const h = dpHesap(s), o = dpOzet(s), d = s.durum || 'alindi', yeni = {...s};
   yeni.kalemler = (s.kalemler || []).map((k, i) => ({...k, geldi: !!h[i] && h[i].paket >= h[i].siparis}));
   let nd = d;
-  if (o.tamSevk && ['alindi', 'tedarik', 'hazir', 'kismi'].includes(d)) nd = 'sevk';
+  if (o.tamSevk && o.teslimTum && ['alindi', 'tedarik', 'hazir', 'kismi', 'sevk'].includes(d)) nd = 'teslim';   // tüm paketler müşteriye teslim edildi
+  else if (o.tamSevk && ['alindi', 'tedarik', 'hazir', 'kismi'].includes(d)) nd = 'sevk';
   else if (o.sv > 0 && !o.tamSevk && ['alindi', 'tedarik', 'hazir'].includes(d)) nd = 'kismi';
   else if (o.top > 0 && o.kalan === 0 && ['alindi', 'tedarik'].includes(d)) nd = 'hazir';
   if (nd !== d) { yeni.durum = nd; yeni.gecmis = [...(s.gecmis || []), {t: new Date().toISOString(), d: nd, k: ME, n: 'Depo'}]; }
@@ -76,10 +80,52 @@ function dpSatir(s) {
     <div class="mid"><div class="t">${esc(s.musteri || '—')}</div><div class="s">${esc(alt)}</div><div class="dp-bar" style="margin-top:6px"><i style="width:${yuzde}%"></i></div></div>
     <div class="end"><span class="pill ${c}">${esc(l)}</span></div></button>`;
 }
+// Sevkiyat sekmesi: sevke verilen paketler (sipariş durumundan bağımsız), aşama ve saat bilgisiyle
+function dpSevkPaketleri() {
+  const l = [];
+  S.siparisler.filter(s => (s.durum || 'alindi') !== 'iptal').forEach(s => dpPaketler(s).forEach(p => { if (dpSevkte(p)) l.push({s, p}); }));
+  return l;
+}
+const dpSonT = p => { const g = (p.log || []); return g.length ? g[g.length - 1].t : ''; };
+function dpSevkSatir({s, p}) {
+  const [l, c] = DP[p.durum], kal = s.kalemler || [], ver = dpAdimT(p, 'sevk'), son = (p.log || [])[(p.log || []).length - 1];
+  const oz = (p.kalem || []).map(x => `${(kal[x.i] || {}).ref || (kal[x.i] || {}).aciklama || '?'} × ${x.m}`).join(' · ');
+  const saat = [ver && 'Sevke verildi ' + dpZaman(ver.t) + ' · ' + adi(ver.k), son && son.d !== 'sevk' ? DP[son.d][0] + ' ' + dpZaman(son.t) + ' · ' + adi(son.k) : ''].filter(Boolean).join('  →  ');
+  return `<button class="row" data-dpp="${esc(s.id)}|${esc(p.id)}">${avatar(s.musteri)}
+    <div class="mid"><div class="t">${esc(s.musteri || '—')} <span style="color:var(--fg3);font-weight:500">· ${esc(s.no || '')} · Paket ${esc(p.no)}</span></div><div class="s">${esc(oz)}</div><div class="s" style="font-size:11.5px;margin-top:2px">${esc(saat)}</div></div>
+    <div class="end"><span class="pill ${c}">${esc(l)}</span></div></button>`;
+}
+// Tek bir paketin sevkiyat sayfası: tüm saatler + sonraki adım
+function dpPaketSayfa(sid, pid) {
+  const s = S.siparisler.find(x => x.id === sid), p = s && (s.paketler || []).find(x => x.id === pid); if (!p) return;
+  const [l, c] = DP[p.durum], kal = s.kalemler || [], yetki = dpYetki(), dugme = DP_DUGME[p.durum];
+  const ek = [p.faturaNo && 'Fatura ' + p.faturaNo, p.irsaliyeNo && 'İrsaliye ' + p.irsaliyeNo, p.kargo, p.teslimAlan && 'Teslim alan: ' + p.teslimAlan].filter(Boolean).join(' · ');
+  const sh = sheet(`${s.musteri || ''} · Paket ${p.no}`, `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="s">${esc(s.no || '')}${s.musteriSipNo ? ' · PO ' + esc(s.musteriSipNo) : ''}</span><span class="pill ${c}">${esc(l)}</span></div>
+    <div class="s" style="margin:8px 0;font-size:13px">${(p.kalem || []).map(x => `${esc((kal[x.i] || {}).ref || (kal[x.i] || {}).aciklama || '?')} × ${esc(x.m)}`).join(' · ')}</div>
+    ${ek ? `<div class="s" style="font-size:12.5px;color:var(--fg2);margin-bottom:8px">${esc(ek)}</div>` : ''}
+    <div class="vu-h" style="padding-left:0">Adımlar ve saatleri</div>
+    <div class="sp-tl">${(p.log || []).map(g => `<div><i></i><b>${esc((DP[g.d] || [g.d])[0])}</b><small>${esc(new Date(g.t).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}))} · ${esc(adi(g.k))}${g.n ? ' · ' + esc(g.n) : ''}</small></div>`).join('')}</div>
+    ${yetki && dugme ? `<button class="btn btn-p btn-block" id="dpp-adim" style="margin-top:14px">${esc(dugme)}</button>` : ''}`,
+    [{label: 'Siparişi aç', onClick: () => { setTimeout(() => dpDetay(sid), 0); }}, {label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
+  const b = sh.el.querySelector('#dpp-adim'); if (b) b.onclick = () => { sh.kapat(); dpAdim(sid, pid, () => setTimeout(() => dpPaketSayfa(sid, pid), 0), () => setTimeout(() => dpPaketSayfa(sid, pid), 0)); };
+}
+function dpSevkCiz() {
+  const q = ($('#dp-ara').value || '').toLocaleLowerCase('tr-TR'), tum = dpSevkPaketleri();
+  const chips = [['sevk', 'Sevke verildi'], ['alindi', 'Sevkiyat aldı'], ['teslim', 'Teslim edildi'], ['tamam', 'Tamamlandı'], ['', 'Tümü']];
+  $('#dp-chips').innerHTML = chips.map(([k, l]) => { const n = tum.filter(x => !k || x.p.durum === k).length; return `<button class="chip${dpSvFiltre === k ? ' on' : ''}" data-dpsf="${k}">${l}${n ? ' · ' + n : ''}</button>`; }).join('');
+  const l = tum.filter(x => (!dpSvFiltre || x.p.durum === dpSvFiltre) && (!q || [x.s.musteri, x.s.no, x.s.musteriSipNo, x.p.irsaliyeNo, x.p.kargo].join(' ').toLocaleLowerCase('tr-TR').includes(q)))
+    .sort((a, b) => (dpSonT(b.p) || '').localeCompare(dpSonT(a.p) || ''));
+  $('#dp-list').innerHTML = l.length ? l.map(dpSevkSatir).join('') : '<div class="empty">Bu aşamada sevkiyat yok</div>';
+  const ac = tum.filter(x => x.p.durum !== 'tamam').length;
+  $('#dp-ozet').textContent = `${ac} sevkiyat devam ediyor · ${tum.filter(x => x.p.durum === 'sevk').length} sevkiyat bekliyor`;
+}
 function dpCiz() {
   const liste = $('#dp-list'); if (!liste) return;
+  const tabs = $('#dp-tabs'); if (tabs) { const nSv = dpSevkPaketleri().filter(x => x.p.durum !== 'tamam').length; tabs.innerHTML = [['hazirlik', 'Hazırlık'], ['sevkiyat', 'Sevkiyat']].map(([k, l]) => `<button class="seg-b${dpSekme === k ? ' on' : ''}" data-dpt="${k}">${l}${k === 'sevkiyat' && nSv ? `<em>${nSv}</em>` : ''}</button>`).join(''); }
+  if (dpSekme === 'sevkiyat') { dpSevkCiz(); return; }
   const q = ($('#dp-ara').value || '').toLocaleLowerCase('tr-TR'), tum = dpSiparisler();
-  const chips = [['acik', 'Açık'], ['yeni', 'Yeni'], ['hazirla', 'Hazırlanacak'], ['onay', 'Onay bekleyen'], ['fatura', 'Fatura bekleyen'], ['sevke', 'Sevke hazır'], ['sevk', 'Sevk edilen']];
+  const chips = [['acik', 'Açık'], ['yeni', 'Yeni'], ['hazirla', 'Hazırlanacak'], ['onay', 'Onay bekleyen'], ['fatura', 'Fatura bekleyen'], ['sevke', 'Sevke hazır'], ['sevk', 'Sevke verilen']];
   $('#dp-chips').innerHTML = chips.map(([k, l]) => { const n = tum.filter(s => dpSatirda(s, k)).length; return `<button class="chip${dpFiltre === k ? ' on' : ''}" data-dpf="${k}">${l}${n ? ' · ' + n : ''}</button>`; }).join('');
   const l = tum.filter(s => dpSatirda(s, dpFiltre) && (!q || [s.musteri, s.no, s.musteriSipNo].join(' ').toLocaleLowerCase('tr-TR').includes(q)))
     .sort((a, b) => (a.termin || '9999').localeCompare(b.termin || '9999') || (b.tarih || '').localeCompare(a.tarih || ''));
@@ -92,6 +138,21 @@ function dpCiz() {
 async function dpKaydet(s) { return kaydet('siparisler', dpSenkron(s)); }
 const dpLog = (p, d, n) => { p.log = [...(p.log || []), {t: new Date().toISOString(), k: ME, d, n: n || ''}]; return p; };
 
+const DP_ALAN = {faturali: [['faturaNo', 'Fatura no']], sevk: [['irsaliyeNo', 'İrsaliye no'], ['kargo', 'Kargo / araç (isteğe bağlı)']], alindi: [['alan', 'Sevkiyatı alan kişi / araç (isteğe bağlı)']], teslim: [['teslimAlan', 'Teslim alan kişi (isteğe bağlı)']], tamam: [['not', 'Not (ör. imzalı irsaliye alındı)']]};
+// Paketi bir sonraki adıma geçir; bazı adımlarda bilgi sorar. bitti(): işlem tamamlanınca çağrılır, iptal(): vazgeçilince
+function dpAdim(id, pid, bitti, iptal) {
+  const c = S.siparisler.find(x => x.id === id), p = c && (c.paketler || []).find(x => x.id === pid); if (!p) return;
+  const sonraki = DP_SIRA[DP_SIRA.indexOf(p.durum) + 1]; if (!sonraki) return;
+  const yaz = async ek => {
+    const c2 = S.siparisler.find(x => x.id === id) || c, ps2 = (c2.paketler || []).map(x => x.id === pid ? dpLog({...x, ...ek, durum: sonraki}, sonraki, Object.values(ek).filter(Boolean).join(' · ')) : x);
+    if (await dpKaydet({...c2, paketler: ps2})) { toast('✅ ' + DP[sonraki][0]); bitti && bitti(); }
+  };
+  const alan = DP_ALAN[sonraki];
+  if (!alan) { yaz({}); return; }
+  sheet(DP[sonraki][0], `<div class="fg">${alan.map(([k, l]) => `<div class="f"><label>${l}</label><input class="inp" data-ek="${k}" value="${esc(p[k] || '')}"></div>`).join('')}</div>`,
+    [{label: 'Vazgeç', onClick: () => { iptal && iptal(); }}, {label: DP_DUGME[p.durum], cls: 'btn-p', onClick: ov => { const ek = {}; ov.querySelectorAll('[data-ek]').forEach(i => { if (i.value.trim()) ek[i.dataset.ek] = i.value.trim(); }); yaz(ek); }}]);
+}
+
 function dpDetay(id) {
   let s = S.siparisler.find(x => x.id === id); if (!s) return;
   const yetki = dpYetki();
@@ -102,14 +163,14 @@ function dpDetay(id) {
   const kal = s.kalemler || [], h = dpHesap(s), o = dpOzet(s), ps = (s.paketler || []);
   const kalemSatir = (k, i) => `<tr${yetki ? ` data-dpk="${i}" style="cursor:pointer"` : ''}><td><b>${esc(k.ref || k.aciklama || '—')}</b>${k.ref && k.aciklama ? `<small>${esc(k.aciklama)}</small>` : ''}${k.musteriKod || k.musteriAciklama ? `<small style="color:var(--fg3)">Müşteri yazımı: ${esc([k.musteriKod, k.musteriAciklama].filter(Boolean).join(' · '))}</small>` : ''}</td><td class="r">${h[i].siparis}</td><td class="r">${h[i].paket}</td><td class="r">${h[i].sevk}</td><td class="r"${h[i].kalan ? ' style="color:var(--orange);font-weight:700"' : ''}>${h[i].kalan}</td></tr>`;
   const paketKart = p => {
-    const [l, c] = DP[p.durum] || DP.hazirlaniyor, son = p.durum !== 'iptal' && p.durum !== 'sevk';
+    const [l, c] = DP[p.durum] || DP.hazirlaniyor, son = p.durum !== 'iptal' && p.durum !== 'tamam', iptalEdilir = !dpSevkte(p) && p.durum !== 'iptal';
     const ek = [p.faturaNo && 'Fatura ' + p.faturaNo, p.irsaliyeNo && 'İrsaliye ' + p.irsaliyeNo, p.kargo].filter(Boolean).join(' · ');
-    const dugme = {hazirlaniyor: 'Hazırlandı', hazir: 'Onayla', onayli: 'Fatura kesildi', faturali: 'Sevke ver'}[p.durum];
+    const dugme = DP_DUGME[p.durum];
     return `<div class="dp-pk${p.durum === 'iptal' ? ' iptal' : ''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>Paket ${esc(p.no)}</b><span class="pill ${c}">${esc(l)}</span></div>
       <div class="s" style="margin-top:6px;font-size:13px">${(p.kalem || []).map(x => `${esc((kal[x.i] || {}).ref || (kal[x.i] || {}).aciklama || '?')} × ${esc(x.m)}`).join(' · ')}</div>
       ${ek ? `<div class="s" style="margin-top:4px;font-size:12.5px;color:var(--fg2)">${esc(ek)}</div>` : ''}
       <div class="dp-log">${(p.log || []).map(g => `<div>${esc(dpZaman(g.t))} · <b>${esc(adi(g.k))}</b> ${esc(DP_ISLEM[g.d] || g.d)}${g.n ? ' · ' + esc(g.n) : ''}</div>`).join('')}</div>
-      ${yetki && son ? `<div style="display:flex;gap:8px;margin-top:10px">${dugme ? `<button class="btn btn-p btn-sm" data-dpadim="${esc(p.id)}" style="flex:1">${dugme}</button>` : ''}<button class="btn btn-s btn-sm" data-dpiptal="${esc(p.id)}">Paketi iptal et</button></div>` : ''}</div>`;
+      ${yetki && son ? `<div style="display:flex;gap:8px;margin-top:10px">${dugme ? `<button class="btn btn-p btn-sm" data-dpadim="${esc(p.id)}" style="flex:1">${dugme}</button>` : ''}${iptalEdilir ? `<button class="btn btn-s btn-sm" data-dpiptal="${esc(p.id)}">Paketi iptal et</button>` : ''}</div>` : ''}</div>`;
   };
   const sh = sheet('Depo · ' + (s.no || '') + ' · ' + (s.musteri || ''), `
     <div class="s" style="margin-bottom:8px;font-size:12.5px;color:var(--fg2)">${s.termin ? 'Termin <b>' + trT(s.termin) + '</b> · ' : ''}${o.pk}/${o.top} adet paketlendi · ${o.sv} adet sevk edildi${s.musteriSipNo ? ' · PO ' + esc(s.musteriSipNo) : ''}</div>
@@ -124,17 +185,7 @@ function dpDetay(id) {
   sh.el.querySelectorAll('[data-dpk]').forEach(tr => tr.onclick = () => { sh.kapat(); dpKalemForm(id, +tr.dataset.dpk); });
   const kb = sh.el.querySelector('#dp-kalem'); if (kb) kb.onclick = () => { sh.kapat(); dpKalemForm(id); };
   const yeni = sh.el.querySelector('#dp-yeni'); if (yeni) yeni.onclick = () => { sh.kapat(); dpPaketForm(id); };
-  sh.el.querySelectorAll('[data-dpadim]').forEach(b => b.onclick = async () => {
-    const c = guncel(), p = (c.paketler || []).find(x => x.id === b.dataset.dpadim); if (!p) return;
-    const sonraki = DP_SIRA[DP_SIRA.indexOf(p.durum) + 1];
-    const yaz = async ek => { const ps2 = (c.paketler || []).map(x => x.id === p.id ? dpLog({...x, ...ek, durum: sonraki}, sonraki, Object.values(ek).filter(Boolean).join(' · ')) : x); if (await dpKaydet({...c, paketler: ps2})) { toast('✅ ' + DP[sonraki][0]); yenile(); } };
-    if (sonraki === 'faturali' || sonraki === 'sevk') {
-      const alan = sonraki === 'faturali' ? [['faturaNo', 'Fatura no']] : [['irsaliyeNo', 'İrsaliye no'], ['kargo', 'Kargo / araç (isteğe bağlı)']];
-      sh.kapat();
-      sheet(DP[sonraki][0], `<div class="fg">${alan.map(([k, l]) => `<div class="f"><label>${l}</label><input class="inp" data-ek="${k}" value="${esc(p[k] || '')}"></div>`).join('')}</div>`,
-        [{label: 'Vazgeç', onClick: () => { setTimeout(() => dpDetay(id), 0); }}, {label: 'Kaydet', cls: 'btn-p', onClick: ov => { const ek = {}; ov.querySelectorAll('[data-ek]').forEach(i => { ek[i.dataset.ek] = i.value.trim(); }); yaz(ek); }}]);
-    } else yaz({});
-  });
+  sh.el.querySelectorAll('[data-dpadim]').forEach(b => b.onclick = () => { sh.kapat(); dpAdim(id, b.dataset.dpadim, () => setTimeout(() => dpDetay(id), 0), () => setTimeout(() => dpDetay(id), 0)); });
   sh.el.querySelectorAll('[data-dpiptal]').forEach(b => b.onclick = () => {
     sh.kapat();
     confirmSheet('Paket iptal edilsin mi?', 'Paketteki adetler tekrar "kalan"a döner.', async () => {
@@ -187,6 +238,7 @@ function dpPaketForm(id) {
 }
 
 $('#dp-ara').oninput = dpCiz;
-$('#dp-chips').onclick = e => { const c = e.target.closest('[data-dpf]'); if (c) { dpFiltre = c.dataset.dpf; dpCiz(); } };
-$('#dp-list').onclick = e => { const r = e.target.closest('[data-dps]'); if (r) dpDetay(r.dataset.dps); };
+$('#dp-chips').onclick = e => { const c = e.target.closest('[data-dpf]'); if (c) { dpFiltre = c.dataset.dpf; dpCiz(); } const s = e.target.closest('[data-dpsf]'); if (s) { dpSvFiltre = s.dataset.dpsf; dpCiz(); } };
+$('#dp-list').onclick = e => { const p = e.target.closest('[data-dpp]'); if (p) { const [a, b] = p.dataset.dpp.split('|'); dpPaketSayfa(a, b); return; } const r = e.target.closest('[data-dps]'); if (r) dpDetay(r.dataset.dps); };
+$('#dp-tabs').onclick = e => { const b = e.target.closest('[data-dpt]'); if (b) { dpSekme = b.dataset.dpt; dpCiz(); } };
 dpCiz();
