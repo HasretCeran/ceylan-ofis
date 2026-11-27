@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.24.3';
+const APP_VERSION = '1.24.4';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -735,6 +735,28 @@ $('#m-ara').oninput = () => { mLimit = 100; musteriCiz(); };
 $('#m-chips').onclick = e => { const c = e.target.closest('[data-mf]'); if (c) { mFiltre = c.dataset.mf; mLimit = 100; musteriCiz(); } };
 $$('[data-mf-tile]').forEach(t => t.onclick = () => { mFiltre = t.dataset.mfTile; mLimit = 100; musteriCiz(); $('#m-chips').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 function firmaListesi() { $('#firma-list').innerHTML = [...new Set([...S.musteri.map(m => m.firma), ...S.teklifler.map(t => t.musteri)].filter(x => x && x !== '—'))].slice(0, 3000).map(f => `<option value="${esc(f)}">`).join(''); }
+// Firma seçici: Türkçe harfe duyarsız arama (çöz = ÇÖZÜM), listede yoksa yazılan ad yeni firma olarak kullanılır
+const firmaKatla = s => nrmTR(s).replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+function firmaAdlari() { return [...new Set([...S.musteri.map(m => m.firma), ...S.teklifler.map(t => t.musteri), ...S.siparisler.map(s => s.musteri)].map(x => String(x || '').trim()).filter(x => x && x !== '—'))]; }
+function firmaOner(inp) {
+  if (inp.dataset.fsAtla) { delete inp.dataset.fsAtla; return; }
+  let kutu = inp.parentNode.querySelector('.fsug');
+  const q = firmaKatla(inp.value);
+  if (document.activeElement !== inp) { if (kutu) kutu.remove(); return; }
+  const tok = q.split(' ').filter(Boolean);
+  const hit = tok.length ? firmaAdlari().map(a => [a, firmaKatla(a)]).filter(([, k]) => tok.every(x => k.includes(x))).sort((a, b) => (b[1].startsWith(tok[0]) - a[1].startsWith(tok[0])) || a[0].length - b[0].length).slice(0, 8).map(x => x[0]) : [];
+  const var_ = hit.some(a => firmaKatla(a) === q);
+  if (!kutu) { kutu = document.createElement('div'); kutu.className = 'fsug'; inp.parentNode.style.position = 'relative'; inp.insertAdjacentElement('afterend', kutu); }
+  kutu.innerHTML = hit.map(a => `<button type="button" data-fs="${esc(a)}">${esc(a)}</button>`).join('') + (inp.value.trim() && !var_ ? `<button type="button" class="yeni" data-fs="${esc(inp.value.trim())}">＋ “${esc(inp.value.trim())}” yeni firma olarak kullan</button>` : '');
+  if (!kutu.innerHTML) kutu.remove();
+}
+document.addEventListener('focusin', e => { const i = e.target; if (i.matches && i.matches('input[list="firma-list"]')) { i.removeAttribute('list'); i.dataset.fsug = '1'; firmaOner(i); } });
+document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.fsug) firmaOner(e.target); });
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.fsug button'); if (b) { e.preventDefault(); const inp = b.parentNode.previousElementSibling; inp.value = b.dataset.fs; b.parentNode.remove(); inp.dataset.fsAtla = '1'; inp.dispatchEvent(new Event('input', {bubbles: true})); inp.dispatchEvent(new Event('change', {bubbles: true})); return; }
+  if (!e.target.closest('.fsug')) document.querySelectorAll('.fsug').forEach(x => x.remove());
+}, true);
+document.addEventListener('focusout', e => { if (e.target.dataset && e.target.dataset.fsug) setTimeout(() => { const k = e.target.parentNode && e.target.parentNode.querySelector('.fsug'); if (k && document.activeElement !== e.target) k.remove(); }, 150); });
 const KART_ALAN = ['firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
 async function bakiyeYaz(id, patch) {
   const eski = S.bakiye.find(b => b.id === id) || {};
