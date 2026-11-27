@@ -83,18 +83,32 @@
     if (out.join('').trim().length < 20) throw new Error('Bu PDF taranmış (resim) görünüyor — sayfanın fotoğrafını ya da ekran görüntüsünü yükle');
     return out;
   }
-  // Küçük / düşük çözünürlüklü fotoğraflarda yazı küçük kalır: 2. geçişte büyütülmüş + kontrastı artırılmış kopya da okunur (cift=true)
+  // Küçük yazılı fotoğraf / ekran görüntülerinde 2. geçiş: büyütülmüş + kontrastı artırılmış kopya okunur (cift=true).
+  // Yatay ekran görüntüleri (DİA fişi gibi form/tablo) için sayfa bölütleme "seyrek metin" (6) ile okunur.
   async function guclendir(file) {
-    const bmp = await createImageBitmap(file); if (bmp.width >= 1800) return null;
-    const k = Math.min(3, 2200 / bmp.width), cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    const bmp = await createImageBitmap(file); if (bmp.width >= 2400) return null;
+    const k = Math.min(3, Math.max(2, 2600 / bmp.width)), cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
     const cx = cv.getContext('2d'); cx.filter = 'grayscale(1) contrast(1.5)'; cx.drawImage(bmp, 0, 0, cv.width, cv.height);
-    return new Promise(ok => cv.toBlob(b => ok(b), 'image/png'));
+    const blob = await new Promise(ok => cv.toBlob(b => ok(b), 'image/png'));
+    return {blob, yatay: bmp.width > bmp.height * 1.2};
   }
   async function resimSatirlar(file, ilerle, cift) {
     await script(LIB.tesseract);
     const oku = async (f, etiket) => (await Tesseract.recognize(f, 'tur+eng', {logger: m => { if (m.status === 'recognizing text') ilerle('Fotoğraf okunuyor' + etiket + '… %' + Math.round(m.progress * 100)); }})).data.text.split('\n');
     let satir = await oku(file, '');
-    if (cift) { try { const b = await guclendir(file); if (b) satir = satir.concat(['\u0001'], await oku(b, ' (ayrıntı)')); } catch (e) { /* büyütme olmazsa ilk okuma yeter */ } }
+    if (cift) {
+      try {
+        const g = await guclendir(file);
+        if (g) {
+          let ek;
+          if (g.yatay) {
+            const w = await Tesseract.createWorker('tur+eng', 1, {logger: m => { if (m.status === 'recognizing text') ilerle('Ekran görüntüsü okunuyor (ayrıntı)… %' + Math.round(m.progress * 100)); }});
+            try { await w.setParameters({tessedit_pageseg_mode: '6'}); ek = (await w.recognize(g.blob)).data.text.split('\n'); } finally { await w.terminate(); }
+          } else ek = await oku(g.blob, ' (ayrıntı)');
+          satir = satir.concat(['\u0001'], ek);   // \u0001: iki okuma arasında ayraç (satır birleştirmeyi engeller)
+        }
+      } catch (e) { /* büyütme olmazsa ilk okuma yeter */ }
+    }
     return satir;
   }
   // Excel'de başlık satırı (Kod / Açıklama / Miktar…) varsa her dolu satır bir kalem olur — kodsuzlar dahil
