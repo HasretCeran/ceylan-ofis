@@ -557,6 +557,22 @@ button.row:active{background:var(--surface2)}
 .fsug{position:absolute;left:0;right:0;z-index:30;margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);overflow:hidden;max-height:260px;overflow-y:auto}
 .fsug button{display:block;width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;font-size:14px;color:var(--fg);cursor:pointer}
 .fsug button:last-child{border-bottom:0}.fsug button.yeni{color:var(--brand);font-weight:600}
+
+/* Cari ekstre */
+.ce-ara-k{margin-bottom:14px;max-width:none}.ce-ara-k .inp{height:50px;font-size:16px}
+.ce-oneri{position:absolute;left:0;right:0;top:100%;z-index:30;margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);max-height:380px;overflow-y:auto}
+.ce-oneri button{display:block;width:100%;text-align:left;padding:11px 14px;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;color:var(--fg);cursor:pointer}
+.ce-oneri button:last-child{border-bottom:0}.ce-oneri button:hover{background:var(--surface2)}
+.ce-o-ad{display:block;font-size:14px;font-weight:600}.ce-o-alt{display:block;font-size:12px;color:var(--fg3);margin-top:2px}.ce-o-yok{padding:14px;font-size:13px;color:var(--fg3)}
+.ce-bas{margin-bottom:12px}.ce-firma{display:flex;gap:12px;align-items:center}.ce-firma .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.ce-firma h2{font-size:17px;line-height:1.3;margin:0}.ce-firma p{font-size:12.5px;color:var(--fg3);margin:3px 0 0}
+.ce-durum{margin-top:12px;border-left:3px solid;padding:8px 12px;border-radius:8px;background:var(--surface2);font-size:13.5px;font-weight:600}
+.ce-tiles .val{font-size:20px}
+.ce-bar-h{display:flex;justify-content:space-between;font-size:13px;color:var(--fg2);margin-bottom:8px}.ce-bar-h b{color:var(--fg)}
+.ce-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--surface2)}.ce-bar i{display:block;height:100%}
+.ce-bar-l{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--fg3)}.ce-bar-l i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.ce-eylem{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.ce-kaynak{font-size:11.5px;color:var(--fg3);margin:10px 2px}
 </style>
 </head>
 <body>
@@ -574,6 +590,7 @@ button.row:active{background:var(--surface2)}
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
@@ -627,6 +644,7 @@ button.row:active{background:var(--surface2)}
     <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-cart"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item depo-only" hidden data-go="depo"><svg class="i"><use href="#i-box"/></svg>Depo / Sevkiyat<span class="cnt" data-dp-say hidden></span></button>
     <button class="sb-item fin-only" hidden data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
+    <button class="sb-item fin-only" hidden data-go="ekstre"><svg class="i"><use href="#i-search"/></svg>Cari Ekstre</button>
     <button class="sb-item owner-only" data-go="satinalma" hidden><svg class="i"><use href="#i-bag"/></svg>Satınalma<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
     <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-check"/></svg>Stok Sayımı</button>
@@ -825,6 +843,14 @@ button.row:active{background:var(--surface2)}
         </div>
       </section>
 
+      <!-- CARİ EKSTRE -->
+      <section class="page" id="p-ekstre">
+        <div class="ph"><div><h1>Cari Ekstre</h1><p>Firma adını yaz — bakiye, vadesi geçen / gelmeyen tutar ve ortalama vade</p></div>
+          <button class="btn btn-s btn-sm" id="ce-temizle">Temizle</button></div>
+        <div class="search ce-ara-k"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="ce-ara" placeholder="Firma adı, cari kodu veya vergi no" autocomplete="off" enterkeyhint="search"><div class="ce-oneri" id="ce-oneri" hidden></div></div>
+        <div id="ce-sonuc"></div>
+      </section>
+
       <!-- STOK -->
       <section class="page" id="p-stok">
         <div class="ph"><div><h1>Stok / Ürünler</h1><p id="s-ozet">—</p></div><div style="display:flex;gap:8px"><button class="btn btn-s btn-sm owner-only" data-act="stok-aktar" hidden><svg class="i"><use href="#i-down"/></svg>Excel'den aktar</button><button class="btn btn-p btn-sm" data-act="urun-ekle">+ Ürün</button></div></div>
@@ -945,15 +971,16 @@ button.row:active{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.27.0"></script>
-<script src="teklif-cikti.js?v=1.27.0"></script>
-<script src="app.js?v=1.27.0"></script>
-<script src="hizli-teklif.js?v=1.27.0"></script>
-<script src="siparis.js?v=1.27.0"></script>
-<script src="depo.js?v=1.27.0"></script>
-<script src="sayim.js?v=1.27.0"></script>
-<script src="stok-aktar.js?v=1.27.0"></script>
-<script src="satinalma.js?v=1.27.0"></script>
-<script src="onizle.js?v=1.27.0"></script>
+<script src="config.js?v=1.28.0"></script>
+<script src="teklif-cikti.js?v=1.28.0"></script>
+<script src="app.js?v=1.28.0"></script>
+<script src="hizli-teklif.js?v=1.28.0"></script>
+<script src="siparis.js?v=1.28.0"></script>
+<script src="depo.js?v=1.28.0"></script>
+<script src="sayim.js?v=1.28.0"></script>
+<script src="stok-aktar.js?v=1.28.0"></script>
+<script src="satinalma.js?v=1.28.0"></script>
+<script src="onizle.js?v=1.28.0"></script>
+<script src="cari-ekstre.js?v=1.28.0"></script>
 </body>
 </html>

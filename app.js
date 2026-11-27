@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.27.0';
+const APP_VERSION = '1.28.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -204,11 +204,12 @@ function ciz(cols) {
   if (cols.includes('gorevler') || cols.includes('bakiye') || cols.includes('siparisler')) takvimCiz();
   dashboardCiz();
   if (aktifSayfa === 'finans') finansCiz();
+  if (aktifSayfa === 'ekstre' && window.ekstreCiz && (cols.includes('musteri') || cols.includes('bakiye') || cols.includes('hareket'))) ekstreCiz();
 }
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', ekstre: 'Cari Ekstre', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -223,7 +224,7 @@ function git(p) {
   if (!BASLIK[p]) p = 'dashboard';
   if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
   if (p === 'depo' && !IS_DEPO) p = 'siparisler';
-  if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
+  if ((p === 'musteri' || p === 'ekstre') && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
   $$('.page').forEach(x => x.classList.toggle('active', x.id === 'p-' + p));
   $$('[data-go]').forEach(x => x.classList.toggle('active', x.dataset.go === p));
@@ -233,6 +234,7 @@ function git(p) {
   if (p === 'takvim') takvimCiz();
   if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
   if (p === 'teklif') firmaListesi();
+  if (p === 'ekstre' && window.ekstreCiz) ekstreCiz();
   lsSet('co_page', p);
   window.scrollTo({top: 0});
 }
@@ -298,6 +300,7 @@ function menuAc() {
     ${r('siparisler', 'cart', 'Siparişler', 'Gelen siparişler ve takip')}
     ${IS_DEPO ? r('depo', 'box', 'Depo / Sevkiyat', 'Hazırla, onayla, fatura, sevk') : ''}
     ${IS_FIN ? r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç') : ''}
+    ${IS_FIN ? r('ekstre', 'search', 'Cari Ekstre', 'Firma yaz: bakiye, vade, ort. vade') : ''}
     ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
   </div>
@@ -714,7 +717,7 @@ let CARI = [], cariKirli = true;
 function cariler() {
   if (cariKirli) {
     const bm = new Map(S.bakiye.map(b => [b.id, b]));
-    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak, vgec: b.vgec, vgecT: b.vgecT, vgel: b.vgel, vgelT: b.vgelT, vkaynak: b.vkaynak} : m; });
+    CARI = S.musteri.map(m => { const b = bm.get(m.id); return b ? {...m, alacak: b.alacak, vade: b.vade, durum: b.durum, ba: b.ba, bakiye: b.bakiye, bkaynak: b.kaynak, vgec: b.vgec, vgecT: b.vgecT, vgel: b.vgel, vgelT: b.vgelT, vyon: b.vyon, vkaynak: b.vkaynak} : m; });
     cariKirli = false;
   }
   return CARI;
@@ -822,7 +825,7 @@ function firmaForm(id) {
     ${m.vkaynak ? `<div class="note"><b style="color:var(--fg)">Vade durumu</b><br>${Number(m.vgec) > 0 ? `Vadesi geçen: <b style="color:var(--red)">${tl(m.vgec)}</b>${m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : ''}<br>` : ''}${Number(m.vgel) > 0 ? `Vadesi gelmeyen: <b style="color:var(--fg)">${tl(m.vgel)}</b>${m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}<br>` : ''}${!(Number(m.vgec) > 0) && !(Number(m.vgel) > 0) ? 'Açık vade yok<br>' : ''}<span style="font-size:11.5px;color:var(--fg3)">${esc(m.vkaynak)}</span></div>` : ''}
     ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
-    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
+    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button><button class="btn btn-s btn-sm" id="ff-ekstre">Ekstre</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
     const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
@@ -835,6 +838,7 @@ function firmaForm(id) {
     }
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
+  const eb = sh.el.querySelector('#ff-ekstre'); if (eb) eb.onclick = () => { sh.kapat(); if (window.ekstreAc) ekstreAc(m.id); };
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
   const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
 }
@@ -1022,7 +1026,7 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
+  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && (aktifSayfa === 'musteri' || aktifSayfa === 'ekstre'))) git('dashboard');
   if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
