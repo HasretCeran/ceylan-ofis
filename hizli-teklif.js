@@ -115,13 +115,13 @@
   async function excelKalemler(file) {
     await script(LIB.sheetjs);
     const wb = XLSX.read(await file.arrayBuffer(), {type: 'array'}), out = [];
-    const RX = {kod: /^(ürün |malzeme |stok |parça )?(kod|kodu|code|ref|referans|part ?no|sipariş kodu|p\/n)/i, ac: /açıklama|aciklama|tanım|tanim|malzeme( adı)?$|ürün( adı)?$|description|cins|ürün tanımı|malzeme adı/i, mik: /miktar|adet|qty|quantity|sayı/i, bir: /^birim$|unit|ölçü/i, mar: /marka|brand|üretici/i};
+    const RX = {kod: /^(ürün |malzeme |stok |parça )?(kod|kodu|code|ref|referans|part ?no|sipariş kodu|p\/n)/i, ac: /açıklama|aciklama|tanım|tanim|malzeme( adı)?$|ürün( adı)?$|description|cins|ürün tanımı|malzeme adı/i, mik: /miktar|adet|qty|quantity|sayı/i, bir: /^birim$|unit|ölçü/i, mar: /marka|brand|üretici/i, lf: /liste\s*fiyat/i, pb: /^(pb|para\s*birimi|döviz)$/i, isk: /^[iİ]sk(onto)?[\s.%()]*$/i};
     for (const n of wb.SheetNames.slice(0, 5)) {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], {header: 1, raw: false, blankrows: false});
       const hi = rows.findIndex((r, i) => i < 30 && r.some(c => RX.mik.test(String(c || ''))) && r.some(c => RX.ac.test(String(c || '')) || RX.kod.test(String(c || ''))));
       if (hi < 0) continue;
       const h = rows[hi].map(c => String(c || '').trim()), col = k => h.findIndex(c => RX[k].test(c));
-      const ck = col('kod'), ca = h.findIndex((c, i) => i !== ck && RX.ac.test(c)), cm = col('mik'), cb = col('bir'), cr = col('mar');
+      const ck = col('kod'), ca = h.findIndex((c, i) => i !== ck && RX.ac.test(c)), cm = col('mik'), cb = col('bir'), cr = col('mar'), cl = col('lf'), cp = col('pb'), ci = col('isk');
       for (const r of rows.slice(hi + 1)) {
         const v = i => i >= 0 && r[i] != null ? String(r[i]).trim() : '';
         const kod = v(ck), ac = v(ca);
@@ -130,7 +130,9 @@
         // Kodsuz ve miktarsız açıklama satırları (şart, not, adres, imza) kalem değildir
         if (!kod && !v(cm) && (ac.length > 30 || /fiyat|kdv|teslim|ödeme|odeme|vade|geçerli|tcmb|kur|nakliye|sipariş|adres|tel|faks|e-?posta|saygı|imza|kaşe/i.test(ac))) continue;
         const u = (kod && bul(kod, true)) || null;
-        out.push({u, ref: kod, aciklama: ac, marka: v(cr), birim: v(cb), miktar: sayi(v(cm)) || 1, kaynak: kod + ' ' + ac});
+        const pbT = v(cp).toUpperCase(), para = /€|EUR|AVRO/.test(pbT) ? '€' : /\$|USD/.test(pbT) ? '$' : /₺|TL|TRY/.test(pbT) ? '₺' : '';
+        const lfy = cl >= 0 ? sayi(v(cl)) : 0, isk = ci >= 0 ? sayi(v(ci)) : 0;   // dosyadaki liste fiyatı / para birimi / iskonto (varsa) korunur
+        out.push({u, ref: kod, aciklama: ac, marka: v(cr), birim: v(cb), miktar: sayi(v(cm)) || 1, kaynak: kod + ' ' + ac, fiyat: lfy > 0 ? lfy : '', para, iskonto: isk > 0 && isk < 100 ? isk : 0});
       }
     }
     return out;
