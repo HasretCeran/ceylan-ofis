@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.30.0';
+const APP_VERSION = '1.30.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -84,6 +84,7 @@ let sb = null;
 const A = {
   teklif: {odeme: '', teslimYeri: '', teslimSure: '', gecerli: '15 gün', sartlar: ['Fiyatlarımızda KDV hariçtir. Ayrıca ilave edilecektir.', 'Sipariş kabulü imzalı ve kaşeli olarak işleme alınır.', 'Aksi belirtilmediği sürece nakliye ücreti müşteriye aittir.', 'Döviz cinsinden verilen fiyatlar fatura tarihindeki TCMB satış kuru üzerinden TL olarak fiyatlandırılacaktır.']},
   mail: {konu: '{no} numaralı teklifimiz — Ceylan Otomasyon', govde: 'Sayın {ilgili},\n\n{konu} konulu teklifimiz ekte bilgilerinize sunulmuştur.\n\nSaygılarımızla,\n{hazirlayan}\nCeylan Endüstriyel Otomasyon\nTel: 0262 646 20 52'},
+  kur: {},   // TCMB döviz satış kuru (günlük otomatik): {usd, eur, tarih, kaynak, gecmis}
   dia: {sunucu: '', firmaKodu: '', donemKodu: '', kullanici: '', aktar: {cari: true, stok: true, hareket: false}},
 };
 
@@ -384,6 +385,7 @@ function dashboardCiz() {
   const ad = (P[ME] && P[ME].ad) || '';
   $('#hero-hi').textContent = selam + (ad ? ', ' + ad.split(' ')[0] : '');
   $('#hero-date').textContent = s.toLocaleDateString('tr-TR', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+  { const k = A.kur || {}; if (k.usd) $('#hero-date').textContent += ` · TCMB satış $ ${kurYaz(k.usd)} · € ${kurYaz(k.eur)}${k.tarih && k.tarih !== bugun() ? ' (' + trT(k.tarih) + ')' : ''}`; }
   const acik = S.teklifler.filter(t => ACIK.includes(t.durum || 'bekliyor')).length;
   $$('[data-acik-val]').forEach(e => e.textContent = acik);
   $$('[data-acik]').forEach(e => { e.textContent = acik; e.hidden = !acik; });
@@ -559,7 +561,17 @@ function tfYeni() {
   tfVarsayilan();
   kalemlerCiz(); adim(1); $('#tf-durum').textContent = 'Yeni teklif';
 }
+const kurYaz = n => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+// TCMB kuru: teklif formunda tek dokunuşla kur alanlarına yazılır (otomatik yazılmaz; kur girilince teklif TL'ye çevrilir)
+function tcmbKurCiz() {
+  const el = $('#tf-tcmb'), k = A.kur || {}; if (!el) return;
+  el.hidden = !k.usd;
+  if (k.usd) el.innerHTML = `TCMB döviz satış (${trT(k.tarih)}): $ <b>${kurYaz(k.usd)}</b> · € <b>${kurYaz(k.eur)}</b> <button type="button" class="link-btn" id="tf-tcmb-kullan">Kur alanlarına yaz</button>`;
+}
+document.addEventListener('click', e => { if (!e.target.closest('#tf-tcmb-kullan')) return; const k = A.kur || {};
+  $('#tf-kurUsd').value = k.usd; $('#tf-kurEur').value = k.eur; ['kurUsd', 'kurEur'].forEach(i => $('#tf-' + i).dispatchEvent(new Event('input', {bubbles: true}))); toast('TCMB kuru yazıldı'); });
 function tfVarsayilan() {
+  tcmbKurCiz();
   const d = A.teklif;
   const taslak = lsGet('co_tf_meta', {});
   [['odeme', d.odeme], ['teslimYeri', d.teslimYeri], ['teslimSure', d.teslimSure], ['gecerli', d.gecerli]].forEach(([k, val]) => {

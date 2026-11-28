@@ -4,7 +4,7 @@
    takip edilmesi gereken (cevapsız) teklifler. Para birimleri ayrı toplanır; ₺ karşılığı girilen kurla hesaplanır. */
 let rpDonem = lsGet('rp_donem', 'ay'), rpKisi = '';
 const RP_DONEM = [['ay', 'Bu ay'], ['3ay', 'Son 3 ay'], ['yil', 'Bu yıl'], ['hepsi', 'Tümü']];
-const rpKur = () => { const k = lsGet('rp_kur', null) || (typeof saKur === 'function' ? saKur() : {}); return {'₺': 1, '$': Number(k['$']) || 0, '€': Number(k['€']) || 0}; };
+const rpKur = () => { const k = lsGet('rp_kur', null) || {}, t = A.kur || {}; return {'₺': 1, '$': Number(k['$']) || Number(t.usd) || 0, '€': Number(k['€']) || Number(t.eur) || 0}; };
 const rpPara = p => p === 'TL' || p === 'TRY' || !p ? '₺' : p === 'USD' ? '$' : p === 'EUR' ? '€' : p;
 // Kalem listesinin para birimi bazında toplamı (iskonto düşülmüş)
 function rpTop(kalemler) {
@@ -75,7 +75,7 @@ function raporCiz() {
   el.innerHTML = `
     <div class="chips" style="margin-bottom:10px">${RP_DONEM.map(([k, l]) => `<button class="chip${rpDonem === k ? ' on' : ''}" data-rpd="${k}">${l}</button>`).join('')}
       <select class="sel" id="rp-kisi" style="height:32px;width:auto"><option value="">Herkes</option>${kisiOpts.map(k => `<option value="${esc(k)}"${rpKisi === k ? ' selected' : ''}>${esc(k === '-' ? 'Uygulama öncesi' : adi(k))}</option>`).join('')}</select></div>
-    <div class="note" style="margin-bottom:12px">Kur (₺ karşılığı için): $ <input class="inp num" id="rp-usd" type="number" step="0.01" inputmode="decimal" value="${kur['$'] || ''}" style="width:80px;height:30px;display:inline-block"> € <input class="inp num" id="rp-eur" type="number" step="0.01" inputmode="decimal" value="${kur['€'] || ''}" style="width:80px;height:30px;display:inline-block">${kurVar ? '' : ' <span style="color:var(--amber)">Kur girilmezse tutarlar para birimine göre ayrı yazılır</span>'}</div>
+    <div class="note" style="margin-bottom:12px">Kur (₺ karşılığı; boşsa TCMB satış): $ <input class="inp num" id="rp-usd" type="number" step="0.01" inputmode="decimal" value="${kur['$'] || ''}" style="width:80px;height:30px;display:inline-block"> € <input class="inp num" id="rp-eur" type="number" step="0.01" inputmode="decimal" value="${kur['€'] || ''}" style="width:80px;height:30px;display:inline-block">${kurVar ? '' : ' <span style="color:var(--amber)">Kur girilmezse tutarlar para birimine göre ayrı yazılır</span>'}</div>
     <div class="tiles">
       <div class="tile"><div class="lbl">Verilen teklif</div><div class="val num">${tek.length}</div><div class="hint">${esc(para(tTop))}</div></div>
       <div class="tile"><div class="lbl">Siparişe dönen</div><div class="val num" style="color:var(--green)">${dondu}</div><div class="hint">${esc(para(dTop))}</div></div>

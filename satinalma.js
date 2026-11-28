@@ -14,7 +14,7 @@ const SA_SORU = [['fiyat', 'Birim fiyat'], ['stok', 'Stok durumu'], ['termin', '
 const SA_BIRIM = ['Adet', 'Mt', 'Kg', 'Paket', 'Kutu', 'Takım', 'Rulo'];
 let saTab = lsGet('sa_tab', 'talepler'), saYuklendi = false, saSipFiltre = 'acik';
 const saF = {q: '', ted: '', talep: '', para: '', stok: '', donem: 0, enDusuk: false};
-const saKur = () => { const k = lsGet('sa_kur', {}); return {'$': Number(k['$']) || 0, '€': Number(k['€']) || 0}; };
+const saKur = () => { const k = lsGet('sa_kur', {}), t = (typeof A !== 'undefined' && A.kur) || {}; return {'$': Number(k['$']) || Number(t.usd) || 0, '€': Number(k['€']) || Number(t.eur) || 0}; };
 const saTed = id => S.tedarikciler.find(t => t.id === id);
 const saTL = n => Number(n || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const saTutarYazi = list => { const t = {}; list.forEach(k => { const n = (Number(k.fiyat) || 0) * (Number(k.miktar) || 1); if (n > 0) t[k.para || '₺'] = (t[k.para || '₺'] || 0) + n; }); return Object.entries(t).map(([p, v]) => saTL(v) + ' ' + p).join(' + '); };
