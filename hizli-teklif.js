@@ -187,7 +187,7 @@
         b.onclick = () => { onSec(u); if (coklu) { toast('✅ ' + (u.ref || 'Ürün') + ' eklendi'); ara.value = ''; ciz(); ara.focus(); } else sh.kapat(); };
         list.appendChild(b); });
     };
-    ara.oninput = ciz; ciz(); setTimeout(() => ara.focus(), 50);
+    ara.oninput = ciz; ciz(); oklaSec(ara, list); setTimeout(() => ara.focus(), 50);
     return sh;
   }
 
@@ -272,7 +272,7 @@
         b.onclick = () => { const var_ = sec.find(r => r.u.id === u.id); if (var_) var_.miktar++; else sec.push({u, miktar: 1}); secCiz(); ara.select(); };
         list.appendChild(b); });
     };
-    ara.oninput = ciz; ciz(); secCiz(); setTimeout(() => ara.focus(), 50);
+    ara.oninput = ciz; ciz(); secCiz(); oklaSec(ara, list, '.row'); setTimeout(() => ara.focus(), 50);
     const f = document.createElement('div'); f.className = 'sheet-f'; f.innerHTML = '<button class="btn btn-s">Vazgeç</button><button class="btn btn-p">Teklife ekle</button>';
     sh.el.querySelector('.sheet').appendChild(f);
     f.firstChild.onclick = () => sh.kapat();

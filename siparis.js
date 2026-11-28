@@ -276,7 +276,7 @@ function spKalemEkle(tamam) {
       const f = v(ov, 'ke-fiyat'), u = ref ? urunBulMarka(ref, '') : null;
       tamam({ref: ref || (u ? u.ref : ''), aciklama: ac || (u ? u.aciklama : ''), marka: u ? u.marka || '' : '', miktar: mik, birim: v(ov, 'ke-bir') || 'Adet', fiyat: f === '' ? '' : Number(f), para: ov.querySelector('#ke-para').value, iskonto: 0, geldi: false});
     }}]);
-  const ara = sh.el.querySelector('#ke-ara'), list = sh.el.querySelector('#ke-list');
+  const ara = sh.el.querySelector('#ke-ara'), list = sh.el.querySelector('#ke-list'); oklaSec(ara, list);
   ara.oninput = () => {
     const q = ara.value.trim(); if (!q) { list.innerHTML = ''; return; }
     const l = urunAra(q, 8); list.innerHTML = l.length ? '' : '<div class="empty" style="padding:10px">Stokta bulunamadı, aşağıya elle yaz</div>';

@@ -531,7 +531,23 @@ $('#k-stok').onclick = () => {
       box.appendChild(b); });
   };
   sh.el.querySelector('#pk-ara').oninput = ciz; ciz();
+  oklaSec(sh.el.querySelector('#pk-ara'), sh.el.querySelector('#pk-list'));
+  setTimeout(() => sh.el.querySelector('#pk-ara').focus(), 50);
 };
+// Klavye ile liste gezme: arama kutusunda ↓ ↑ ile sonuçlar arasında gez, Enter ile seç, Esc ile vazgeç. liste yenilenince seçim başa döner.
+function oklaSec(inp, liste, sel = '.row') {
+  let i = -1;
+  const ogeler = () => [...liste.querySelectorAll(sel)];
+  const isaret = () => ogeler().forEach((b, k) => { b.classList.toggle('on', k === i); if (k === i) b.scrollIntoView({block: 'nearest'}); });
+  inp.addEventListener('input', () => { i = -1; });
+  inp.addEventListener('keydown', e => {
+    const l = ogeler(); if (!l.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); i = i + 1 >= l.length ? 0 : i + 1; isaret(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); i = i <= 0 ? l.length - 1 : i - 1; isaret(); }
+    else if (e.key === 'Enter' && l.length) { e.preventDefault(); (l[i >= 0 ? i : 0]).click(); }
+  });
+}
+
 // Teklif no: tüm ekip için tek, ardışık sayı (en büyük numaranın bir fazlası)
 function noSayi(no) { const x = /^(?:TKF-\d{4}-)?0*(\d{1,6})$/.exec(String(no || '').trim()); return x ? +x[1] : 0; }
 function otoNo() { return String(S.teklifler.reduce((m, t) => Math.max(m, noSayi(t.no)), 0) + 1); }
