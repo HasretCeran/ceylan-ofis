@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.29.0';
+const APP_VERSION = '1.29.1';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -855,13 +855,54 @@ function firmaForm(id) {
     let ok = await kaydet('musteri', {...kart, id: kid, by: m.by, at: m.at});
     if (ok && IS_FIN) {
       const tutar = Math.abs(Number(v(ov, 'ff-alacak') || 0)), yon = v(ov, 'ff-yon');
-      if (tutar || v(ov, 'ff-vade') || S.bakiye.some(b => b.id === kid)) ok = await bakiyeYaz(kid, {alacak: yon === 'A' ? -tutar : tutar, bakiye: tutar, ba: yon, vade: v(ov, 'ff-vade'), durum: v(ov, 'ff-durum')});
+      const yeniVade = v(ov, 'ff-vade'), vadeElle = id && yeniVade && yeniVade !== (m.vade || '');
+      const ek = vadeElle ? (yeniVade < bugun() ? {vgec: tutar, vgecT: yeniVade, vgel: 0, vgelT: '', vyon: yon === 'A' ? 'borc' : 'alacak'} : {vgec: 0, vgecT: '', vgel: tutar, vgelT: yeniVade, vyon: yon === 'A' ? 'borc' : 'alacak'}) : {};
+      if (vadeElle) Object.assign(ek, {vkaynak: 'Elle girilen vade ' + trT(yeniVade), vgun: null});
+      if (tutar || yeniVade || S.bakiye.some(b => b.id === kid)) ok = await bakiyeYaz(kid, {alacak: yon === 'A' ? -tutar : tutar, bakiye: tutar, ba: yon, vade: yeniVade, durum: v(ov, 'ff-durum'), ...ek});
+      // Ödeme vadesi (gün) değiştiyse ortalama vadeyi ekstreden yeniden hesapla (elle tarih girilmediyse)
+      const yg = v(ov, 'ff-vgun'), eg = m.vadeGun === '' || m.vadeGun == null ? '' : String(m.vadeGun);
+      if (ok && id && !vadeElle && yg !== '' && yg !== eg) { cariKirli = true; await vadeYenidenHesapla({...m, ...cariler().find(x => x.id === kid)}, Number(yg)); }
     }
     if (ok) toast(id ? '✅ Firma güncellendi' : '✅ Firma eklendi'); return ok;
   }}]);
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
   const eb = sh.el.querySelector('#ff-ekstre'); if (eb) eb.onclick = () => ekstreGoster(m);
   const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
+}
+// ── Elle girilen ödeme vadesi (gün) ile ortalama vadeyi yeniden hesapla
+// Ekstredeki açık kalan faturalar (ödemeler en eskiden kapatılır) için vade = fatura tarihi + firmanın vade günü.
+// Açılış/devir satırları DİA'daki kendi vade tarihini korur. Sonuç bakiye kaydına yazılır; ortalama vade, vadesi geçen
+// ve yaklaşan vade hesapları otomatik güncellenir.
+const gunEkle = (t, g) => dstr(new Date(new Date(t + 'T12:00:00').getTime() + g * 864e5));
+async function vadeYenidenHesapla(m, gun, sessiz) {
+  if (DEMO || !IS_FIN || !m || !m.kod) return false;
+  const b = S.bakiye.find(x => x.id === m.id); if (!b) return false;
+  const al = Number(b.alacak) || 0, bak = Math.abs(al); if (bak < 1) return false;
+  const {data} = await sb.from('ekstre').select('veri').eq('id', m.kod).maybeSingle();
+  const sat = data && data.veri && data.veri.s; if (!sat || !sat.length) { if (!sessiz) toast('Ekstre yok — ortalama vade DİA verisiyle kaldı'); return false; }
+  const bz = bugun(); let kalan = bak, gec = 0, gecG = 0, gel = 0, gelG = 0;
+  for (let i = sat.length - 1; i >= 0 && kalan > 0.005; i--) {
+    const [t, , , tur, vade, bo, alc] = sat[i], n = al > 0 ? Number(bo) || 0 : Number(alc) || 0; if (!(n > 0)) continue;
+    const pay = Math.min(n, kalan); kalan -= pay;
+    const vt = /açılış|devir/i.test(tur) ? (vade || t) : gunEkle(t, gun);
+    if (vt < bz) { gec += pay; gecG += tGun(vt) * pay; } else { gel += pay; gelG += tGun(vt) * pay; }
+  }
+  if (kalan > 0.005) { gec += kalan; gecG += tGun(sat[0][0]) * kalan; }   // ekstre dönemi öncesinden kalan
+  const r = n => Math.round(n * 100) / 100;
+  const patch = {vgec: r(gec), vgecT: gec ? gunT(gecG / gec) : '', vgel: r(gel), vgelT: gel ? gunT(gelG / gel) : '', vyon: al > 0 ? 'alacak' : 'borc',
+    vade: gec ? gunT(gecG / gec) : gel ? gunT(gelG / gel) : b.vade, vkaynak: `Ödeme vadesi ${gun === 0 ? 'peşin' : gun + ' gün'} ile hesaplandı (${trT(bz)})`, vgun: gun};
+  const ok = await bakiyeYaz(m.id, patch);
+  if (ok && !sessiz) toast('📅 Ortalama vade güncellendi');
+  return ok;
+}
+// Açılışta: vade günü kayıtlı olup ortalaması bu güne göre hesaplanmamış cariler (ör. yeni DİA aktarımından sonra) arka planda güncellenir
+let vadeTazeleCalisti = false;
+async function elleVadeTazele() {
+  if (vadeTazeleCalisti || DEMO || !IS_FIN) return; vadeTazeleCalisti = true;
+  const bm = new Map(S.bakiye.map(b => [b.id, b]));
+  const l = S.musteri.filter(m => m.kod && m.vadeGun !== '' && m.vadeGun != null && isFinite(Number(m.vadeGun)) && bm.has(m.id) && Math.abs(Number(bm.get(m.id).alacak)) >= 1 && (!String(bm.get(m.id).vkaynak || '').startsWith('Ödeme vadesi') || Number(bm.get(m.id).vgun) !== Number(m.vadeGun)));
+  for (const m of l) { try { await vadeYenidenHesapla(m, Number(m.vadeGun), true); } catch (e) { console.warn('vade', m.kod, e); } }
+  if (l.length) { cariKirli = true; hepsiniCiz(); }
 }
 // DİA cari hesap ekstresi: sadece açılınca indirilir (ekstre tablosu, finans yetkisi)
 async function ekstreGoster(m) {
@@ -1239,6 +1280,7 @@ async function uygulamayiAc() {
   rolUygula(); tfVarsayilan(); kalemlerCiz(); hepsiniCiz(); firmaListesi(); ayarlarCiz();
   git(lsGet('co_page', 'dashboard'));
   BE.dinle();
+  setTimeout(() => elleVadeTazele(), 4000);
   if (BE.tazele) {
     let gizli = 0;
     document.addEventListener('visibilitychange', () => { if (document.hidden) gizli = Date.now(); else if (gizli && Date.now() - gizli > 20000) BE.tazele(); });
