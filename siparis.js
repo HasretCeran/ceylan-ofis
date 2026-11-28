@@ -192,6 +192,16 @@ function spIrsaliyeOku(satir) {
   return o;
 }
 
+// Belgeden okunan "kalem"lerin arasına karışan ürün olmayan satırlar (ETTN, irsaliye no, araç plakası, not, adres…): fiyatsız ve stokla eşleşmeyen satırlarda ayıkla
+function spSahteKalem(k) {
+  if (k.stokEsles || Number(k.fiyat) > 0) return false;
+  const m = `${k.ref || ''} ${k.aciklama || ''}`;
+  return /\b(ettn|irsaliye\s*no|fatura\s*no|sipari[şs]\s*no|sas\s*no|plaka|vergi\s*(no|dairesi)|v\.?\s?d\.?\s*:|tel\s*[:.]|faks|fax|e-?posta|iban|adres|unvan|tarih\s*:|saat\s*:|not\s*:)/i.test(m)
+    || /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i.test(m)
+    || /^\s*\d{2}\s?[A-Z]{1,3}\s?\d{2,4}\s*$/i.test(String(k.ref || '').trim())
+    || /^[A-Za-zÇĞİÖŞÜçğıöşü ]{3,40}\s*:/.test(String(k.aciklama || '').trim());
+}
+
 // ── Sipariş belgesini oku: PO no, tarih, termin, tutar, müşteri, kalemler
 const TRAY = {ocak: 1, şubat: 2, subat: 2, mart: 3, nisan: 4, mayıs: 5, mayis: 5, haziran: 6, temmuz: 7, ağustos: 8, agustos: 8, eylül: 9, eylul: 9, ekim: 10, kasım: 11, kasim: 11, aralık: 12, aralik: 12};
 function spTarih(t) {
@@ -241,7 +251,7 @@ async function spBelgeOku(files, durum = () => {}) {
   const tablo = irs && irs.kalemler ? [] : spKalemTablo(satir);
   if (tablo.length) o.kalemler = tablo;
   else if (!(irs && irs.kalemler)) try { const r = await hzOku(files, '', durum); o.kalemler = r.sonuc.filter(x => x.u || x.ref).map(x => ({ref: x.u ? x.u.ref : x.ref || '', aciklama: x.u ? x.u.aciklama || '' : x.aciklama || '', marka: x.u ? x.u.marka || '' : x.marka || '', miktar: Number(x.miktar) || 1, birim: x.birim || 'Adet', fiyat: x.u ? x.u.fiyat || '' : '', para: x.u ? x.u.para || '€' : '€', geldi: false})); } catch (e) { o.kalemler = []; }
-  if (o.kalemler && o.kalemler.length) o.kalemler = o.kalemler.map(spKodEsle);
+  if (o.kalemler && o.kalemler.length) o.kalemler = o.kalemler.map(spKodEsle).filter(k => !spSahteKalem(k));
   if (o.musteri) {
     const kod = new Set((o.kalemler || []).map(k => refN(k.ref)).filter(Boolean)), ilk = nrmTR(o.musteri).split(' ')[0];
     let bt = null, bs = -1;
