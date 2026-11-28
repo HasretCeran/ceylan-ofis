@@ -52,9 +52,33 @@ function saCiz() {
 }
 
 // ═══ TEDARİKÇİLER ═══
+// Tedarikçi ↔ DİA cari (320) eşleşmesi: kayıtlı DİA kodu, yoksa firma adının ilk iki kelimesi
+const saNorm = x => String(x || '').toLocaleUpperCase('tr-TR').replace(/[^A-ZÇĞİÖŞÜ0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const saDiaCariler = () => cariler().filter(m => String(m.kod || '').startsWith('320'));
+function saCari(t) {
+  if (!IS_FIN || !t) return null;
+  const l = saDiaCariler();
+  if (t.diaKod) return l.find(m => m.kod === t.diaKod) || null;
+  const a = saNorm(t.ad).split(' ').slice(0, 2).join(' '); if (a.length < 4) return null;
+  const e = l.filter(m => saNorm(m.firma).startsWith(a)); return e.length === 1 ? e[0] : null;
+}
+const saBorc = m => m && Number(m.alacak) < 0 ? -Number(m.alacak) : 0;
 function saTedarikcilerCiz(body) {
   const l = S.tedarikciler.slice().sort((a, b) => (a.ad || '').localeCompare(b.ad || '', 'tr'));
-  body.innerHTML = `<div class="card"><div class="rows">${l.length ? l.map(t => `<button class="row" data-sated="${esc(t.id)}">${avatar(t.ad)}<div class="mid"><div class="t">${esc(t.ad)}</div><div class="s">${esc([t.eposta, t.telefon, t.markalar].filter(Boolean).join(' · ') || 'iletişim bilgisi yok')}</div></div><div class="end"><span class="s">${S.sa_teklifler.filter(x => x.tedarikciId === t.id).length} teklif</span></div></button>`).join('') : '<div class="empty">Henüz tedarikçi yok — "+ Tedarikçi" ile ekle</div>'}</div></div>`;
+  const acik = ad => S.sa_siparisler.filter(x => x.tedarikci === ad && SA_ACIK.includes(x.durum || 'verildi'));
+  const dia = IS_FIN ? saDiaCariler().filter(m => saBorc(m) >= 1).sort((a, b) => gecTutar(b) - gecTutar(a) || saBorc(b) - saBorc(a)) : [];
+  const topB = dia.reduce((x, m) => x + saBorc(m), 0), topG = dia.reduce((x, m) => x + gecTutar(m), 0);
+  const sipAcik = S.sa_siparisler.filter(x => SA_ACIK.includes(x.durum || 'verildi'));
+  const gecikti = sipAcik.filter(x => x.termin && x.termin < bugun());
+  body.innerHTML = `${IS_FIN ? `<div class="tiles">
+      <div class="tile"><div class="lbl">Tedarikçilere borcumuz</div><div class="val num">${kisa(topB)}</div><div class="hint">${dia.length} tedarikçi · DİA</div></div>
+      <div class="tile"><div class="lbl">Vadesi geçen borç</div><div class="val num" style="color:var(--red)">${kisa(topG)}</div><div class="hint">${dia.filter(m => gecTutar(m) >= 1).length} tedarikçi</div></div>
+      <div class="tile"><div class="lbl">Açık alım</div><div class="val num">${sipAcik.length}</div><div class="hint">bekleyen sipariş</div></div>
+      <div class="tile"><div class="lbl">Termini geçen alım</div><div class="val num" style="color:${gecikti.length ? 'var(--red)' : 'inherit'}">${gecikti.length}</div><div class="hint">gelmedi</div></div></div>` : ''}
+    <div class="card"><div class="card-h"><h3>Tedarikçilerim</h3></div><div class="rows">${l.length ? l.map(t => { const m = saCari(t), b = saBorc(m), g = m ? gecTutar(m) : 0, a = acik(t.ad).length;
+      return `<button class="row" data-sated="${esc(t.id)}">${avatar(t.ad)}<div class="mid"><div class="t">${esc(t.ad)}</div><div class="s">${esc([t.markalar, t.eposta || t.telefon].filter(Boolean).join(' · ') || 'iletişim bilgisi yok')}${a ? ' · ' + a + ' açık alım' : ''}</div></div><div class="end">${m ? `<b class="num" style="font-size:12.5px">${b ? tl(b) : '₺0'}</b><span class="s"${g >= 1 ? ' style="color:var(--red)"' : ''}>${g >= 1 ? tl(g) + ' vadesi geçti' : 'DİA borç'}</span>` : `<span class="s">${S.sa_teklifler.filter(x => x.tedarikciId === t.id).length} teklif</span>`}</div></button>`; }).join('') : '<div class="empty">Henüz tedarikçi yok — "+ Tedarikçi" ile ekle</div>'}</div></div>
+    ${IS_FIN ? `<div class="card" style="margin-top:14px"><div class="card-h"><h3>DİA tedarikçi borçları</h3><span class="s" style="font-size:11.5px;color:var(--fg3)">320 cariler · vadesi geçen önce</span></div><div class="rows">${dia.slice(0, 40).map(m => { const g = gecTutar(m);
+      return `<button class="row" data-firma="${esc(m.id)}" style="padding:8px 4px"><div class="mid"><div class="t">${esc(m.firma)}</div><div class="s">${esc(m.kod)}${g >= 1 && m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}</div></div><div class="end"><b class="num" style="font-size:12.5px">${tl(saBorc(m))}</b>${g >= 1 ? `<span class="s" style="color:var(--red)">${tl(g)} geçti</span>` : ''}</div></button>`; }).join('') || '<div class="empty">DİA borç verisi yok</div>'}</div></div>` : ''}`;
 }
 function saTedForm(id) {
   const t = id ? saTed(id) : {}; if (id && !t) return;
@@ -64,11 +88,16 @@ function saTedForm(id) {
     <div class="fg2"><div class="f"><label for="stf-kisi">İlgili kişi</label><input class="inp" id="stf-kisi" value="${esc(t.kisi)}"></div><div class="f"><label for="stf-tel">Telefon</label><input class="inp" id="stf-tel" type="tel" value="${esc(t.telefon)}"></div></div>
     <div class="f"><label for="stf-mk">Sattığı markalar / ürün grupları</label><input class="inp" id="stf-mk" value="${esc(t.markalar)}" placeholder="ör. ABB, Siemens, kablo"></div>
     <div class="f"><label for="stf-not">Not</label><input class="inp" id="stf-not" value="${esc(t.not)}" placeholder="ödeme koşulu, iskonto anlaşması…"></div>
+    ${IS_FIN ? `<div class="f"><label for="stf-dia">DİA cari (320)</label><input class="inp" id="stf-dia" list="stf-dia-dl" value="${esc((() => { const m = saCari(t); return m ? m.kod + ' — ' + m.firma : ''; })())}" placeholder="Kod veya firma adı yaz…" autocomplete="off"><datalist id="stf-dia-dl">${saDiaCariler().map(m => `<option value="${esc(m.kod + ' — ' + m.firma)}">`).join('')}</datalist></div>
+    ${(() => { const m = saCari(t); if (!m) return ''; const g = gecTutar(m), al = S.sa_siparisler.filter(x => x.tedarikci === t.ad && SA_ACIK.includes(x.durum || 'verildi'));
+      return `<div class="note"><b style="color:var(--fg)">DİA</b> · borcumuz <b style="color:var(--fg)">${tl(saBorc(m))}</b>${g >= 1 ? ` · <b style="color:var(--red)">${tl(g)} vadesi geçti</b>${m.vgecT ? ' (ort. ' + trT(m.vgecT) + ')' : ''}` : ''}${Number(m.vgel) >= 1 ? ' · ' + tl(m.vgel) + ' vadesi gelmedi' + (m.vgelT ? ' (' + trT(m.vgelT) + ')' : '') : ''}<br>Açık alım: ${al.length ? al.map(x => esc(x.no) + (x.termin ? ' (termin ' + trT(x.termin) + ')' : '')).join(', ') : 'yok'}<div style="margin-top:6px"><button type="button" class="btn btn-s btn-sm" id="stf-eks">📄 Ekstre</button></div></div>`; })()}` : ''}
     ${id && IS_OWNER ? `<button class="btn btn-d btn-sm" id="stf-sil" style="justify-self:start">${ikon('trash')}Tedarikçiyi sil</button>` : ''}</div>`,
   [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const ad = v(ov, 'stf-ad'), ep = v(ov, 'stf-ep'); if (!ad) { toast('Firma adı gerekli'); return false; } if (!/^\S+@\S+\.\S+$/.test(ep)) { toast('Geçerli bir e-posta gir'); return false; }
-    return kaydet('tedarikciler', {...t, ad, eposta: ep, kisi: v(ov, 'stf-kisi'), telefon: v(ov, 'stf-tel'), markalar: v(ov, 'stf-mk'), not: v(ov, 'stf-not')});
+    const dv = IS_FIN ? v(ov, 'stf-dia') : null, diaKod = dv == null ? t.diaKod : (dv.split(' — ')[0].trim() || '');
+    return kaydet('tedarikciler', {...t, ad, eposta: ep, kisi: v(ov, 'stf-kisi'), telefon: v(ov, 'stf-tel'), markalar: v(ov, 'stf-mk'), not: v(ov, 'stf-not'), ...(diaKod != null ? {diaKod} : {})});
   }}]);
+  const eks = $('#stf-eks'); if (eks) eks.onclick = () => { const m = saCari(t); if (m) ekstreGoster(m); };
   const sil = $('#stf-sil'); if (sil) sil.onclick = () => confirmSheet('Tedarikçi silinsin mi?', 'Geçmiş teklifler ve siparişler kalır.', async () => { await BE.sil('tedarikciler', id); toast('Silindi'); });
 }
 

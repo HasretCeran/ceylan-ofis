@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.28.0';
+const APP_VERSION = '1.29.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -209,11 +209,12 @@ function ciz(cols) {
   if (cols.includes('gorevler') || cols.includes('bakiye') || cols.includes('siparisler')) takvimCiz();
   dashboardCiz();
   if (aktifSayfa === 'finans') finansCiz();
+  if (aktifSayfa === 'rapor' && typeof raporCiz === 'function') raporCiz();
 }
 function hepsiniCiz() { ciz(COLS); }
 
 // ═══ NAVİGASYON ═══
-const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
+const BASLIK = {dashboard: 'Genel Bakış', teklif: 'Teklif Oluştur', teklifler: 'Teklif Geçmişi', siparisler: 'Siparişler', depo: 'Depo / Sevkiyat', sayim: 'Stok Sayımı', satinalma: 'Satınalma', musteri: 'Cariler / Borç', stok: 'Stok / Ürünler', takvim: 'Takvim', finans: 'Finans Raporu', rapor: 'Satış Raporu', icerik: 'Online Satış İçerik', entegrasyon: 'Entegrasyonlar', ayarlar: 'Ayarlar'};
 let aktifSayfa = 'dashboard';
 // Yönetici tutarları: yıldızlı gelir, üstüne dokununca açılır; sayfa değişince / 30 sn sonra yeniden gizlenir
 const gizleTutar = () => $$('#p-dashboard .tile.owner-fin, #p-musteri .tiles.owner-fin .tile').forEach(t => t.classList.add('gizli'));
@@ -226,7 +227,7 @@ document.addEventListener('click', e => {
 function git(p) {
   gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
-  if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma') && !IS_OWNER) p = 'dashboard';
+  if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma' || p === 'rapor') && !IS_OWNER) p = 'dashboard';
   if (p === 'depo' && !IS_DEPO) p = 'siparisler';
   if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
@@ -238,6 +239,8 @@ function git(p) {
   if (p === 'takvim') takvimCiz();
   if (p === 'satinalma' && typeof saCiz === 'function') { saYukle(); saCiz(); }
   if (p === 'teklif') firmaListesi();
+  if (p === 'rapor' && typeof raporCiz === 'function') raporCiz();
+  if (p === 'icerik' && typeof icYukle === 'function') { icYukle(); icCiz(); }
   lsSet('co_page', p);
   window.scrollTo({top: 0});
 }
@@ -305,9 +308,11 @@ function menuAc() {
     ${IS_FIN ? r('musteri', 'wallet', 'Cariler / Borç', 'Firmalar, alacak ve borç') : ''}
     ${r('takvim', 'cal', 'Takvim', 'Görevler ve hatırlatıcılar')}
     ${r('sayim', 'check', 'Stok Sayımı', 'Ekiple sayım, DİA dosyası')}
+    ${r('icerik', 'send', 'Online Satış İçerik', 'Ürün metni, görsel, pazaryeri')}
   </div>
   <div class="menu-grp">Yönetim</div><div class="rows menu-list">
-    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma', 'Tedarikçi fiyat talebi, analiz, takip', 1) : ''}
+    ${IS_OWNER ? r('rapor', 'chart', 'Satış Raporu', 'Teklif, sipariş, dönüşüm, takip', 1) : ''}
+    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma', 'Tedarikçi fiyat talebi, borç, alım takibi', 1) : ''}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu', 'Alacak, tahsilat, dönüşüm', 1) : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar', 'Mail şablonu', 1) : ''}
     ${r('ayarlar', 'gear', 'Ayarlar', 'Hesap, şifre, görünüm')}
@@ -1062,7 +1067,7 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
+  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma' || aktifSayfa === 'rapor')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
   if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
 }
 
