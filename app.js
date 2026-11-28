@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.29.1';
+const APP_VERSION = '1.29.2';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -227,7 +227,7 @@ document.addEventListener('click', e => {
 function git(p) {
   gizleTutar();
   if (!BASLIK[p]) p = 'dashboard';
-  if ((p === 'finans' || p === 'entegrasyon' || p === 'satinalma' || p === 'rapor') && !IS_OWNER) p = 'dashboard';
+  if ((p === 'finans' || p === 'entegrasyon') && !IS_OWNER) p = 'dashboard';
   if (p === 'depo' && !IS_DEPO) p = 'siparisler';
   if (p === 'musteri' && !IS_FIN) p = 'dashboard';   // cariler / borç: sadece yönetici + finans yetkisi verilenler
   aktifSayfa = p;
@@ -311,8 +311,8 @@ function menuAc() {
     ${r('icerik', 'send', 'Online Satış İçerik', 'Ürün metni, görsel, pazaryeri')}
   </div>
   <div class="menu-grp">Yönetim</div><div class="rows menu-list">
-    ${IS_OWNER ? r('rapor', 'chart', 'Satış Raporu', 'Teklif, sipariş, dönüşüm, takip', 1) : ''}
-    ${IS_OWNER ? r('satinalma', 'bag', 'Satınalma', 'Tedarikçi fiyat talebi, borç, alım takibi', 1) : ''}
+    ${r('rapor', 'chart', 'Satış Raporu', 'Teklif, sipariş, dönüşüm, takip')}
+    ${r('satinalma', 'bag', 'Satınalma', 'Tedarikçi fiyat talebi, borç, alım takibi')}
     ${IS_OWNER ? r('finans', 'chart', 'Finans Raporu', 'Alacak, tahsilat, dönüşüm', 1) : ''}
     ${IS_OWNER ? r('entegrasyon', 'plug', 'Entegrasyonlar', 'Mail şablonu', 1) : ''}
     ${r('ayarlar', 'gear', 'Ayarlar', 'Hesap, şifre, görünüm')}
@@ -1108,8 +1108,9 @@ function rolUygula() {
   $$('[data-adim]').forEach(e => e.textContent = p.ad || 'Kullanıcı');
   $$('[data-rolum]').forEach(e => e.textContent = IS_OWNER ? 'Yönetici' : 'Çalışan');
   $$('[data-avatar]').forEach(e => e.textContent = bas(p.ad));
-  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon' || aktifSayfa === 'satinalma' || aktifSayfa === 'rapor')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
-  if (IS_OWNER) { ekipCiz(); if (typeof saYukle === 'function') saYukle(); }
+  if ((!IS_OWNER && (aktifSayfa === 'finans' || aktifSayfa === 'entegrasyon')) || (!IS_FIN && aktifSayfa === 'musteri')) git('dashboard');
+  if (IS_OWNER) ekipCiz();
+  if (typeof saYukle === 'function') saYukle();
 }
 
 // ═══ AYARLAR FORMLARI: teklif şablonu, mail, DİA ═══

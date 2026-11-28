@@ -627,9 +627,9 @@ button.row:active{background:var(--surface2)}
     <button class="sb-item" data-go="siparisler"><svg class="i"><use href="#i-cart"/></svg>Siparişler<span class="cnt" data-sp-acik hidden></span></button>
     <button class="sb-item depo-only" hidden data-go="depo"><svg class="i"><use href="#i-box"/></svg>Depo / Sevkiyat<span class="cnt" data-dp-say hidden></span></button>
     <button class="sb-item fin-only" hidden data-go="musteri"><svg class="i"><use href="#i-wallet"/></svg>Cariler / Borç</button>
-    <button class="sb-item owner-only" data-go="rapor" hidden><svg class="i"><use href="#i-chart"/></svg>Satış Raporu<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
+    <button class="sb-item" data-go="rapor"><svg class="i"><use href="#i-chart"/></svg>Satış Raporu</button>
     <button class="sb-item" data-go="icerik"><svg class="i"><use href="#i-send"/></svg>Online Satış İçerik</button>
-    <button class="sb-item owner-only" data-go="satinalma" hidden><svg class="i"><use href="#i-bag"/></svg>Satınalma<svg class="i" style="margin-left:auto;width:14px;height:14px;color:var(--fg3)"><use href="#i-lock"/></svg></button>
+    <button class="sb-item" data-go="satinalma"><svg class="i"><use href="#i-bag"/></svg>Satınalma</button>
     <button class="sb-item" data-go="stok"><svg class="i"><use href="#i-box"/></svg>Stok / Ürünler</button>
     <button class="sb-item" data-go="sayim"><svg class="i"><use href="#i-check"/></svg>Stok Sayımı</button>
     <div class="sb-label">Yönetim</div>
@@ -776,7 +776,7 @@ button.row:active{background:var(--surface2)}
 
       <!-- SATINALMA -->
       <section class="page" id="p-rapor">
-        <div class="ph"><div><h1>Satış Raporu</h1><p class="yon"><svg class="i lk"><use href="#i-lock"/></svg>Teklif, sipariş ve dönüşüm — sadece yönetici</p></div><button class="btn btn-s btn-sm" id="rp-excel">Excel</button></div>
+        <div class="ph"><div><h1>Satış Raporu</h1><p>Teklif, sipariş ve dönüşüm</p></div><button class="btn btn-s btn-sm" id="rp-excel">Excel</button></div>
         <div id="rp-body"></div>
       </section>
 
@@ -788,7 +788,7 @@ button.row:active{background:var(--surface2)}
       </section>
 
       <section class="page" id="p-satinalma">
-        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet" class="yon"><svg class="i lk"><use href="#i-lock"/></svg>Tedarikçi fiyat talebi, analiz ve alım takibi</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+        <div class="ph"><div><h1>Satınalma</h1><p id="sa-ozet">Tedarikçi fiyat talebi, analiz ve alım takibi</p></div><div id="sa-act" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
         <div class="seg" id="sa-tabs"></div>
         <div id="sa-body"></div>
       </section>
@@ -959,17 +959,17 @@ button.row:active{background:var(--surface2)}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=1.29.1"></script>
-<script src="teklif-cikti.js?v=1.29.1"></script>
-<script src="app.js?v=1.29.1"></script>
-<script src="hizli-teklif.js?v=1.29.1"></script>
-<script src="siparis.js?v=1.29.1"></script>
-<script src="depo.js?v=1.29.1"></script>
-<script src="sayim.js?v=1.29.1"></script>
-<script src="stok-aktar.js?v=1.29.1"></script>
-<script src="satinalma.js?v=1.29.1"></script>
-<script src="rapor.js?v=1.29.1"></script>
-<script src="icerik.js?v=1.29.1"></script>
-<script src="onizle.js?v=1.29.1"></script>
+<script src="config.js?v=1.29.2"></script>
+<script src="teklif-cikti.js?v=1.29.2"></script>
+<script src="app.js?v=1.29.2"></script>
+<script src="hizli-teklif.js?v=1.29.2"></script>
+<script src="siparis.js?v=1.29.2"></script>
+<script src="depo.js?v=1.29.2"></script>
+<script src="sayim.js?v=1.29.2"></script>
+<script src="stok-aktar.js?v=1.29.2"></script>
+<script src="satinalma.js?v=1.29.2"></script>
+<script src="rapor.js?v=1.29.2"></script>
+<script src="icerik.js?v=1.29.2"></script>
+<script src="onizle.js?v=1.29.2"></script>
 </body>
 </html>

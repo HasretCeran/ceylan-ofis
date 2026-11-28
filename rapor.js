@@ -1,5 +1,5 @@
 'use strict';
-/* Ceylan Ofis — Satış & Teklif Raporu (sadece yönetici)
+/* Ceylan Ofis — Satış & Teklif Raporu (herkes)
    Teklif sayısı/tutarı, siparişe dönüşüm, hazırlayan ve müşteri bazında dağılım, aylık seyir,
    takip edilmesi gereken (cevapsız) teklifler. Para birimleri ayrı toplanır; ₺ karşılığı girilen kurla hesaplanır. */
 let rpDonem = lsGet('rp_donem', 'ay'), rpKisi = '';
@@ -34,7 +34,7 @@ function rpVeri() {
   return {tek, sip};
 }
 function raporCiz() {
-  const el = $('#rp-body'); if (!el || !IS_OWNER) return;
+  const el = $('#rp-body'); if (!el) return;
   const kur = rpKur(), {tek, sip} = rpVeri();
   const tTop = tek.reduce((a, x) => rpTopla(a, x.top), {}), dTop = tek.filter(x => x.dondu).reduce((a, x) => rpTopla(a, x.top), {}), sTop = sip.reduce((a, x) => rpTopla(a, x.top), {});
   const dondu = tek.filter(x => x.dondu).length, red = tek.filter(x => x.red).length;

@@ -1,5 +1,5 @@
 'use strict';
-/* Ceylan Ofis — Satınalma (sadece yönetici)
+/* Ceylan Ofis — Satınalma (herkes; DİA borç bilgisi sadece finans yetkisinde)
    1) Tedarikçiler  2) Fiyat/stok talepleri (mail metni hazırlanır; satınalma mailinden gönderilir)
    3) Gelen teklifler: süzgeç + karşılaştırma + en düşük fiyat   4) Satın alma siparişleri ve rapor
    Mail otomasyonu sözleşmesi: sa_talepler.durum 'gonderilecek' olanları satınalma posta kutusundan gönderen bir
