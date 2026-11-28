@@ -102,9 +102,14 @@ function saTedForm(id) {
 }
 
 // ═══ TALEPLER (fiyat / stok sorma) ═══
+// Minimum stokun altındaki ürünler (stok kartındaki "Min. stok"): eksik miktar = min − stok
+const saMinAlti = () => S.stok.filter(u => Number(u.min) > 0 && (Number(u.stok) || 0) < Number(u.min));
+document.addEventListener('click', e => { if (!e.target.closest('#sa-min-talep')) return;
+  const az = saMinAlti(); saTalepForm(null, {konu: 'Minimum stok tamamlama ' + trT(bugun()), kalemler: az.map(u => ({ref: u.ref, aciklama: u.aciklama || '', marka: u.marka || '', miktar: Math.max(1, Number(u.min) - (Number(u.stok) || 0)), birim: 'Adet'}))}); });
 function saTaleplerCiz(body) {
   const l = S.sa_talepler.slice().sort((a, b) => (b.tarih || '').localeCompare(a.tarih || '') || (b.no || '').localeCompare(a.no || ''));
-  body.innerHTML = (lsGet('sa_not_kapali', false) ? '' : `<div class="note nt-kapat"><span>Ürünleri ve tedarikçileri seç; mail metni hazırlanır, <b>Mail uygulamasında aç</b> ile satınalma mailinden gönder. Gelen fiyatları <b>Fiyatlar</b> sekmesine gir.</span><button class="link-btn" data-sanot>Anladım</button></div>`) + `
+  const az = saMinAlti();
+  body.innerHTML = (az.length ? `<div class="note" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px"><span>📉 <b style="color:var(--fg)">${az.length} ürün</b> minimum stokun altında: ${esc(az.slice(0, 4).map(u => u.ref).join(', '))}${az.length > 4 ? '…' : ''}</span><button class="btn btn-p btn-sm" id="sa-min-talep">Talep oluştur</button></div>` : '') + (lsGet('sa_not_kapali', false) ? '' : `<div class="note nt-kapat"><span>Ürünleri ve tedarikçileri seç; mail metni hazırlanır, <b>Mail uygulamasında aç</b> ile satınalma mailinden gönder. Gelen fiyatları <b>Fiyatlar</b> sekmesine gir.</span><button class="link-btn" data-sanot>Anladım</button></div>`) + `
   <div class="card"><div class="rows">${l.length ? l.map(t => {
     const [dl, dc] = SA_TALEP[t.durum] || SA_TALEP.taslak, tl = (t.tedarikciler || []).length, yan = new Set(S.sa_teklifler.filter(x => x.talepId === t.id).map(x => x.tedarikciId)).size;
     return `<button class="row" data-satalep="${esc(t.id)}"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${ikon('send')}</div><div class="mid"><div class="t">${esc(t.konu || (t.kalemler[0] && (t.kalemler[0].ref || t.kalemler[0].aciklama)) || t.no)}</div><div class="s">${esc([t.no, trT(t.tarih), (t.kalemler || []).length + ' kalem', tl + ' tedarikçi', yan ? yan + ' yanıt' : ''].filter(Boolean).join(' · '))}</div></div><div class="end"><span class="pill ${dc}">${dl}</span></div></button>`;
@@ -119,8 +124,8 @@ function saKalemParse(txt) {
   });
 }
 const saKalemYazi = l => (l || []).map(k => (k.ref || k.aciklama) + ' ; ' + k.miktar + (k.birim && k.birim !== 'Adet' ? ' ' + k.birim.toLowerCase() : '')).join('\n');
-function saTalepForm(id) {
-  const t = id ? S.sa_talepler.find(x => x.id === id) : {}; if (id && !t) return;
+function saTalepForm(id, on) {
+  const t = id ? S.sa_talepler.find(x => x.id === id) : (on || {}); if (id && !t) return;
   const sec = new Set(t.tedarikciler || []), sor = new Set(t.sorular || ['fiyat', 'stok', 'termin']), imza = t.imza || lsGet('sa_imza', 'Ceylan Endüstriyel Otomasyon — Satınalma');
   const teds = S.tedarikciler.slice().sort((a, b) => (a.ad || '').localeCompare(b.ad || '', 'tr'));
   sheet(id ? 'Talebi düzenle' : 'Yeni fiyat / stok talebi', `<div class="fg">

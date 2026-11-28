@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.29.2';
+const APP_VERSION = '1.30.0';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -443,6 +443,8 @@ let tfId = lsGet('co_tf_id', null);
 TF.forEach(a => $('#tf-' + a).addEventListener('input', () => lsSet('co_tf_meta', Object.fromEntries(TF.map(x => [x, $('#tf-' + x).value])))));
 
 // Teklif: firma seçilince "Ödeme şekli" boşsa firmanın kayıtlı vadesi (yoksa 90 gün) önerilir
+$('#tf-musteri').addEventListener('change', () => riskUyari($('#tf-musteri').value));
+document.addEventListener('change', e => { if (e.target.id === 'sp-musteri') riskUyari(e.target.value); });
 $('#tf-musteri').addEventListener('change', () => {
   const od = $('#tf-odeme'); if (!od || od.value.trim()) return;
   const ad = nrmTR($('#tf-musteri').value.trim()), m = ad && cariler().find(x => nrmTR(x.firma || '') === ad); if (!m) return;
@@ -821,7 +823,7 @@ document.addEventListener('pointerdown', e => {
   if (!e.target.closest('.fsug')) document.querySelectorAll('.fsug').forEach(x => x.remove());
 }, true);
 document.addEventListener('focusout', e => { if (e.target.dataset && e.target.dataset.fsug) setTimeout(() => { const k = e.target.parentNode && e.target.parentNode.querySelector('.fsug'); if (k && document.activeElement !== e.target) k.remove(); }, 150); });
-const KART_ALAN = ['vadeGun', 'firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
+const KART_ALAN = ['vadeGun', 'riskLimit', 'firma', 'ilgili', 'tel', 'eposta', 'not', 'kod', 'tip', 'tur', 'sehir', 'vergiNo', 'efatura', 'kaynak'];
 async function bakiyeYaz(id, patch) {
   const eski = S.bakiye.find(b => b.id === id) || {};
   const ok = await BE.yaz('bakiye', {...eski, ...patch, id});
@@ -843,14 +845,16 @@ function firmaForm(id) {
     <div class="f"><label for="ff-vade">Vade</label><input class="inp" id="ff-vade" type="date" value="${esc(m.vade)}"></div></div>
     <div class="fg2"><div class="f"><label for="ff-yon">Yön</label><select class="sel" id="ff-yon"><option value="B"${al >= 0 ? ' selected' : ''}>Bize borçlu (alacak)</option><option value="A"${al < 0 ? ' selected' : ''}>Biz borçluyuz</option></select></div>
     <div class="f"><label for="ff-durum">Durum</label><select class="sel" id="ff-durum">${[['aktif', 'Aktif'], ['bekliyor', 'Ödeme bekliyor'], ['tahsil', 'Tahsil edildi / kapandı']].map(([k, l]) => `<option value="${k}"${(m.durum || 'aktif') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div></div>
+    <div class="f"><label for="ff-risk">Risk limiti (₺) — aşılınca teklif/siparişte uyarı</label><input class="inp num" id="ff-risk" type="number" inputmode="decimal" step="1000" value="${esc(m.riskLimit)}" placeholder="boş = limit yok"></div>
     ${m.vkaynak ? `<div class="note"><b style="color:var(--fg)">Vade durumu</b><br>${Number(m.vgec) > 0 ? `Vadesi geçen: <b style="color:var(--red)">${tl(m.vgec)}</b>${m.vgecT ? ' · ort. vade ' + trT(m.vgecT) + ' (' + Math.abs(gunFark(m.vgecT)) + ' gün geçti)' : ''}<br>` : ''}${Number(m.vgel) > 0 ? `Vadesi gelmeyen: <b style="color:var(--fg)">${tl(m.vgel)}</b>${m.vgelT ? ' · vade ' + trT(m.vgelT) : ''}<br>` : ''}${!(Number(m.vgec) > 0) && !(Number(m.vgel) > 0) ? 'Açık vade yok<br>' : ''}<span style="font-size:11.5px;color:var(--fg3)">${esc(m.vkaynak)}</span></div>` : ''}
     ${m.bkaynak ? `<p style="font-size:11.5px;color:var(--fg3)">Bakiye kaynağı: ${esc(m.bkaynak)}</p>` : ''}` : ''}
     <div class="f"><label for="ff-not">Not</label><input class="inp" id="ff-not" value="${esc(m.not)}" placeholder="Açıklama"></div>
-    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_FIN && m.kod ? '<button class="btn btn-s btn-sm" id="ff-ekstre">📄 Ekstre</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
+    ${id ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${IS_FIN ? '<button class="btn btn-s btn-sm" id="ff-hareket">+ Tahsilat / borç gir</button>' : ''}${IS_FIN && m.kod ? '<button class="btn btn-s btn-sm" id="ff-ekstre">📄 Ekstre</button>' : ''}${IS_FIN && Number(m.alacak) > 0 && gecTutar(m) >= 1 ? '<button class="btn btn-s btn-sm" id="ff-hatirlat">📨 Ödeme hatırlat</button>' : ''}${IS_OWNER ? `<button class="btn btn-d btn-sm" id="ff-sil">${ikon('trash')}Sil</button>` : ''}</div>` : ''}
   </div>`, [{label: 'Vazgeç', onClick: () => {}}, {label: 'Kaydet', cls: 'btn-p', onClick: async ov => {
     const firma = v(ov, 'ff-firma'); if (!firma) { toast('Firma adı gerekli'); ov.querySelector('#ff-firma').focus(); return false; }
     const kart = {}; KART_ALAN.forEach(k => { if (m[k] !== undefined) kart[k] = m[k]; });
     Object.assign(kart, {firma, ilgili: v(ov, 'ff-ilgili'), tel: v(ov, 'ff-tel'), eposta: v(ov, 'ff-eposta'), tur: v(ov, 'ff-tur'), not: v(ov, 'ff-not'), vadeGun: v(ov, 'ff-vgun') === '' ? '' : Number(v(ov, 'ff-vgun'))});
+    if (IS_FIN && ov.querySelector('#ff-risk')) kart.riskLimit = v(ov, 'ff-risk') === '' ? '' : Number(v(ov, 'ff-risk'));
     const kid = id || newId();
     let ok = await kaydet('musteri', {...kart, id: kid, by: m.by, at: m.at});
     if (ok && IS_FIN) {
@@ -867,7 +871,42 @@ function firmaForm(id) {
   }}]);
   const hb = sh.el.querySelector('#ff-hareket'); if (hb) hb.onclick = () => { sh.kapat(); hareketForm(m.firma); };
   const eb = sh.el.querySelector('#ff-ekstre'); if (eb) eb.onclick = () => ekstreGoster(m);
+  const hrb = sh.el.querySelector('#ff-hatirlat'); if (hrb) hrb.onclick = () => odemeHatirlat(m);
   const sb2 = sh.el.querySelector('#ff-sil'); if (sb2) sb2.onclick = () => { sh.kapat(); confirmSheet('Firma silinsin mi?', m.firma + ' kalıcı olarak silinecek. Hareket kayıtları kalır.', async () => { await BE.sil('musteri', id); if (S.bakiye.some(b => b.id === id)) await BE.sil('bakiye', id); }); };
+}
+// ── Tahsilat hatırlatması: vadesi geçen firmaya mail / WhatsApp metni (gönderen kişi kendisi gönderir)
+function odemeHatirlat(m) {
+  const g = gecTutar(m), o = ortVade(m), gun = m.vgecT ? Math.abs(gunFark(m.vgecT)) : 0;
+  const metin = `Sayın ${m.ilgili ? m.ilgili + ' / ' : ''}${m.firma} yetkilisi,
+
+Cari hesabınızda ${trT(bugun())} itibarıyla vadesi geçmiş ${tl(g)} tutarında bakiye bulunmaktadır${m.vgecT ? ` (ortalama vade ${trT(m.vgecT)}, ${gun} gün)` : ''}. Toplam açık bakiyeniz ${tl(m.alacak)}'dir.
+
+Ödemenizin en kısa sürede yapılmasını rica eder, ödeme planınızı bizimle paylaşmanızı bekleriz. Hesap ekstresi isterseniz memnuniyetle iletiriz.
+
+Saygılarımızla,
+Ceylan Endüstriyel Otomasyon
+0262 646 20 52 · muhasebe@ceylanotomasyon.com.tr`;
+  const tel = String(m.tel || '').replace(/\D/g, ''), wa = tel ? (tel.startsWith('90') ? tel : '90' + tel.replace(/^0/, '')) : '';
+  const sh = sheet('Ödeme hatırlatma · ' + m.firma, `<div class="fg"><textarea class="inp" id="oh-m" rows="13" style="width:100%">${esc(metin)}</textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-s btn-sm" id="oh-kop">📋 Kopyala</button>
+    ${m.eposta ? `<a class="btn btn-s btn-sm" id="oh-mail" target="_blank" rel="noopener">✉️ Mail uygulamasında aç</a>` : ''}
+    ${wa.length >= 11 ? `<a class="btn btn-s btn-sm" id="oh-wa" target="_blank" rel="noopener">💬 WhatsApp'ta aç</a>` : ''}</div>
+    <p class="note">Mesaj otomatik gönderilmez; açılan uygulamada kontrol edip sen gönderirsin.${m.eposta ? '' : ' Firma kartına e-posta eklersen mail ile de açılır.'}</p></div>`, [{label: 'Kapat', cls: 'btn-p', onClick: () => {}}]);
+  const ta = sh.el.querySelector('#oh-m'), guncel = () => { const t = ta.value, ml = sh.el.querySelector('#oh-mail'), w = sh.el.querySelector('#oh-wa');
+    if (ml) ml.href = `mailto:${encodeURIComponent(m.eposta)}?subject=${encodeURIComponent('Vadesi geçen bakiye hk. — ' + m.firma)}&body=${encodeURIComponent(t)}`;
+    if (w) w.href = `https://wa.me/${wa}?text=${encodeURIComponent(t)}`; };
+  ta.addEventListener('input', guncel); guncel();
+  sh.el.querySelector('#oh-kop').onclick = async () => { try { await navigator.clipboard.writeText(ta.value); toast('📋 Kopyalandı'); } catch (e) { ta.select(); } };
+}
+// ── Risk uyarısı: firmanın açık alacağı risk limitine yaklaştı/aştı ya da vadesi geçen borcu var (sadece finans yetkisi)
+function riskUyari(firmaAdi) {
+  if (!IS_FIN || !firmaAdi) return;
+  const ad = nrmTR(String(firmaAdi).trim()), m = cariler().find(x => nrmTR(x.firma || '') === ad); if (!m) return;
+  const al = Math.max(0, Number(m.alacak) || 0), lim = Number(m.riskLimit) || 0, g = Number(m.alacak) > 0 ? gecTutar(m) : 0, msj = [];
+  if (lim > 0 && al >= lim) msj.push(`risk limiti AŞILDI: açık alacak ${tl(al)} / limit ${tl(lim)}`);
+  else if (lim > 0 && al >= lim * 0.9) msj.push(`risk limitine yakın: ${tl(al)} / ${tl(lim)}`);
+  if (g >= 1) msj.push(`vadesi geçen ${tl(g)}`);
+  if (msj.length) toast('⚠ ' + m.firma.split(' ').slice(0, 3).join(' ') + ': ' + msj.join(' · '), 6000);
 }
 // ── Elle girilen ödeme vadesi (gün) ile ortalama vadeyi yeniden hesapla
 // Ekstredeki açık kalan faturalar (ödemeler en eskiden kapatılır) için vade = fatura tarihi + firmanın vade günü.
@@ -1152,6 +1191,27 @@ function ekipCiz() {
     return `<button class="row" data-uye="${esc(id)}"><div class="avatar" style="${p.aktif === false ? 'background:var(--fg3)' : ''}">${esc(bas(p.ad))}</div><div class="mid"><div class="t">${esc(p.ad) || '—'}${id === ME ? ' (sen)' : ''}</div><div class="s">${esc(alt)}</div></div>${p.aktif === false ? '<span class="pill p-red">Erişim durduruldu</span>' : ikon('right')}</button>`;
   }).join('');
 }
+// ── Haftalık yedek: tüm tablolar tek Excel (her tablo bir sayfa, veri alanları sütun)
+const YEDEK_TAB = ['teklifler', 'siparisler', 'musteri', 'bakiye', 'hareket', 'stok', 'gorevler', 'sayimlar', 'sayim_kalem', 'tedarikciler', 'sa_talepler', 'sa_teklifler', 'sa_siparisler', 'urun_icerik'];
+async function yedekAl() {
+  if (!IS_OWNER) return; const b = $('#yedek-al'); if (b) { b.disabled = true; b.textContent = 'Hazırlanıyor…'; }
+  try {
+    await syXlsx(); const wb = XLSX.utils.book_new(); let top = 0;
+    for (const t of YEDEK_TAB) {
+      let rows = [];
+      try { rows = DEMO ? (S[t] || []) : (await BE._hepsi(t)).map(rowToObj); } catch (e) { console.warn('yedek', t, e); continue; }
+      top += rows.length;
+      const duz = rows.map(r => { const o = {}; Object.entries(r).forEach(([k, v]) => { o[k] = v == null ? '' : typeof v === 'object' ? JSON.stringify(v).slice(0, 32000) : v; }); return o; });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(duz.length ? duz : [{bos: ''}]), t.slice(0, 31));
+    }
+    TC.indir(new Blob([XLSX.write(wb, {bookType: 'xlsx', type: 'array'})], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `Ceylan_Ofis_Yedek_${bugun()}.xlsx`);
+    lsSet('son_yedek', bugun()); yedekBilgi(); toast(`📦 Yedek indirildi (${top.toLocaleString('tr-TR')} kayıt)`);
+  } catch (e) { hata(e); }
+  if (b) { b.disabled = false; b.textContent = '📦 Yedek al (Excel)'; }
+}
+function yedekBilgi() { const el = $('#yedek-bilgi'), y = lsGet('son_yedek', ''); if (el && y) el.innerHTML = `Son yedek: <b style="color:var(--fg)">${trT(y)}</b> (bu cihazda). Tüm kayıtlar tek Excel dosyasına indirilir; haftada bir almanı hatırlatırım.`; }
+{ const b = $('#yedek-al'); if (b) b.onclick = yedekAl; }
+function yedekHatirlat() { if (!IS_OWNER) return; yedekBilgi(); const y = lsGet('son_yedek', ''); if (!y || gunFark(y) <= -7) setTimeout(() => toast('📦 Haftalık yedek zamanı — Ayarlar → Yedek al', 6000), 6000); }
 // Yönetici: sunucu fonksiyonu üzerinden hesap işlemleri (şifreler sadece yöneticide kalır)
 async function kullaniciIslem(govde) {
   const {data, error} = await sb.functions.invoke('kullanici-yonet', {body: govde});
@@ -1282,6 +1342,7 @@ async function uygulamayiAc() {
   git(lsGet('co_page', 'dashboard'));
   BE.dinle();
   setTimeout(() => elleVadeTazele(), 4000);
+  yedekHatirlat();
   if (BE.tazele) {
     let gizli = 0;
     document.addEventListener('visibilitychange', () => { if (document.hidden) gizli = Date.now(); else if (gizli && Date.now() - gizli > 20000) BE.tazele(); });

@@ -33,6 +33,26 @@ function rpVeri() {
   const sip = S.siparisler.filter(s => s.durum !== 'iptal' && (s.tarih || '') >= bas).map(s => ({s, top: rpTop(s.kalemler)}));
   return {tek, sip};
 }
+// ── Kârlılık (sadece yönetici): siparişe dönen tekliflerde satış net fiyatı ile alış fiyatı
+// Alış: aynı ürünün en son satınalma siparişi fiyatı, yoksa tedarikçi tekliflerindeki en düşük fiyat (aynı para birimi)
+const rpRef = r => String(r || '').toUpperCase().replace(/[\s\-./_,]/g, '');
+function rpAlisHarita() {
+  const h = new Map(), put = (k, o) => { const key = rpRef(k.ref); if (!key || !(Number(k.fiyat) > 0)) return; const p = rpPara(k.para), a = h.get(key + p);
+    if (!a || (o.sip && (!a.sip || (o.tarih || '') > (a.tarih || ''))) || (!o.sip && !a.sip && Number(k.fiyat) < a.fiyat)) h.set(key + p, {fiyat: Number(k.fiyat), tarih: o.tarih, sip: o.sip, kaynak: o.kaynak}); };
+  (S.sa_siparisler || []).filter(x => x.durum !== 'iptal').forEach(x => (x.kalemler || []).forEach(k => put(k, {sip: true, tarih: x.tarih, kaynak: x.tedarikci})));
+  (S.sa_teklifler || []).forEach(x => put(x, {sip: false, tarih: x.tarih, kaynak: x.tedarikci}));
+  return h;
+}
+function rpKarlilik(tek) {
+  const h = rpAlisHarita(), sat = {}, al = {}, satirlar = []; let say = 0, top = 0;
+  tek.filter(x => x.dondu).forEach(x => (x.t.kalemler || []).forEach(k => {
+    const net = (Number(k.fiyat) || 0) * (1 - (Number(k.iskonto) || 0) / 100), mk = Number(k.miktar) || 1, p = rpPara(k.para); if (!(net > 0)) return; top++;
+    const a = h.get(rpRef(k.ref) + p); if (!a) return; say++;
+    sat[p] = (sat[p] || 0) + net * mk; al[p] = (al[p] || 0) + a.fiyat * mk;
+    satirlar.push({ref: k.ref || k.aciklama, musteri: x.t.musteri, p, net, alis: a.fiyat, mk, marj: (net - a.fiyat) / net * 100, kaynak: a.kaynak});
+  }));
+  return {sat, al, satirlar, say, top};
+}
 function raporCiz() {
   const el = $('#rp-body'); if (!el) return;
   const kur = rpKur(), {tek, sip} = rpVeri();
@@ -66,6 +86,8 @@ function raporCiz() {
       <div class="card"><div class="card-h"><h3>Hazırlayana göre</h3></div><div class="rows">${[...kisi.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, o]) => `<div class="row" style="padding:8px 4px">${avatar(k === '-' ? '?' : adi(k))}<div class="mid"><div class="t">${esc(k === '-' ? 'Uygulama öncesi' : adi(k))}</div><div class="s">${o.n} teklif · ${o.d} sipariş · %${Math.round(o.d / o.n * 100)} dönüşüm</div></div><div class="end"><b class="num" style="font-size:12.5px">${esc(para(o.top))}</b></div></div>`).join('') || '<div class="empty">Veri yok</div>'}</div></div>
       <div class="card"><div class="card-h"><h3>Aylık teklif</h3></div><div class="card-b" id="rp-ay"></div></div>
       <div class="card"><div class="card-h"><h3>En çok teklif verilen müşteriler</h3></div><div class="rows">${[...mus.values()].sort((a, b) => (kurVar ? rpTL(b.top, kur) - rpTL(a.top, kur) : b.n - a.n)).slice(0, 12).map(o => `<div class="row" style="padding:8px 4px"><div class="mid"><div class="t">${esc(o.ad)}</div><div class="s">${o.n} teklif · ${o.d} sipariş</div></div><div class="end"><b class="num" style="font-size:12.5px">${esc(para(o.top))}</b></div></div>`).join('') || '<div class="empty">Veri yok</div>'}</div></div>
+      ${IS_OWNER ? (() => { const k = rpKarlilik(tek), pl = Object.keys(k.sat);
+        return `<div class="card"><div class="card-h"><h3>Kârlılık 🔒</h3><span class="s" style="font-size:11.5px;color:var(--fg3)">${k.say}/${k.top} kalemin alış fiyatı biliniyor</span></div><div class="card-b">${pl.length ? pl.map(p => { const m = (k.sat[p] - k.al[p]) / k.sat[p] * 100; return `<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${p} satış ${Math.round(k.sat[p]).toLocaleString('tr-TR')} · alış ${Math.round(k.al[p]).toLocaleString('tr-TR')}</span><b style="color:${m < 10 ? 'var(--red)' : 'var(--green)'}">%${m.toFixed(1)} marj</b></div>`; }).join('') + `<div class="vu-h" style="padding-left:0">En düşük marjlı kalemler</div>` + k.satirlar.sort((a, b) => a.marj - b.marj).slice(0, 8).map(r => `<div class="row" style="padding:6px 0"><div class="mid"><div class="t">${esc(r.ref)}</div><div class="s">${esc(r.musteri || '')} · satış ${r.p}${r.net.toFixed(2)} · alış ${r.p}${r.alis.toFixed(2)} (${esc(r.kaynak || '')})</div></div><div class="end"><b style="color:${r.marj < 10 ? 'var(--red)' : 'var(--fg)'}">%${r.marj.toFixed(0)}</b></div></div>`).join('') : '<div class="empty" style="padding:10px 0">Alış fiyatı eşleşen kalem yok. Satınalma\'da tedarikçi fiyatı/alım girildikçe dolar.</div>'}</div></div>`; })() : ''}
       <div class="card"><div class="card-h"><h3>Takip edilecek teklifler</h3><span class="s" style="font-size:11.5px;color:var(--fg3)">5+ gün, cevap yok</span></div><div class="rows">${takip.map(x => `<button class="row" data-teklif="${esc(x.t.id)}" style="padding:8px 4px"><div class="mid"><div class="t">${esc(x.t.musteri || '—')}</div><div class="s">No ${esc(x.t.no || '—')} · ${trT(x.t.tarih)} · ${Math.round((Date.now() - new Date(x.t.tarih + 'T12:00:00')) / 864e5)} gün · ${esc(adi(x.t.by))}</div></div><div class="end"><b class="num" style="font-size:12.5px">${esc(rpYazi(x.top))}</b></div></button>`).join('') || '<div class="empty">Bekleyen teklif yok 👍</div>'}</div></div>
     </div>`;
   barlar($('#rp-ay'), [...ay.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-12).map(([k, o]) => [k.slice(5) + '.' + k.slice(2, 4), kurVar ? rpTL(o.top, kur) : o.n, (kurVar ? kisa(rpTL(o.top, kur)) : o.n + ' teklif') + ' · ' + o.d + ' sip.']));
