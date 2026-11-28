@@ -713,7 +713,7 @@ async function teklifIceAl(dosyalar) {
       let g = [];
       try { if (window.hzExcelKalemler) g = await hzExcelKalemler(f); } catch (e2) { g = []; }
       if (!g.length) { sonuc.push({f, hata: e.message || 'Okunamadı'}); continue; }
-      const kal = g.map(r => r.u ? {ref: r.u.ref, aciklama: r.aciklama || r.u.aciklama, marka: r.marka || r.u.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: r.u.fiyat || '', para: r.u.para || '€', iskonto: 0} : {ref: r.ref || '', aciklama: r.aciklama || '', marka: r.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: '', para: '€', iskonto: 0});
+      const kal = g.map(r => r.u ? {ref: r.u.ref, aciklama: r.aciklama || r.u.aciklama, marka: r.marka || r.u.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: r.fiyat || r.u.fiyat || '', para: r.fiyat ? (r.para || r.u.para || '€') : (r.u.para || '€'), iskonto: r.iskonto || 0} : {ref: r.ref || '', aciklama: r.aciklama || '', marka: r.marka || '', miktar: r.miktar, birim: r.birim || 'Adet', fiyat: r.fiyat || '', para: r.para || '€', iskonto: r.iskonto || 0});   // dosyadaki fiyat/iskonto korunur
       const mus = f.name.replace(/\.xlsx?$/i, '').replace(/^teklif[_\s-]*/i, '').split(/[_\s-]+/).filter(x => x && !/^\d+$/.test(x)).slice(0, 3).join(' ');
       sonuc.push({f, t: {musteri: mus || 'Müşteri', musteriTahmin: true, no: '', konu: f.name.replace(/\.xlsx?$/i, ''), tarih: bugun(), kalemler: kal, kalemSayisi: kal.length, kaynakDosya: f.name}});
     }
