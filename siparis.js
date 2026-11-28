@@ -163,6 +163,9 @@ function spKodEsle(k) {
     const u = (idx.get(spKodAnahtar(c)) || []).filter(x => x.fiyat !== null)[0] || (idx.get(spKodAnahtar(c)) || [])[0];
     if (u) return {...k, ref: u.ref, aciklama: u.aciklama || k.aciklama, marka: u.marka || k.marka || '', birim: k.birim || u.birim || 'Adet', musteriKod: k.ref && k.ref !== u.ref ? k.ref : '', musteriAciklama: (k.aciklama || '') !== (u.aciklama || '') ? k.aciklama || '' : '', stokEsles: true};
   }
+  // kodun içinde bizim kodumuz geçiyorsa (ör. "SM 5SL6325-7" → 5SL6325-7)
+  for (const c of [k.ref, ...adaylar]) { const u = c && typeof kodIcindeBul === 'function' ? kodIcindeBul(c) : null;
+    if (u) return {...k, ref: u.ref, aciklama: u.aciklama || k.aciklama, marka: u.marka || k.marka || '', birim: k.birim || u.birim || 'Adet', musteriKod: k.ref && k.ref !== u.ref ? k.ref : '', musteriAciklama: (k.aciklama || '') !== (u.aciklama || '') ? k.aciklama || '' : '', stokEsles: true}; }
   // stokta yok: açıklamadaki model kodunu (MPR-25S-22) ürün kodu yap, müşterinin iç kodunu ayrı sakla
   const kod = adaylar.find(c => /[A-Z]/.test(c) && /\d/.test(c) && /[-]/.test(c) && c !== String(k.ref || '').toUpperCase());
   if (kod && !(String(k.ref || '').match(/[A-Za-z]/) && /-/.test(k.ref))) return {...k, ref: kod, musteriKod: k.ref || '', musteriAciklama: k.aciklama || ''};

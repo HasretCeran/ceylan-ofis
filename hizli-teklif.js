@@ -24,7 +24,7 @@
     IDX = new Map(); IDXO = new Map(); IDXN = S.stok.length;
     for (const u of S.stok) { const k = kN(u.ref); if (k.length < 3) continue; if (!IDX.has(k)) IDX.set(k, u); const o = kO(u.ref); if (!IDXO.has(o)) IDXO.set(o, u); }
   }
-  const bul = s => { const k = kN(s); if (k.length < 3) return null; return IDX.get(k) || (k.length >= 5 ? IDXO.get(kO(s)) : null) || null; };
+  const bul = (s, icinde) => { const k = kN(s); if (k.length < 3) return null; return IDX.get(k) || (k.length >= 5 ? IDXO.get(kO(s)) : null) || (icinde && typeof kodIcindeBul === 'function' ? kodIcindeBul(s) : null) || null; };
 
   const BIRIM = /^(adet|ad|ad\.|adt|pcs|pc|pce|ea|mt|m|metre|mtr|set|takım|kutu|top|rulo|kg|x)$/i;
   const SAYI = /^\d{1,6}(?:[.,]\d{1,3})?$/;
@@ -39,7 +39,7 @@
       for (let n = Math.min(6, tk.length - i); n >= 1; n--) {
         const parca = tk.slice(i, i + n).join(' ');
         if (n === 1 && (SAYI.test(parca) && parca.length < 5)) continue; // tek başına küçük sayı kod sayılmaz
-        const u = bul(parca);
+        const u = bul(parca, n === 1);
         if (u) { for (let j = i; j < i + n; j++) kul[j] = true; bulunan.push({u, i, son: i + n - 1}); break; }
       }
     }
@@ -129,7 +129,7 @@
         if (/toplam|genel|kdv/i.test(ac) && !kod) continue;
         // Kodsuz ve miktarsız açıklama satırları (şart, not, adres, imza) kalem değildir
         if (!kod && !v(cm) && (ac.length > 30 || /fiyat|kdv|teslim|ödeme|odeme|vade|geçerli|tcmb|kur|nakliye|sipariş|adres|tel|faks|e-?posta|saygı|imza|kaşe/i.test(ac))) continue;
-        const u = (kod && bul(kod)) || null;
+        const u = (kod && bul(kod, true)) || null;
         out.push({u, ref: kod, aciklama: ac, marka: v(cr), birim: v(cb), miktar: sayi(v(cm)) || 1, kaynak: kod + ' ' + ac});
       }
     }
@@ -306,7 +306,7 @@
   // Sayım için: şablon Excel'i de kalem listesine çevirir
   window.hzOku = async (dosyalar, metin, durum) => {
     const r = await oku(dosyalar, metin, durum);
-    if (r.sablon) r.sonuc.push(...r.sablon.kalemler.map(k => ({u: bul(k.ref) || null, ref: k.ref, aciklama: k.aciklama, marka: k.marka, birim: k.birim, miktar: Number(k.miktar) || 1})));
+    if (r.sablon) r.sonuc.push(...r.sablon.kalemler.map(k => ({u: bul(k.ref, true) || null, ref: k.ref, aciklama: k.aciklama, marka: k.marka, birim: k.birim, miktar: Number(k.miktar) || 1})));
     return r;
   };
   window.hzExcelKalemler = async f => { dizin(); return excelKalemler(f); };

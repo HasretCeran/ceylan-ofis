@@ -1,6 +1,6 @@
 'use strict';
 /* Ceylan Ofis — uygulama mantığı */
-const APP_VERSION = '1.30.1';
+const APP_VERSION = '1.30.2';
 const CFG = window.CEYLAN_CONFIG || {};
 const DEMO = !(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) || typeof supabase === 'undefined';
 
@@ -20,7 +20,16 @@ function urunAra(q, lim) {
   if (qn) l.sort((a, b) => (refN(b.ref).toLowerCase() === qn) - (refN(a.ref).toLowerCase() === qn) || (refN(b.ref).toLowerCase().startsWith(qn)) - (refN(a.ref).toLowerCase().startsWith(qn)));
   return lim ? l.slice(0, lim) : l;
 }
-const urunBul = ref => { const n = refN(ref); return n ? S.stok.find(u => refN(u.ref) === n) : null; };
+// Kod içinde geçen ürün: müşteri "SM 5SL6325-7" yazsa da bizim 5SL6325-7 kodumuz bulunur (en uzun eşleşen kod; en az 6 karakter, rakam içermeli)
+let kiIdx = null, kiN = -1;
+function kodIcindeBul(s) {
+  const n = refN(s); if (n.length < 6) return null;
+  if (!kiIdx || kiN !== S.stok.length) { kiIdx = new Map(); kiN = S.stok.length; S.stok.forEach(u => { const k = refN(u.ref); if (k.length >= 6 && /\d/.test(k) && !kiIdx.has(k)) kiIdx.set(k, u); }); }
+  if (kiIdx.has(n)) return kiIdx.get(n);
+  for (let L = Math.min(n.length - 1, 40); L >= 6; L--) for (let i = 0; i + L <= n.length; i++) { const u = kiIdx.get(n.slice(i, i + L)); if (u) return u; }
+  return null;
+}
+const urunBul = ref => { const n = refN(ref); return n ? S.stok.find(u => refN(u.ref) === n) || kodIcindeBul(ref) : null; };
 // Marka biliniyorsa onunla, bilinmiyorsa koda göre ürün bul (aynı kod birden fazla markada olabilir)
 function urunBulMarka(ref, marka) {
   const n = refN(ref); if (!n) return null; const l = S.stok.filter(u => refN(u.ref) === n); if (!l.length) return null;
